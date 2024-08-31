@@ -3,7 +3,7 @@
     "builds": [
         {"src": "flask_web.py", "use": "@vercel/python",
         "config": {
-        "runtime": "python3.10"
+        "runtime": "python3.8.10"
         }}
     ],
     "routes": [
