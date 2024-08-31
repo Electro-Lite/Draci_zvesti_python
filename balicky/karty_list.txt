@@ -1,0 +1,49 @@
+Modra:
+pesak    1,2 [1,1]
+panos    1,1
+Lucisnik 1,1
+paladin  2,2 [1,1]
+Strazny  1,1 [1,1]
+-----
+bard     1,1 (drak -1/-2)
+Velitel  2,2 (vyloz 2)
+-----
+Knížan   5,5
+ctiprd   3,2 (vylož mesaroš)
+gumpold  4,4 
+jadviga  2,1 (restore)
+Kovozdob 1,2 panos+Strazny
+Majda    0,1 vyloz skrytou kartu
+Mesaros  1,2 Lucisnik
+Psonek   2,2 prohodi se s kym chces
+Vikulio  2,2 neutral panos, +2/2 kdyz Modra
+
+Cervena:
+Asketa   1,1 [2,2]
+mag      1,2 [1,1]
+netreb n 1,1 vymen za kartu na stole
+novic    1,2 [1,1]
+R Fnatik 1,1 burn_all
+--
+prorok   1,2 koukni na draka
+Skritek  1,1 vrati se po smrti
+---
+Devocius 1,1 je i modrá
+Gorax    1,2 je i Cervena
+
+
+Cerna:
+D Fnatik 9,1
+Sluha    0,2 heal draka
+Kvasimir 1,1 bum 2
+skřet    1,2 [1,1]
+zabijak  2,1 2 pred sebe
+---
+Goblin   1,1 get Goblin
+Gob kral 1,2 +1/1 za goblina
+---
+brek     3,3 snipe 1dmg
+Presente 1,1 panos -1/-1 -2/-2 kdyz cerna
+Trol     2,4 eat_before
+Hospodsk 2,1 (je i cerna)
+Melisen  1,1 není mana

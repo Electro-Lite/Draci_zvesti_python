@@ -1,0 +1,39 @@
+"outlast"
+Tier 1: mizerný balíček (není tak marný když místo bardů budou Sluhové)
+
+bard
+bard
+Kvasimir
+Kvasimir
+R Fnatik
+R Fnatik
+Skritek
+Skritek
+Skritek
+Skritek
+
+Tier 2: (Vytrvalostní běh, snaží se dostat do stavu kdy soupeř nemá karty, pak hrát Skřítky + Lucisnik)
+
+-bard
+-bard
+-Lucisnik
+-Lucisnik
+
++jadviga
++Mesaros
++netreb n
++netreb n
+
+Kvasimir
+Kvasimir
+
+R Fnatik
+R Fnatik
+
+Skritek
+Skritek
+Skritek
+Skritek
+
+Tier 3: nemá. nevím jak to víc natunit :/
+

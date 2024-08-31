@@ -1,0 +1,53 @@
+Tier 1
+Strazny
+Strazny
+Netreb Novic
+Netreb Novic
+Kvasimir
+Kvasimir
+Bard
+Bard
+Zabijak
+Zabijak
+
+
+Tier 2
+-Strazny
+-Strazny
+-Kvasimir
+-Kvasimir
+
++Velitel
++Velitel
++Psonek
++Majda
++Panos
++Panos
+
+Zabijak
+Zabijak
+Nepotreb
+Nepotreb
+Kvasimir
+Kvasimir
+
+
+Tier 3
+-Panos
+-Panos;
+-Kvasimir
+-Kvasimir
+
+Velitel
+Velitel
+Psonek
+Majda
+Nepotreb
+Nepotreb
+Zabijak
+Zabijak
+
++Nepotreb
++Kovozdob
++Jadviga
++Vikulio

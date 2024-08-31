@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Draci Zvesti</title>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <script>
+        function allowDrop(ev) {
+            ev.preventDefault();
+          }
+          
+          function drag(ev) {
+            ev.dataTransfer.setData("text", ev.target.id);
+          }
+          
+          function drop(ev) {
+              if (ev.target.children.length > 0) {
+                  return;
+              }
+              if(ev.target.classList.contains('hand_card')){
+                  return
+              }
+              var data = ev.dataTransfer.getData("text");
+
+              // Data to send in the POST request
+              const postData = { 
+                    board_position: ev.target.id.slice(15),
+                    card_position:  document.getElementById(data).id.slice(10)
+                };
+        
+                // POST request using fetch
+                fetch('/place_card', {
+                    method: 'POST', // Use POST method
+                    headers: {
+                        'Content-Type': 'application/json' // Set the content type to JSON
+                    },
+                    body: JSON.stringify(postData) // Convert JavaScript object to JSON string
+                })
+                .then(x => x.text())
+                .then(y => alert(y));
+                
+              ev.preventDefault();
+              ev.target.appendChild(document.getElementById(data));
+              ev.target.children.length
+              document.getElementById(data).draggable=false
+            }
+    </script>
+    <style>   
+        body {
+            margin: 0;
+            padding: 0;
+            background-size: cover;
+            background-position: center;
+            font-family: 'Georgia', serif;
+            color: #2c95b8;
+            background-color: #306576;
+            font-size: large;
+        }
+
+        .container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 72px;
+            font-weight: bold;
+            color: #ffe16a; /* Golden touch */
+            text-shadow: 3px 3px 10px rgba(0, 0, 0, 0.8);
+            text-align: center;
+            margin: 0px 2em;
+        }
+
+        .play-button {
+            background-color: #4A7A8C;
+            color: #fff;
+            font-size: 24px;
+            font-weight: bold;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.6);
+        }
+
+        .play-button:hover {
+            background-color: #306576;
+            transform: scale(1.05);
+        }
+        .board{
+            padding-left:   1vw;
+            padding-right:  1vw;
+            padding-bottom: 3vw;
+            padding-top: 3vw;
+            display: grid;
+            grid-template-columns: repeat(6,1fr);;
+            place-items: center;
+        }
+        .board_position {
+            background-color: #19333c;
+            padding: 2em;
+            border-radius: 2px;
+            height: 7vw;
+            width: 5vw;
+        
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            text-align: center;
+        }
+        .hand{
+            padding-left:   1vw;
+            padding-right:  1vw;
+            padding-bottom: 1vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+        .hand_card{
+            height: 4.5vw;
+            width:  3.3vw;
+            background-color: #19333c;
+            border-radius: 2px;
+            cursor: move;
+        }
+        .hand_card:hover{
+            width:  10vw;
+            height: 14vw;
+            background-color: #4A90E2;
+            color: #fff;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Dračí zvěsti</h1>
+    <div style="padding: 2vw;"></div>
+    <div class="board">
+        <div id="board_position_1" ondrop="drop(event)" ondragover="allowDrop(event)" class="board_position">1</div>
+        <div id="board_position_2" ondrop="drop(event)" ondragover="allowDrop(event)" class="board_position">2</div>
+        <div id="board_position_3" ondrop="drop(event)" ondragover="allowDrop(event)" class="board_position">3</div>
+        <div id="board_position_4" ondrop="drop(event)" ondragover="allowDrop(event)" class="board_position">4</div>
+        <div id="board_position_5" ondrop="drop(event)" ondragover="allowDrop(event)" class="board_position">5</div>
+        <div id="board_position_6" ondrop="drop(event)" ondragover="allowDrop(event)" class="board_position">6</div>
+    </div>
+    <div class="hand"><!--hand-->
+        <div id="hand_card_1"  draggable="true" ondragstart="drag(event)" class="hand_card">1 </div>
+        <div id="hand_card_2"  draggable="true" ondragstart="drag(event)" class="hand_card">2 </div>
+        <div id="hand_card_3"  draggable="true" ondragstart="drag(event)" class="hand_card">3 </div>
+        <div id="hand_card_4"  draggable="true" ondragstart="drag(event)" class="hand_card">4 </div>
+        <div id="hand_card_5"  draggable="true" ondragstart="drag(event)" class="hand_card">5 </div>
+        <div id="hand_card_6"  draggable="true" ondragstart="drag(event)" class="hand_card">6 </div>
+        <div id="hand_card_7"  draggable="true" ondragstart="drag(event)" class="hand_card">7 </div>
+        <div id="hand_card_8"  draggable="true" ondragstart="drag(event)" class="hand_card">8 </div>
+        <div id="hand_card_9"  draggable="true" ondragstart="drag(event)" class="hand_card">9 </div>
+        <div id="hand_card_10" draggable="true" ondragstart="drag(event)" class="hand_card">10</div>
+        <div id="hand_card_11" draggable="true" ondragstart="drag(event)" class="hand_card">11</div>
+        <div id="hand_card_12" draggable="true" ondragstart="drag(event)" class="hand_card">12</div>
+    </div>
+</body>
+</html>
