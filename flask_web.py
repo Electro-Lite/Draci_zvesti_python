@@ -1,35 +1,29 @@
 from flask           import Flask,render_template,request,url_for,redirect,session
-from flask_session   import Session
-from cachelib.file import FileSystemCache
+# from flask_session   import Session
 from multiprocessing import Process, Pipe
 import game
 
 app = Flask(__name__)
-app.config['SESSION_TYPE'] = 'filesystem'  # Store session data on the server-side (file system)
-app.config['SESSION_PERMANENT'] = False     # The session is not permanent and will expire when the browser closes
-app.config['SESSION_USE_SIGNER'] = True     # Sign the cookie to prevent tampering
-app.secret_key = 'exceptionnaly_sekret_kee'
-# Use /tmp for caching in case of read-only restrictions elsewhere
-cache = FileSystemCache("./tmp/flask_cache", default_timeout=300)
+# app.config['SESSION_TYPE'] = 'filesystem'  # Store session data on the server-side (file system)
+# app.config['SESSION_PERMANENT'] = False     # The session is not permanent and will expire when the browser closes
+# app.config['SESSION_USE_SIGNER'] = True     # Sign the cookie to prevent tampering
+# app.secret_key = 'exceptionnaly_sekret_kee'
 
-app.config['SESSION_TYPE'] = 'filesystem'
-app.config['SESSION_FILE_DIR'] = '/tmp/flask_session'
+# Session(app)
 
-Session(app)
-
-def checkSession():
-    print (session)
-    if 'username' in session:
-        username = session['username']
-        return username
-    else:
-        return ""
+# def checkSession():
+#     print (session)
+#     if 'username' in session:
+#         username = session['username']
+#         return username
+#     else:
+#         return ""
 
 @app.route("/", methods=['POST','GET'])
 def index():
-    print("user: "+checkSession())
-    if(checkSession()==""):
-        return login()
+    # print("user: "+checkSession())
+    # if(checkSession()==""):
+    #     return login()
     return render_template("index.html",txt="sup bro")
 
 @app.route("/place_card", methods=['POST'])
@@ -50,16 +44,16 @@ def submit():
     game_run.close()
     return render_template("game.html")
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        session['username'] = request.form['username']
-        return redirect(url_for('index'))
-    return '''
-        <form method="post">
-            <p><input type=text name=username>
-            <p><input type=submit value=Login>
-        </form>
-    '''
+# @app.route('/login', methods=['GET', 'POST'])
+# def login():
+#     if request.method == 'POST':
+#         session['username'] = request.form['username']
+#         return redirect(url_for('index'))
+#     return '''
+#         <form method="post">
+#             <p><input type=text name=username>
+#             <p><input type=submit value=Login>
+#         </form>
+#     '''
     
 app.run(host="0.0.0.0",port = 80,debug=True, use_debugger=False, use_reloader=False)
