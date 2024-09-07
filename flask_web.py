@@ -7,7 +7,10 @@ app = Flask(__name__)
 app.config['SESSION_TYPE'] = 'filesystem'  # Store session data on the server-side (file system)
 app.config['SESSION_PERMANENT'] = False     # The session is not permanent and will expire when the browser closes
 app.config['SESSION_USE_SIGNER'] = True     # Sign the cookie to prevent tampering
-app.secret_key = 'your_secret_key'
+app.secret_key = 'exceptionnaly_sekret_kee'
+app.config['SESSION_TYPE'] = 'redis'  # Use Redis instead of filesystem
+app.config['SESSION_PERMANENT'] = False  # Optional: Set this to False to make sessions non-permanent
+
 Session(app)
 
 def checkSession():
