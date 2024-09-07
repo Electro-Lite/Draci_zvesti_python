@@ -1,5 +1,6 @@
 from flask           import Flask,render_template,request,url_for,redirect,session
 from flask_session   import Session
+from cachelib.file import FileSystemCache
 from multiprocessing import Process, Pipe
 import game
 
@@ -8,8 +9,11 @@ app.config['SESSION_TYPE'] = 'filesystem'  # Store session data on the server-si
 app.config['SESSION_PERMANENT'] = False     # The session is not permanent and will expire when the browser closes
 app.config['SESSION_USE_SIGNER'] = True     # Sign the cookie to prevent tampering
 app.secret_key = 'exceptionnaly_sekret_kee'
-app.config['SESSION_TYPE'] = 'redis'  # Use Redis instead of filesystem
-app.config['SESSION_PERMANENT'] = False  # Optional: Set this to False to make sessions non-permanent
+# Use /tmp for caching in case of read-only restrictions elsewhere
+cache = FileSystemCache("./tmp/flask_cache", default_timeout=300)
+
+app.config['SESSION_TYPE'] = 'filesystem'
+app.config['SESSION_FILE_DIR'] = '/tmp/flask_session'
 
 Session(app)
 
