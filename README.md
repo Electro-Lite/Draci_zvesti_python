@@ -1,4 +1,4 @@
-# NEAT Card Game (Working Title)
+# NEAT Card Game (Dračí Zvěsti)
 
 This is a card game experiment built in Python, where AI agents learn to play using NEAT (NeuroEvolution of Augmenting Topologies). The long-term goal is to develop a **neuroevolution-based tool for optimizing card decks in collectible card games (CCGs).**
 
