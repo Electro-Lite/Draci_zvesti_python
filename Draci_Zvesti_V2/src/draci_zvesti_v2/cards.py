@@ -1,4 +1,5 @@
 from copy import deepcopy
+from mana import ManaColor
 import abilities
 
 class card:
@@ -26,7 +27,7 @@ def get_base_blue_cards():
     card_new = card()
     card_new.id        = 1
     card_new.name      = "pesak"
-    card_new.color     = "blue"
+    card_new.color     = ManaColor.BLUE
     card_new.color_buf = [1,1]
     card_new.hp        = 2
     card_new.dmg       = 1
@@ -36,7 +37,7 @@ def get_base_blue_cards():
     card_new = card()
     card_new.id        = 2
     card_new.name      = "panos"
-    card_new.color     = "blue"
+    card_new.color     = ManaColor.BLUE
     card_new.color_buf = [0, 0]
     card_new.hp        = 1
     card_new.dmg       = 1
@@ -48,7 +49,7 @@ def get_base_blue_cards():
     card_new = card()
     card_new.id         = 3
     card_new.name       = "lucisnik"
-    card_new.color      = "blue"
+    card_new.color      = ManaColor.BLUE
     card_new.color_buf  = [0, 0]
     card_new.hp         = 1
     card_new.dmg        = 1
@@ -60,7 +61,7 @@ def get_base_blue_cards():
     card_new = card()
     card_new.id         = 4
     card_new.name       = "paladin"
-    card_new.color      = "blue"
+    card_new.color      = ManaColor.BLUE
     card_new.color_buf  = [1, 1]
     card_new.hp         = 2
     card_new.dmg        = 2
@@ -71,7 +72,7 @@ def get_base_blue_cards():
     card_new = card()
     card_new.id         = 5
     card_new.name       = "strazny"
-    card_new.color      = "blue"
+    card_new.color      = ManaColor.BLUE
     card_new.color_buf  = [1, 1]
     card_new.hp         = 1
     card_new.dmg        = 1

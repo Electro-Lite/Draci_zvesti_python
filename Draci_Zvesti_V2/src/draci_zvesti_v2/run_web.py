@@ -7,7 +7,7 @@ def run_web(player_1 = player(1) ,player_2 = player(2)):
     run=True
     game_board = board()
     game_board.print_all = print_all
-    info = game_info()
+    info = GameInfo()
     info.game_board = game_board
     
     player_1.choice.info = info

@@ -36,7 +36,7 @@ def place_card():
 @app.route('/runGame', methods=['POST'])
 def submit():
     p_conn,ch_conn = Pipe()
-    game_run = Process(target=game.run, args=(game.player(1,"pl"),game.player(2,"rnd"),ch_conn,))
+    game_run = Process(target=game.run, args=(game.player(1,game.PlayerType.PL),game.player(2,game.PlayerType.RND),ch_conn,))
     game_run.start()
     print("recieved: ",end="")
     print(p_conn.recv())

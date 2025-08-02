@@ -82,6 +82,7 @@ class board:
                 card.ability(card,self,card.owner)
         #update
         self.recalculate()
+        
     def fight_dragon(self):
         if (self.print_all):
             print("fight dragon!")
@@ -121,17 +122,19 @@ class board:
                 self.display_card(card)
                 dragon.slain_by = card.owner
                 card.owner.score+=1
-                return
+                break
             
             self.remove_card(card)
             self.recalculate(False)
             
         removed_mana=self.mana_pool.pop(0)
+        
         if(dragon.slain_by==None):
             #return dragon to 
             dragon.hp = 6 if dragon.color=="green" else 5
             self.dragons  .append(dragon)
             self.mana_pool.append(removed_mana)
+            
     def remove_card(self,card):
         card_pos = self.positions.index(card)
         card.owner.graveyard.append(card)

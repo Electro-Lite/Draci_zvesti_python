@@ -1,9 +1,10 @@
 from random import randint,shuffle
 from multiprocessing import Process, Queue
+from Player import player
 class player_choice:
     info   = None
     this_player = None
-    def __init__(self,_player):
+    def __init__(self,_player:player):
         self.this_player = _player
     def display_card(self,card):
         print_str  = ""   
