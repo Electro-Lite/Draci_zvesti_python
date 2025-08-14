@@ -1,20 +1,20 @@
 from config import Config
-from core.player_type import PlayerType
+
 # import decks  as     decks_lib
-# from player_choice import player_choice
+from choice_strategies.choice_strategy import PlayerChoiceStrategy
 from core.hand import Hand
+from cards.deck import Deck
 
 class Player:
     
-    def __init__(self, _id, _type:PlayerType = Config.default_player_type):
-        if not isinstance(_type, PlayerType):
-            raise ValueError(f"Invalid player type: {_type}")
+    def __init__(self, _id, _choice_strategy:PlayerChoiceStrategy):
+        if not issubclass(_choice_strategy, PlayerChoiceStrategy):
+            raise ValueError(f"Invalid Choice Strategy: {_choice_strategy}")
         
         self.id         = _id
-        self.type       = _type
-        # self.choice     = player_choice(self)
+        self.choice_strategy     = _choice_strategy(self)
         
-        # self.deck       = decks_lib.deck()
+        self.deck       = Deck
         self.hand       = Hand()
         self.graveyard  = []
         

@@ -4,7 +4,7 @@ from . import game_info as gi
 from . import player as p
 from config import Config
 from core.board import board
-from Draci_Zvesti_V3.utils.print_tool import *
+from utils.print_tool import *
 from display_strategies import display_strategy
 Player      = p.Player
 GameInfo    = gi.GameInfo
@@ -21,8 +21,8 @@ def run(player_1:Player, player_2:Player, display_strategy:display_strategy = No
     info            = GameInfo()
     info.game_board = game_board
     
-    player_1.choice.info = info
-    player_2.choice.info = info
+    player_1.choice_strategy.info = info # Info is only needed by neat. 
+    player_2.choice_strategy.info = info
     
     # player_1.deck=decks_lib.get_base_blue_deck()    # Will be handled by db later
     # player_2.deck=decks_lib.get_base_blue_deck()
@@ -66,9 +66,3 @@ def battle_dragon(board): # returns if of winner or -1 if dragon survived
         # if slain, return player id of card owner #
         # else put dragon and manna to bottom and return -1 #
     pass
-
-
-### test run block ###
-player_1 = Player(1)
-player_2 = Player(2)
-run(player_1, player_2)

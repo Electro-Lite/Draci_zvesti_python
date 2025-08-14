@@ -1,10 +1,10 @@
 import sqlite3
 from cards.database_utils import DBUtil
-class card:
+class Card:
     owner     = None
     id        = 0
     name      = ""
-    power     = "" #declare enum for this
+    power     = None
     color     = ""
     color_buf = []
     hp        = 0
@@ -14,14 +14,43 @@ class card:
     def __init__(self) -> None:
         self.color_buf = [0,0]
 
-
-def load_card():
+@staticmethod
+def load_card(card_id):
     cursor = DBUtil().conn_cards
-    raise NotImplementedError("")
-    cursor.execute("INSERT INTO users (name, age) VALUES (?, ?)", ("Alice", 30))
+    cursor.execute("SELECT * FROM cards WHERE cards.id = ?", (card_id,))
+    row = cursor.fetchone()
+    if row:
+        card = Card()
+        card.owner = row['owner']
+        card.id = row['id']
+        card.name = row['name']
+        card.power = row['power']
+        card.color = row['color']
+        card.hp = row['hp']
+        card.dmg = row['dmg']
+        card.ability = row['ability']
+        card.ability_type = row['ability_type']
+        return card
+    return None
 
-def store_card():
+@staticmethod
+def store_card(card):
+    # Simple validation: check required fields
+    if not card.id:
+        raise ValueError("Card must have a name and id.")
     cursor = DBUtil().conn_cards
-    raise NotImplementedError("")
-    cursor.execute("SELECT * FROM users")
-    rows = cursor.fetchall()
+    cursor.execute("""
+        INSERT INTO cards (owner, id, name, power, color, hp, dmg, ability, ability_type)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        card.owner,
+        card.id,
+        card.name,
+        card.power,
+        card.color,
+        card.hp,
+        card.dmg,
+        card.ability,
+        card.ability_type
+    ))
+    DBUtil().conn_cards.connection.commit()
