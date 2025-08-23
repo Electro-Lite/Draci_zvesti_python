@@ -1,0 +1,16 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug cards.card_builder",
+            "type": "python",
+            "request": "launch",
+            "module": "cards.card_builder",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}\\Draci_Zvesti_V3"
+            }
+        }
+    ]
+}

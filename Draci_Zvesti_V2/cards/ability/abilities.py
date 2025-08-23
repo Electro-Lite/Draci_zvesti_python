@@ -7,7 +7,7 @@ class Ability():
         self.target_owner = target_owner # must be of type AbilityTarget
         self.is_active = is_active
         self.is_passive = is_passive
-
+        # ability type # vstup,smrt,passive
     def activate(self, card, board, player_on_turn, args=None):
         raise NotImplementedError()
 

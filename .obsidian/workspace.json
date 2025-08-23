@@ -1,37 +1,56 @@
 {
   "main": {
-    "id": "15d44139e29c645f",
+    "id": "96043bc1d315a766",
     "type": "split",
     "children": [
       {
-        "id": "a2c3bdcb77007126",
+        "id": "8dcc19366b1d961a",
         "type": "tabs",
         "children": [
           {
-            "id": "616de4a791921366",
+            "id": "8600feb08911ada7",
             "type": "leaf",
             "state": {
-              "type": "empty",
-              "state": {},
+              "type": "markdown",
+              "state": {
+                "file": "Software Design.md",
+                "mode": "source",
+                "source": false
+              },
               "icon": "lucide-file",
-              "title": "New tab"
+              "title": "Software Design"
+            }
+          },
+          {
+            "id": "062ea2b6a423f67c",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "notes.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "notes"
             }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
   },
   "left": {
-    "id": "f2466a0b78bc7093",
+    "id": "1c3e59af5d3e5e36",
     "type": "split",
     "children": [
       {
-        "id": "73db2a20b3d4a263",
+        "id": "2879d5db5af544dc",
         "type": "tabs",
         "children": [
           {
-            "id": "dc3c1488650b0c8f",
+            "id": "0b086bc65da554c4",
             "type": "leaf",
             "state": {
               "type": "file-explorer",
@@ -44,7 +63,7 @@
             }
           },
           {
-            "id": "02195ac3236f1464",
+            "id": "cda2aacaa5f96551",
             "type": "leaf",
             "state": {
               "type": "search",
@@ -61,7 +80,7 @@
             }
           },
           {
-            "id": "a92755ce5517b637",
+            "id": "ec3e9c805f8399a4",
             "type": "leaf",
             "state": {
               "type": "bookmarks",
@@ -77,19 +96,20 @@
     "width": 300
   },
   "right": {
-    "id": "106d5ad7c8af7dff",
+    "id": "493ddbfd6c25403c",
     "type": "split",
     "children": [
       {
-        "id": "59ebbbdab5cdc5fc",
+        "id": "e58871ff286575e4",
         "type": "tabs",
         "children": [
           {
-            "id": "ff4039163b03c3f8",
+            "id": "839b4983760f1cf3",
             "type": "leaf",
             "state": {
               "type": "backlink",
               "state": {
+                "file": "Software Design.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -99,24 +119,25 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "Backlinks"
+              "title": "Backlinks for Software Design"
             }
           },
           {
-            "id": "a045de4e04dee299",
+            "id": "de418976afa84adc",
             "type": "leaf",
             "state": {
               "type": "outgoing-link",
               "state": {
+                "file": "Software Design.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
               "icon": "links-going-out",
-              "title": "Outgoing links"
+              "title": "Outgoing links from Software Design"
             }
           },
           {
-            "id": "7c9ef950e4da9452",
+            "id": "30fe693aa719351d",
             "type": "leaf",
             "state": {
               "type": "tag",
@@ -131,17 +152,18 @@
             }
           },
           {
-            "id": "f52b24d041a9e6ef",
+            "id": "1383ff2a15e0580f",
             "type": "leaf",
             "state": {
               "type": "outline",
               "state": {
+                "file": "Software Design.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Outline"
+              "title": "Outline of Software Design"
             }
           }
         ]
@@ -161,6 +183,11 @@
       "command-palette:Open command palette": false
     }
   },
-  "active": "616de4a791921366",
-  "lastOpenFiles": []
+  "active": "062ea2b6a423f67c",
+  "lastOpenFiles": [
+    "Software Design.md",
+    "notes.md",
+    "Untitled",
+    "Welcome.md"
+  ]
 }
