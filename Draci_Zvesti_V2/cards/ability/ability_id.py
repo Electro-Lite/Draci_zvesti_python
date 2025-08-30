@@ -2,10 +2,9 @@ from enum import Enum
 
 class AbilityId(Enum):
     # 11 = 1/1
-
-    PLUS_1_1_SIDEWAYS                   = 0
+    NOTHING                             = 0
     PLUS_1_DMG_FRONT                    = 1
-    NERF_DRAK_DMG                       = 2
+    NERF_DRAGON_DMG                     = 2
     SWAP_BEFORE                         = 3
     PLACE_SECOND_BESIDE                 = 4
     RETURN_BY_DEATH                     = 5
@@ -33,3 +32,8 @@ class AbilityId(Enum):
     DESTROY_BEFORE                      = 27
     PLUS_1_1_SIDEWAYS_ANY_2_2_ON_BLACK  = 28
     GO_FIRST                            = 29
+    PLUS_1_1_SIDEWAYS                   = 30
+
+#   Dragons
+    EAT_FIRST                           = 31
+    INVERT_BOARD                        = 32

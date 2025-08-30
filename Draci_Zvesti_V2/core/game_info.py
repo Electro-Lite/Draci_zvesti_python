@@ -1,8 +1,8 @@
-from core.board import board
+from core.board import Board
 from core.player import Player
 from cards.mana import ManaColor
 class GameInfo:
-    def __init__(self, _game_board:board = None, _player_on_turn:Player = None):
+    def __init__(self, _game_board:Board = None, _player_on_turn:Player = None):
         self.game_board = _game_board
         self.player_on_turn = _player_on_turn
         

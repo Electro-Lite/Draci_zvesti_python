@@ -13,6 +13,8 @@ from cards.card import Card
 from utils.database_utils import DBUtil
 from cards.power import Power
 from cards.ability.abilities import Ability
+#TODO image path is stored absolute -> If folder placement changes (someone download the git repo and runs), The images will fail to load.
+
 
 # Optional Pillow import for better image preview; fall back gracefully if not available
 try:
@@ -438,12 +440,7 @@ class CardBuilderApp(ttk.Frame):
             # populate UI fields
             self.loaded_card_id = c.id
             self.name_var.set(c.name or '')
-            # power: c.power might be int, map back to enum name
-            try:
-                self.power_var.set(power_name_from_value(int(c.power)))
-            except Exception:
-                self.power_var.set(Power.STARTER.name)
-
+            self.power_var.set(c.power.name or Power.STARTER.name)
             self.color_var.set(c.color or ManaColor.BLUE.name)
 
             # ability: DB stores string; try to make instance and set name

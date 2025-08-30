@@ -2,14 +2,15 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug cards.card_builder",
+            "name": "Debug core.test_run",
             "type": "python",
             "request": "launch",
-            "module": "cards.card_builder",
+            "module": "core.test_run",
             "console": "integratedTerminal",
             "justMyCode": true,
+            "cwd": "${workspaceFolder}/Draci_Zvesti_V2",
             "env": {
-                "PYTHONPATH": "${workspaceFolder}\\Draci_Zvesti_V3"
+                "PYTHONPATH": "${workspaceFolder}/Draci_Zvesti_V2"
             }
         }
     ]

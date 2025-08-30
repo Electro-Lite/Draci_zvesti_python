@@ -1,7 +1,7 @@
 from collections import Counter
 import sqlite3
 from utils.database_utils import DBUtil
-from card import Card
+from cards.card import Card
 class Deck():
     
     def __init__(self):
@@ -11,6 +11,8 @@ class Deck():
         self.cards           = []
         self.power           = 0 # cards are in three levels -> starter, normal, legendary
         self.neat_fitness    = 0
+    def __str__(self):
+        return self.name
     def add_card(self, card: Card):
         """
         Adds a card to the deck.
@@ -48,40 +50,7 @@ class Deck():
             else:
                 if count > 4:
                     raise ValueError(f"Card '{card}' appears more than 4 times.")
-        return True, "Deck is valid."
+        return True
     def evaluate_power(self):
         raise NotImplementedError("")
         # based on cards in deck, determine and assign power.
-@staticmethod
-def load_deck(deck_id) -> Deck:
-    """
-    Loads deck data from the database using the given deck_id.
-    """
-    with sqlite3.connect(DBUtil.DB_PATH) as conn:
-        cursor = conn.cursor()
-        cursor.execute( "SELECT id, name, description, power, neat_fitness FROM decks WHERE id = ?", (deck_id,))
-        row = cursor.fetchone()
-    if not row:
-        raise ValueError(f"Deck with id {deck_id} not found.")
-    return row  # or map to a Deck object if you have one
-
-
-@staticmethod
-def store_deck(deck):
-    """
-    Stores deck data into the database.
-    """
-    with sqlite3.connect(DBUtil.DB_PATH) as conn:
-        cursor = conn.cursor()
-        if deck.id == 0:
-            cursor.execute(
-                "INSERT INTO decks (name, description, power, neat_fitness) VALUES (?, ?, ?, ?)",
-                (deck.name, deck.description, deck.power, deck.neat_fitness)
-            )
-            deck.id = cursor.lastrowid
-        else:
-            cursor.execute(
-                "UPDATE decks SET name = ?, description = ?, power = ?, neat_fitness = ? WHERE id = ?",
-                (deck.name, deck.description, deck.power, deck.neat_fitness, deck.id)
-            )
-        conn.commit()
