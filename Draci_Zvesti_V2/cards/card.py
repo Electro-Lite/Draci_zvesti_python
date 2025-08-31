@@ -20,10 +20,11 @@ class Card:
         color_buf           = [0, 0], #[dmg, hp]
         hp:int              = 0,
         dmg:int             = 0,
-        ability:"Ability" = None,
-        image:str           = None, #path to image
+        ability:"Ability"   = None,
+        image:str           = None, # path to image
         type:CardType       = CardType.PLAYER
     ) -> None:
+        print(type)
         self.init_args = [id, name, power, color,
                           color_buf if color_buf is not None else [0, 0],
                           hp, dmg, ability, image, type]
@@ -39,8 +40,11 @@ class Card:
         self.ability    = ability
         self.image      = image
         self.type       = type #dragon/player
+        self.slain_by   = None # for card type dragon
+
     def __str__(self):
         return self.name
+    
     def restore(self):
         """Restore the object to its initial state from init_args."""
         (self.id,

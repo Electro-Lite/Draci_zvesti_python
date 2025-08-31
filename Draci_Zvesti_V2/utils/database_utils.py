@@ -1,7 +1,8 @@
 import sqlite3
-from typing         import TYPE_CHECKING, Iterable
-from cards.mana     import ManaColor
-from cards.power    import Power
+from typing             import TYPE_CHECKING, Iterable
+from cards.mana         import ManaColor
+from cards.power        import Power
+from cards.card_type    import CardType
 import cards.ability.abilities as abilities_module
 
 if TYPE_CHECKING:  # Only used for type hints, not runtime
@@ -85,6 +86,7 @@ class DBUtil():
         hp_buff    = int(row[8]) if row[8] is not None else 0
         color_buf  = (dmg_buff, hp_buff)
         ability    = getattr(abilities_module,  row[9])()
+        type       = CardType[row[11]] if len(row) > 11 else CardType.PLAYER
 
         return Card(
             owner       = row[0],
@@ -97,7 +99,7 @@ class DBUtil():
             color_buf   = color_buf,
             ability     = ability,
             image       = row[10] if len(row) > 10 else None,
-            type        = row[11] if len(row) > 11 else None
+            type        = type
         )
 
     # ----------------------
@@ -190,7 +192,7 @@ class DBUtil():
             ))
         self.conn_cards.commit()
 
-    def load_card(self, card_id):
+    def load_card(self, card_id:str):
         """Load a card by ID."""
         cursor = self.conn_cards.cursor()
         cursor.execute('''

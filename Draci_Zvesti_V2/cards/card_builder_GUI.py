@@ -7,12 +7,12 @@ import traceback
 import sys
 import logging
 
-from cards.card_type import CardType
-from cards.mana import ManaColor
-from cards.card import Card
-from utils.database_utils import DBUtil
-from cards.power import Power
-from cards.ability.abilities import Ability
+from cards.card_type            import CardType
+from cards.mana                 import ManaColor
+from cards.card                 import Card
+from utils.database_utils       import DBUtil
+from cards.power                import Power
+from cards.ability.abilities    import Ability
 #TODO image path is stored absolute -> If folder placement changes (someone download the git repo and runs), The images will fail to load.
 
 
@@ -439,9 +439,10 @@ class CardBuilderApp(ttk.Frame):
                 return
             # populate UI fields
             self.loaded_card_id = c.id
-            self.name_var.set(c.name or '')
+            self.name_var.set(c.name        or '')
             self.power_var.set(c.power.name or Power.STARTER.name)
-            self.color_var.set(c.color or ManaColor.BLUE.name)
+            self.type_var.set(c.type.name   or CardType.PLAYER.name)
+            self.color_var.set(c.color      or ManaColor.BLUE.name)
 
             # ability: DB stores string; try to make instance and set name
             ability_val = getattr(c, 'ability', None)
@@ -462,10 +463,10 @@ class CardBuilderApp(ttk.Frame):
             else:
                 self.ability_var.set(self.ability_names[0])
 
-            self.hp_var.set(        str(getattr(c, 'hp', '') or ''))
-            self.dmg_var.set(       str(getattr(c, 'dmg', '') or ''))
-            self.buff_dmg_var.set(  str(getattr(c, 'color_buf', '')[0] or ''))
-            self.buff_hp_var.set(   str(getattr(c, 'color_buf', '')[1] or ''))
+            self.hp_var.set(        str(getattr(c, 'hp', '')            or ''))
+            self.dmg_var.set(       str(getattr(c, 'dmg', '')           or ''))
+            self.buff_dmg_var.set(  str(getattr(c, 'color_buf', '')[0]  or ''))
+            self.buff_hp_var.set(   str(getattr(c, 'color_buf', '')[1]  or ''))
 
             # image
             img = getattr(c, 'image', None)
@@ -503,15 +504,15 @@ class CardBuilderApp(ttk.Frame):
                 raise ValueError('Could not instantiate ability')
 
             card = Card(
-                name=self.name_var.get().strip(),
-                power=Power[self.power_var.get()].value,
-                color=self.color_var.get(),
-                type=self.type_var.get(),
-                ability=ability_inst,
-                hp=int(self.hp_var.get()) if self.hp_var.get() else 0,
-                dmg=int(self.dmg_var.get()) if self.dmg_var.get() else 0,
-                color_buf=[int(self.buff_hp_var.get()) if self.buff_hp_var.get() else 0, int(self.buff_dmg_var.get()) if self.buff_dmg_var.get() else 0],
-                image=self.image_var.get() if self.image_var.get() else None,
+                name        = self.name_var.get().strip(),
+                power       = Power[self.power_var.get()].value,
+                color       = self.color_var.get(),
+                type        = self.type_var.get(),
+                ability     = ability_inst,
+                hp          = int(self.hp_var.get()) if self.hp_var.get() else 0,
+                dmg         = int(self.dmg_var.get()) if self.dmg_var.get() else 0,
+                color_buf   = [int(self.buff_hp_var.get()) if self.buff_hp_var.get() else 0, int(self.buff_dmg_var.get()) if self.buff_dmg_var.get() else 0],
+                image       = self.image_var.get() if self.image_var.get() else None,
             )
 
             # preserve loaded id/owner if editing

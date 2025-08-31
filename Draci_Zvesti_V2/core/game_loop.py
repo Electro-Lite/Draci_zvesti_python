@@ -18,11 +18,11 @@ def run(player_1: Player, player_2: Player, display_strategy_class: DisplayStrat
     tprint("initializing game loop", type=InfoType.INFO)
 
     current_round = 0
-    run = True
+    run           = True
 
-    board = Board()
-    info = GameInfo()
-    info.board = board
+    board         = Board()
+    info          = GameInfo()
+    info.board    = board
 
     display_strategy = display_strategy_class(player_1, player_2, board)
 
@@ -92,9 +92,9 @@ def run(player_1: Player, player_2: Player, display_strategy_class: DisplayStrat
                 Player_choice_card.owner = player_on_turn
 
                 display_strategy.display_choice(
-                    Player_choice_card, 
-                    Player_choice_position, 
-                    Player_choice_use_ability, 
+                    Player_choice_card,
+                    Player_choice_position,
+                    Player_choice_use_ability,
                     Player_choice_target
                 )
                 board.place_card(
@@ -174,12 +174,7 @@ def battle_dragon(board: Board, display_strategy: DisplayStrategy) -> Player:  #
     # else put dragon to bottom#
     # TODO restore dragon is tmp solution, convert dragon to card of type Dragon !!!
     if dragon.slain_by == None:
-      if dragon.color == ManaColor.GREEN:
-          dragon.hp = 6
-          dragon.dmg = 6
-      else:
-          dragon.hp = 5
-          dragon.dmg = 5
+      dragon.restore()
       board.dragons.append(dragon)  # TODO dragon must be reinstantiated because hp
 
 

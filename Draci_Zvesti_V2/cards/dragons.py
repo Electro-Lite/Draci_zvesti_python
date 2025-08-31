@@ -1,10 +1,13 @@
-from random import shuffle
-from cards.ability.abilities import HitAll1Dmg, EatFirst, NoAbility, InvertBoard
-from cards.mana import ManaColor
+from random                     import shuffle
+from cards.ability.abilities    import HitAll1Dmg, EatFirst, NoAbility, InvertBoard
+from cards.mana                 import ManaColor
+from utils.database_utils       import DBUtil
+from cards.card_type            import CardType
 
 class Dragon:
     #TODO this is temporary, the goal is to use dragon of instance Card later on.
     def __init__(self):
+        raise DeprecationWarning()
         self.color       = ""
         self.hp          = 0
         self.dmg         = 0
@@ -12,7 +15,7 @@ class Dragon:
         self.slain_by    = None
         self.name        = ""
 
-def _init_dragons():
+def _init_dragons_old():
     dragon_red              = Dragon()
     dragon_red.name         = "Red dragon"
     dragon_red.color        = ManaColor.RED
@@ -48,6 +51,16 @@ def _init_dragons():
     dragons.append(dragon_black)
     return dragons
 
+def _init_dragons():
+    dragons=[]
+    dragons.append(DBUtil().load_card("dragon_blue_1" )) # Blue
+    dragons.append(DBUtil().load_card("dragon_red_1"  )) # Red
+    dragons.append(DBUtil().load_card("dragon_green_1")) # Green
+    dragons.append(DBUtil().load_card("dragon_black_1")) # Black
+    for dragon in dragons:
+        if dragon.type != CardType.DRAGON:
+            raise TypeError()
+    return dragons
 
 
 def get_dragons():
