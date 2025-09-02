@@ -25,7 +25,6 @@ class Player:
         self.hand       = Hand()
         self.graveyard  = []
         
-        
         self.net        = None #nn.FeedForwardNetwork
         self.fitness    = 10
         

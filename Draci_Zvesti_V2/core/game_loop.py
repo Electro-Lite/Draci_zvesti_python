@@ -1,28 +1,26 @@
-from random import shuffle, randint
+from random                                 import shuffle, randint
+from .                                      import game_info as gi
+from .                                      import player as p
+from config                                 import Config
+from core.board                             import Board
+# from utils.print_tool                       import *
+from display_strategies.display_strategy    import DisplayStrategy
+from cards.mana                             import ManaColor
 
-from . import game_info as gi
-from . import player as p
-from config import Config
-from core.board import Board
-from utils.print_tool import *
-from display_strategies.display_strategy import DisplayStrategy
-from cards.mana import ManaColor
-
-Player = p.Player
-GameInfo = gi.GameInfo
+Player      = p.Player
+GameInfo    = gi.GameInfo
 
 
 def run(player_1: Player, player_2: Player, display_strategy_class: DisplayStrategy = DisplayStrategy):
     """run game for players of given type, random if not set"""
     ### Init Game ###
-    tprint("initializing game loop", type=InfoType.INFO)
+    # tprint("initializing game loop", type=InfoType.INFO)
 
     current_round = 0
     run           = True
 
     board         = Board()
-    info          = GameInfo()
-    info.board    = board
+    info          = GameInfo(board, _player_on_turn = player_1, _opposing_player = player_2)
 
     display_strategy = display_strategy_class(player_1, player_2, board)
 
@@ -67,10 +65,11 @@ def run(player_1: Player, player_2: Player, display_strategy_class: DisplayStrat
         while run_turns:  ### TURNS
             # change player on turn
             if player_on_turn == player_1:
-                player_on_turn = player_2
+                player_on_turn      = player_2
+                info.player_on_turn = player_2
             else:
-                player_on_turn = player_1
-            info.player_on_turn = player_on_turn
+                player_on_turn  = player_1
+                info.opponent   = player_1
 
             display_strategy.display_player_on_turn(player_on_turn)
             display_strategy.display_board()
@@ -86,9 +85,9 @@ def run(player_1: Player, player_2: Player, display_strategy_class: DisplayStrat
 
                 # select card
                 Player_choice_card = player_on_turn.choice_strategy.get_choice_card()
-                Player_choice_position = player_on_turn.choice_strategy.get_choice_pos(board)
+                Player_choice_position = player_on_turn.choice_strategy.get_choice_pos()
                 Player_choice_use_ability = player_on_turn.choice_strategy.get_choice_use_ability()
-                Player_choice_target = player_on_turn.choice_strategy.get_choice_ability_target(board)
+                Player_choice_target = player_on_turn.choice_strategy.get_choice_ability_target()
                 Player_choice_card.owner = player_on_turn
 
                 display_strategy.display_choice(
@@ -136,7 +135,7 @@ def run(player_1: Player, player_2: Player, display_strategy_class: DisplayStrat
         ### clean-up board ###
         board.clear_round(player_1=player_1, player_2=player_2)
         if current_round > Config.max_rounds:
-            raise MaxRoundsExceededError(f"Exceeded max number of game rounds: {current_round}")
+            raise IndexError(f"Exceeded max number of game rounds: {current_round}")
     return
 
 
@@ -194,3 +193,5 @@ def random_player(player_1, player_2):
     else:
         player_on_turn = player_2
     return player_on_turn
+
+

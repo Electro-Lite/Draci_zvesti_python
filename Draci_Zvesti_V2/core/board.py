@@ -9,7 +9,7 @@ class Board:
     dragons   = []
     mana_pool = []
     def __init__(self):
-        self.positions = [None,None,None ,None,None,None,] # 6 mist na stole
+        self.positions = [None,None,None,None,None,None,] # 6 mist na stole
         self.dragons   = get_dragons() # [] with dragon instances
         self.mana_pool = get_mana_pool_shuffled()
 

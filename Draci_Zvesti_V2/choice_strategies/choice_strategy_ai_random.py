@@ -2,7 +2,8 @@ from choice_strategies.choice_strategy import PlayerChoiceStrategy
 from random import randint
 class ChoiceStrategyAIRandom(PlayerChoiceStrategy):
 
-    def get_choice_pos(self, game_board):
+    def get_choice_pos(self):
+        game_board  = self.info.game_board
         start_pos = randint(0, 6) # 6 positions
         for i in range(0, 6):
             pos = ( start_pos + i ) % 6 
@@ -20,7 +21,8 @@ class ChoiceStrategyAIRandom(PlayerChoiceStrategy):
     def get_choice_pass(self):
         return False
     
-    def get_choice_ability_target(self, game_board): #TODO should not select self (Nepotrebny_novic)
+    def get_choice_ability_target(self): #TODO should not select self (Nepotrebny_novic)
+        game_board  = self.info.game_board
         start_pos = randint(0, 6) # 6 positions
         for i in range(0, 6):
             pos = ( start_pos + i ) % 6 

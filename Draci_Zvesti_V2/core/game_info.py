@@ -2,69 +2,69 @@ from core.board import Board
 from core.player import Player
 from cards.mana import ManaColor
 class GameInfo:
-    def __init__(self, _game_board:Board = None, _player_on_turn:Player = None):
-        self.game_board = _game_board
-        self.player_on_turn = _player_on_turn
+    def __init__(self, _game_board:Board = None, _player_on_turn:Player = None, _opposing_player:Player = None):
+        self.game_board     = _game_board
+        self.player_on_turn    = _player_on_turn
+        self.opponent       = _opposing_player
+
+    def _get_card_neat_ids(self, card): pass
         
     def get_game_info(self):
-        info=[]
-        
-        info.append(len( self.player_on_turn.deck.cards)) #0
-        
-        player_hand = self.player_on_turn.hand.cards
-        for card in  player_hand:
-            info.append(card.id)       #1 12 hand card position
-        i = len(player_hand) 
-        while i<12:
-            i+=1
-            info.append(0)
-            
-        # num of cards in deck !
-        if (self.game_board.positions[0] != None):
-            info.append( self.game_board.positions[0].id)       #2.1.1
-            info.append( self.game_board.positions[0].owner.id) #2.1.2
-        else:
-            info.append(0)
-            info.append(0)
-        if (self.game_board.positions[1] != None):
-            info.append( self.game_board.positions[1].id)     #2.2.1
-            info.append( self.game_board.positions[1].owner.id) #2.2.2
-        else:
-            info.append(0)
-            info.append(0)
-        if (self.game_board.positions[2] != None):
-            info.append( self.game_board.positions[2].id)     #2.3.1
-            info.append( self.game_board.positions[2].owner.id) #2.3.2
-        else:
-            info.append(0)
-            info.append(0)
-        if (self.game_board.positions[3] != None):
-            info.append( self.game_board.positions[3].id)     #2.4.1
-            info.append( self.game_board.positions[3].owner.id) #2.5.2
-        else:
-            info.append(0)
-            info.append(0)
-        if (self.game_board.positions[4] != None):
-            info.append( self.game_board.positions[4].id)     #2.5.1
-            info.append( self.game_board.positions[4].owner.id) #2.5.2
-        else:
-            info.append(0)
-            info.append(0)
-        if (self.game_board.positions[5] != None):
-            info.append( self.game_board.positions[5].id)     #2.6.1
-            info.append( self.game_board.positions[5].owner.id) #2.6.2
-        else:
-            info.append(0)
-            info.append(0)
-        
-        color    = self.game_board.mana_pool[0].color
-        color_id = 0
-        if color == ManaColor.RED:
-            color_id = 1
-        if color == ManaColor.BLUE:
-            color_id = 2
-        if color == ManaColor.BLACK:
-            color_id = 3
-        info.append( color_id) #3
-        #25 inputs
+        info = []
+        positions = self.game_board.positions
+        # Round number
+        # Score
+        # Mana color
+        info.append(self.game_board.mana_pool[0].color.value)
+        # Dragons remaining (Colors, 4 values)
+        dragons = self.game_board.dragons
+        dragon_colors = [d.color for d in dragons]
+        info.append(1 if dragon_colors.count(ManaColor.BLUE)  >0 else 0)   # Blue
+        info.append(1 if dragon_colors.count(ManaColor.RED)   >0 else 0)   # Red
+        info.append(1 if dragon_colors.count(ManaColor.BLACK) >0 else 0)   # Black
+        info.append(1 if dragon_colors.count(ManaColor.GREEN) >0 else 0)   # Green
+
+        # Card count opponent hand
+        info.append( len( self.opponent.hand.cards))
+        # Card count opponent deck
+        info.append( len( self.opponent.deck.cards))
+        # Card count in deck
+        info.append( len( self.player_on_turn.deck.cards))
+        # Board (card_id + owner on each positopn)
+        for pos in positions:
+            info.extend(self._get_card_neat_ids(pos))
+
+        # Cards in hand
+        player_hand         = self.player_on_turn.hand.cards
+        player_card_count   = len(self.player_on_turn.hand.cards)
+        for i in range(0, 12):
+            if player_card_count > i:
+                info.extend( self._get_card_neat_ids( player_hand[i]))
+            else:
+                info.extend( self._get_card_neat_ids( None))
+
         return info
+    
+
+    def _get_card_neat_ids(self, card):
+        neat_ids  = []
+        if card is None:
+            neat_ids.extend( [0] * 8)
+            return neat_ids
+        # owner
+        neat_ids.append( self.player_on_turn.id if card.owner == None else card.owner.id )
+        # power
+        neat_ids.append( card.power.value)
+        # color
+        neat_ids.append( card.color.value)
+        # color buf
+        neat_ids.append( card.color_buf[0]) # hp
+        neat_ids.append( card.color_buf[1]) # dmg
+        # hp
+        neat_ids.append( card.hp)
+        # dmg
+        neat_ids.append( card.dmg)
+        # ability
+        neat_ids.append( card.ability.id.value)
+        return neat_ids
+    

@@ -342,7 +342,6 @@ class DBUtil():
             pass
 
     def load_deck(self, deck_id) -> "Deck":
-        print(deck_id)
         """
         Load a deck by id and return a Deck instance with cards populated.
         Returns:

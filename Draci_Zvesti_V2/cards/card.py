@@ -24,7 +24,6 @@ class Card:
         image:str           = None, # path to image
         type:CardType       = CardType.PLAYER
     ) -> None:
-        print(type)
         self.init_args = [id, name, power, color,
                           color_buf if color_buf is not None else [0, 0],
                           hp, dmg, ability, image, type]
@@ -57,19 +56,3 @@ class Card:
          self.ability,
          self.image,
          self.type) = self.init_args.copy() #ensures you don’t accidentally mutate the original list when restoring
-        
-    def get_neat_ids(self):
-        neat_ids  = []
-        # power
-        neat_ids += self.power.value
-        # color
-        neat_ids += self.color.value
-        # color buf
-        neat_ids.extend(self.color_buf)
-        # hp
-        neat_ids += self.hp
-        # dmg
-        neat_ids += self.dmg
-        # ability
-        neat_ids += self.ability.id
-        return neat_ids
