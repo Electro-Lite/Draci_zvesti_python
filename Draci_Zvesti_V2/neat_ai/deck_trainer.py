@@ -2,15 +2,11 @@
 import os
 import sys
 from   time import time,ctime
-import random
 import copy
-import io
+import argparse
 
-import multiprocessing
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from concurrent.futures import ProcessPoolExecutor, as_completed, wait, FIRST_COMPLETED
-from contextlib import redirect_stdout
-from typing import List, Tuple
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 import neat
 import pickle
@@ -91,8 +87,8 @@ def eval_genomes_same_deck(genomes, config):
         for genome_id2, genome2 in genomes[min(i+1, len(genomes) - 1):]:
             genome2.fitness = 0 if genome2.fitness == None else genome2.fitness
 
-            player_1 = Player(1, DBUtil().load_deck("Starter Blue_1"), PlayerChoiceStrategyNeat)
-            player_2 = Player(2, DBUtil().load_deck("Starter Blue_1"), PlayerChoiceStrategyNeat)
+            player_1 = Player(1, copy.deepcopy(_WORKER_DECK), PlayerChoiceStrategyNeat)
+            player_2 = Player(2, copy.deepcopy(_WORKER_DECK), PlayerChoiceStrategyNeat)
             player_1.net=neat.nn.FeedForwardNetwork.create(genome1, config)
             player_2.net=neat.nn.FeedForwardNetwork.create(genome2, config)
             run_game(player_1, player_2, DisplayStrategyCLI)
@@ -151,10 +147,11 @@ def train_deck(deck_id):
     timeTaken   = time()
     global generation
     generation = 0
-    # _WORKER_CONFIG_PATH = config_path
+    
     global _WORKER_DECK
-    _WORKER_DECK = DBUtil().load_deck("Starter Blue_1")
-    winner = p.run(eval_genomes_parallel, 5)
+    _WORKER_DECK = DBUtil().load_deck(deck_id)
+
+    winner = p.run(eval_genomes_same_deck, 5)
     print(f"best fitness overall: {winner.fitness}")
     _test_pickle_vs_rnd(config, winner)
 
@@ -169,4 +166,8 @@ def train_deck(deck_id):
 
 
 if __name__ == '__main__':
-    train_deck("Starter Blue_1")
+    parser = argparse.ArgumentParser(description="Train a specific deck by ID")
+    parser.add_argument("deck_id", type=str, help="The ID of the deck to train")
+    args = parser.parse_args()
+
+    train_deck(args.deck_id)
