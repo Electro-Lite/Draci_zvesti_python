@@ -22,18 +22,10 @@ The system is designed around two interconnected AI components:
 
 ## How to run
 In powershell navigate to folder Draci_ZvestiV2 and from there run:
-- python -m core.test_run
-
-  This will run game in CLI between two players both making random decisions.
-- python -m neat_ai.train_deck <deck_id>
-
-  This will start ai training for given deck and test it afterwards on 10000 games vs random choice player.
-- python -m cards.cards.card_builder_GUI
-
-  This will create a tkinter interface for defining cards.
-- python -m cards.cards.deck_builder_GUI
-
-  This will create tkinter interface for building decks
+- ```python -m core.test_run```                 # This will run game in CLI between two players both making random decisions.
+- ```python -m neat_ai.train_deck <deck_id>```  # This will start ai training for given deck and test it afterwards on 10000 games vs random choice player.
+- ```python -m cards.cards.card_builder_GUI```  # This will create a tkinter interface for defining cards.
+- ```python -m cards.cards.deck_builder_GUI```  # This will create tkinter interface for building decks
 
 ## Dependencies
 
