@@ -91,7 +91,7 @@ def eval_genomes_same_deck(genomes, config):
             player_2 = Player(2, copy.deepcopy(_WORKER_DECK), PlayerChoiceStrategyNeat)
             player_1.net=neat.nn.FeedForwardNetwork.create(genome1, config)
             player_2.net=neat.nn.FeedForwardNetwork.create(genome2, config)
-            run_game(player_1, player_2, DisplayStrategyCLI)
+            run_game(player_1, player_2, DisplayStrategyNone)
             #calculate fitness
             player_1.fitness += 10 * (player_1.score - 1)
             player_2.fitness += 10 * (player_2.score - 1)
