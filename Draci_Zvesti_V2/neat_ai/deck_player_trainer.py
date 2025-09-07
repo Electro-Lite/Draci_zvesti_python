@@ -4,6 +4,7 @@ import sys
 from   time import time,ctime
 import copy
 import argparse
+from pathlib import Path
 
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -22,7 +23,7 @@ from display_strategies.display_strategy_none   import DisplayStrategyNone
 # Worker-local globals (populated by initializer)
 _WORKER_DECK = None
 
-def evaluate_match(genome1_data, genome2_data, config, deck_1, deck_2, game_num):
+def evaluate_match(genome1_data, genome2_data, config, deck_1, deck_2):
     genome_id1, genome1 = genome1_data
     genome_id2, genome2 = genome2_data
 
@@ -31,9 +32,7 @@ def evaluate_match(genome1_data, genome2_data, config, deck_1, deck_2, game_num)
     player_1.net = neat.nn.FeedForwardNetwork.create(genome1, config)
     player_2.net = neat.nn.FeedForwardNetwork.create(genome2, config)
 
-    sys.stdout = None
     run_game(player_1, player_2, DisplayStrategyNone)
-    sys.stdout = sys.__stdout__
 
     # calculate fitness
     player_1_fitness = 10 * (player_1.score - 1)
@@ -48,15 +47,13 @@ def eval_genomes_parallel(genomes, config):
     # initialize fitness
     for _, genome in genomes:
         genome.fitness = 0
-    game_num=0
     matches = []
     for i, g1 in enumerate(genomes):
         for g2 in genomes[i+1:]:
             matches.append((g1, g2))
 
     with ProcessPoolExecutor() as executor:
-        game_num+=1
-        futures = [executor.submit(evaluate_match, g1, g2, config, copy.deepcopy(_WORKER_DECK), copy.deepcopy(_WORKER_DECK),game_num) for g1, g2 in matches]
+        futures = [executor.submit(evaluate_match, g1, g2, config, copy.deepcopy(_WORKER_DECK), copy.deepcopy(_WORKER_DECK)) for g1, g2 in matches]
 
         for i, f in enumerate(as_completed(futures), 1):
             g1_id, g1_fit, g2_id, g2_fit = f.result()
@@ -67,7 +64,8 @@ def eval_genomes_parallel(genomes, config):
 
             if i % 10 == 0 or i == len(matches):
                 best_genome = max(genomes, key=lambda g: g[1].fitness if g[1].fitness is not None else float("-inf"))
-                print(f"generation: {generation} |  trainning round: {round(i/len(genomes) * 100)} |  top_fitness: {best_genome[1].fitness}  | time: {ctime(time())}")
+                print(f"generation: {generation} |  trainning round: {i}/{len(genomes)**2} |  top_fitness: {best_genome[1].fitness}  | time: {ctime(time())}")
+
     print(f"generation {generation} completed")
 
 
@@ -81,7 +79,7 @@ def eval_genomes_same_deck(genomes, config):
 
     for i, (genome_id1, genome1) in enumerate(genomes):
         best_genome = max(genomes, key=lambda g: g[1].fitness if g[1].fitness is not None else float("-inf"))
-        print(f"generation: {generation} |  trainning round: {round(i/len(genomes) * 100)} |  top_fitness: {best_genome[1].fitness}  | time: {ctime(time())}")
+        print(f"generation: {generation} |  trainning round: {i}/{len(genomes)} |  top_fitness: {best_genome[1].fitness}  | time: {ctime(time())}")
 
         genome1.fitness = 0
         for genome_id2, genome2 in genomes[min(i+1, len(genomes) - 1):]:
@@ -114,18 +112,20 @@ def _test_pickle_vs_rnd(config, _pickle):
             filled = int(bar_length * progress)
             bar = "█" * filled + "-" * (bar_length - filled)
             print(f"\rTesting progress: |{bar}| {percent}%", end="", flush=True)
+
         player_1        = Player(1, DBUtil().load_deck("Starter Blue_1"), PlayerChoiceStrategyNeat)
         player_1.net    = winner_net
         player_2        = Player(1, DBUtil().load_deck("Starter Blue_1"), ChoiceStrategyAIRandom)
-        sys.stdout=None
+
         run_game(player_1, player_2, DisplayStrategyNone)
-        sys.stdout=sys.__stdout__
+
         if  (player_1.score > player_2.score):
             score[0]+=1
         elif(player_1.score < player_2.score):
             score[2]+=1
         else:
             score[1]+=1
+
     print("final score is:")
     print("ai   :" + str(int(score[0]/100))+"%")
     print("draws:" + str(int(score[1]/100))+"%")
@@ -142,6 +142,7 @@ def train_deck(deck_id):
     p       = neat.Population(config)
     stats   = neat.StatisticsReporter()
     p.add_reporter(stats)
+    p.add_reporter(neat.Checkpointer(generation_interval=10,filename_prefix="checkpoit-"))
 
     report      = ""
     timeTaken   = time()
@@ -151,23 +152,32 @@ def train_deck(deck_id):
     global _WORKER_DECK
     _WORKER_DECK = DBUtil().load_deck(deck_id)
 
-    winner = p.run(eval_genomes_same_deck, 5)
+    generation_count = 500
+    #eval_function = eval_genomes_same_deck
+    eval_function = eval_genomes_parallel
+    # eval_function = eval_genomes_parallel_rnd
+
+    winner = p.run(eval_function, generation_count)
     print(f"best fitness overall: {winner.fitness}")
     _test_pickle_vs_rnd(config, winner)
 
-    with open(f"best_{deck_id}.pickle", "wb") as f:
+    
+    timeTaken = time() - timeTaken
+    print(f"training time: {round(timeTaken)/60/60} hours")
+    
+    file_path = Path("./neat_ai/trained_ai/")
+    file_path = file_path / f"best_{deck_id}_{eval_function.__name__}_{generation_count}.pickle"
+    print(file_path.absolute())
+    with open(file_path.absolute(), "wb") as f:
         pickle.dump(winner, f)
 
         
-    with open("record.txt", "w") as f:
-        timeTaken= time() - timeTaken
-        report+= "training time: " + str(timeTaken) +"s\n"
-        f.write(report)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Train a specific deck by ID")
     parser.add_argument("deck_id", type=str, help="The ID of the deck to train")
-    args = parser.parse_args()
+    # args = parser.parse_args()
+    # train_deck(args.deck_id)
+    train_deck("Starter Blue_1")
 
-    train_deck(args.deck_id)

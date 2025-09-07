@@ -56,3 +56,20 @@ class Card:
          self.ability,
          self.image,
          self.type) = self.init_args.copy() #ensures you don’t accidentally mutate the original list when restoring
+        
+    def get_neat_ids(self):
+        neat_ids  = []
+        # power
+        neat_ids.append( self.power.value)
+        # color
+        neat_ids.append( self.color.value)
+        # color buf
+        neat_ids.append( self.color_buf[0]) # hp
+        neat_ids.append( self.color_buf[1]) # dmg
+        # hp
+        neat_ids.append( self.hp)
+        # dmg
+        neat_ids.append( self.dmg)
+        # ability
+        neat_ids.append( self.ability.id.value)
+        return neat_ids # vector with 7 dimensions

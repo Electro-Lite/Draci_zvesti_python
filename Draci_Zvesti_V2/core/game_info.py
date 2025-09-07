@@ -47,24 +47,13 @@ class GameInfo:
     
 
     def _get_card_neat_ids(self, card):
+
         neat_ids  = []
         if card is None:
             neat_ids.extend( [0] * 8)
             return neat_ids
+        neat_ids = card.get_neat_ids()
         # owner
         neat_ids.append( self.player_on_turn.id if card.owner == None else card.owner.id )
-        # power
-        neat_ids.append( card.power.value)
-        # color
-        neat_ids.append( card.color.value)
-        # color buf
-        neat_ids.append( card.color_buf[0]) # hp
-        neat_ids.append( card.color_buf[1]) # dmg
-        # hp
-        neat_ids.append( card.hp)
-        # dmg
-        neat_ids.append( card.dmg)
-        # ability
-        neat_ids.append( card.ability.id.value)
         return neat_ids
     

@@ -5,7 +5,7 @@ from cards.card import Card
 class Deck():
     
     def __init__(self):
-        self.id              = 0 # hopefully this can be set by db
+        self.id              = "" # hopefully this can be set by db
         self.name            = ""
         self.description     = ""
         self.cards           = []
@@ -54,3 +54,10 @@ class Deck():
     def evaluate_power(self):
         raise NotImplementedError("")
         # based on cards in deck, determine and assign power.
+
+    def get_neat_cards_ids(self):
+        deck_info = []
+        for card in self.cards:
+            deck_info.extend(card.get_neat_ids())
+        unused_deck_space = 12 - len(self.cards) # 12 is max cards in deck TODO move this value to config
+        deck_info.extend([] * 7 * unused_deck_space) # one card is represented by vector with 7 dimensions. TODO maybe better to calculate from card.get_neat_ids()
