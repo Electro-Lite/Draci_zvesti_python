@@ -28,15 +28,18 @@ class Deck():
             self.cards.remove(card)
         else:
             raise ValueError("Card not found in deck.")
-    def validate(self):
+    def validate(self, validate_min_cards = True):
         """
         Validates the deck according to the rules:
         - Deck must have 10-12 cards.
         - Max 4 duplicates for normal cards.
         - Max 1 duplicate for legendary cards.
         """
-        if not (10 <= len(self.cards) <= 12):
-            raise ValueError("Deck must have between 10 and 12 cards.")
+        if len(self.cards) > 12:
+            raise ValueError("Deck must have less than 12 cards.")
+        elif validate_min_cards and len(self.cards) < 10:
+            raise ValueError("Deck must have at least 10 cards.")
+
 
         card_counts = {}
         for card in self.cards:
@@ -60,4 +63,6 @@ class Deck():
         for card in self.cards:
             deck_info.extend(card.get_neat_ids())
         unused_deck_space = 12 - len(self.cards) # 12 is max cards in deck TODO move this value to config
-        deck_info.extend([] * 7 * unused_deck_space) # one card is represented by vector with 7 dimensions. TODO maybe better to calculate from card.get_neat_ids()
+        if unused_deck_space > 0:
+            deck_info.extend([0] * 7 * unused_deck_space) # one card is represented by vector with 7 dimensions. TODO maybe better to calculate from card.get_neat_ids()
+        return deck_info

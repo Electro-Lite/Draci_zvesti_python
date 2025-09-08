@@ -1,7 +1,7 @@
 [NEAT]
 fitness_criterion     = mean
 fitness_threshold     = 9999
-pop_size              = 15
+pop_size              = 2
 reset_on_extinction   = True
 
 [DefaultStagnation]
@@ -12,7 +12,7 @@ species_elitism      = 5
 [DefaultReproduction]
 elitism            = 3
 survival_threshold = 0.2
-min_species_size   = 8
+min_species_size   = 2
 
 [DefaultGenome]
 # node activation options
@@ -55,7 +55,7 @@ node_delete_prob        = 0.2
 
 # network parameters
 num_hidden              = 5
-num_inputs              = 152
+num_inputs              = 91
 num_outputs             = 2
 
 # node response options
