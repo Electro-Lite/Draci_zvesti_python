@@ -1,3 +1,4 @@
+#Evalueator
 [NEAT]
 fitness_criterion     = mean
 fitness_threshold     = 9999

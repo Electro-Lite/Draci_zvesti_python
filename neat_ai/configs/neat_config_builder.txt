@@ -1,7 +1,8 @@
+#Builder
 [NEAT]
 fitness_criterion     = mean
 fitness_threshold     = 9999
-pop_size              = 10
+pop_size              = 5  #20 caused 4h per generation
 reset_on_extinction   = True
 
 [DefaultStagnation]
@@ -12,13 +13,13 @@ species_elitism      = 5
 [DefaultReproduction]
 elitism            = 3
 survival_threshold = 0.2
-min_species_size   = 2
+min_species_size   = 5
 
 [DefaultGenome]
 # node activation options
-activation_default      = relu
-activation_mutate_rate  = 1.0
-activation_options      = relu
+activation_default      = random
+activation_mutate_rate  = 0.1
+activation_options      = relu sigmoid tanh
 
 # node aggregation options
 aggregation_default     = sum

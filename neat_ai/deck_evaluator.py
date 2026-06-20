@@ -34,8 +34,8 @@ def evaluate_match(genome1_data, genome2_data, config, deck_1, deck_2):
     run_game(player_1, player_2, DisplayStrategyNone)
 
     # calculate fitness
-    player_1_fitness = 10 * (player_1.score - 1)
-    player_2_fitness = 10 * (player_2.score - 1)
+    player_1_fitness = 10 * (player_1.score - player_2.score)
+    player_2_fitness = 10 * (player_2.score - player_1.score)
 
     return genome_id1, player_1_fitness, genome_id2, player_2_fitness
 
@@ -76,7 +76,7 @@ def eval_genomes_parallel(genomes2, config):
 
     print(f"\rgeneration {generation}/{generation_count} completed", end="", flush=True)
 
-def match_corordinator(genomes, config):
+def match_coordinator(genomes, config):
     global GENOME_2_WINNER
     global generation_count
     global genomes1
@@ -105,7 +105,7 @@ def match_corordinator(genomes, config):
         with open(file_path.absolute(), "wb") as f:
             pickle.dump(winner, f)
 
-    
+
             
 def train_deck(deck1, deck2) -> list: #deck1 fitness, deck2 fitness
     global GENOME_2_WINNER
@@ -128,11 +128,11 @@ def train_deck(deck1, deck2) -> list: #deck1 fitness, deck2 fitness
     # p.add_reporter(neat.Checkpointer(generation_interval=0,filename_prefix=f"neat_ai/checkpoints/deck_evaluator/deck1/gen_"))
 
     report      = ""
-    generation = 0
+    generation  = 0
     timeTaken   = time()
 
     generation_count = 25
-    eval_function = match_corordinator
+    eval_function = match_coordinator
 
     winner = p.run(eval_function, generation_count)
 

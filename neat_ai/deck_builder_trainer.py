@@ -59,7 +59,7 @@ def _evaluate_pair(i, j, genome_id1, genome1, genome_id2, genome2, config):
     return i, j, genome_id1, deck1.neat_fitness, genome_id2, deck2.neat_fitness
 
 
-def eval_genomes(genomes, config, max_concurrent_games: int = 2):
+def eval_genomes(genomes, config, max_concurrent_games: int = 4):
     """
     Parallelized eval_genomes with a concurrency limit.
     - max_concurrent_games: how many games may run concurrently (default 4).
@@ -68,7 +68,9 @@ def eval_genomes(genomes, config, max_concurrent_games: int = 2):
     global generation
     generation += 1
     n = len(genomes)
-    print(f"generation: {generation} |  trainning round: 0/{len(genomes) ** 2} | time: {ctime(time())}")
+    with open("training_progress.txt", "a") as f:
+        f.write(f"generation: {generation} |  trainning round: 0/{len(genomes) ** 2} | time: {ctime(time())}\n")
+
 
     # initialize fitness exactly as original
     for i, (genome_id1, genome1) in enumerate(genomes):
@@ -113,8 +115,8 @@ def eval_genomes(genomes, config, max_concurrent_games: int = 2):
                 genome2 = dict_genomes[g2_id]
 
                 # overwrite fitness exactly like original code
-                genome1.fitness = g1_fit
-                genome2.fitness = g2_fit
+                genome1.fitness += g1_fit
+                genome2.fitness += g2_fit
 
                 # compute top genome for printing (same logic as original)
                 best_genome = max(genomes, key=lambda g: g[1].fitness if g[1].fitness is not None else float("-inf"))
@@ -151,14 +153,14 @@ def test_genome(genome, config):
     net  = neat.nn.FeedForwardNetwork.create(genome, config)
     deck = build_deck(net)
     deck.cards.sort(key=lambda card: card.name)
-    test_deck(deck)
+    # test_deck(deck) TODO need beter eval
     for card in deck.cards:
         print(f"{card.name.ljust(10)} |",end="")
     print()
     
 
 def train_deck_builder():
-    file_prefix = "30-11-25"
+    file_prefix = "28-02-26"
     local_dir   = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'configs/neat_config_builder.txt')
     config      = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
@@ -166,28 +168,28 @@ def train_deck_builder():
                          config_path)
 
     p       = neat.Population(config)
-    #p = neat.Checkpointer.restore_checkpoint("neat_ai/checkpoints/deck_builder_trainer/builder_checkpoint-24")
+    #p = neat.Checkpointer.restore_checkpoint("neat_ai/checkpoints/deck_builder_trainer/deck_builder_checkpoint_9-12-25_gen-7")
 
     stats   = neat.StatisticsReporter()
     p.add_reporter(stats)
-    p.add_reporter(neat.Checkpointer(generation_interval=0,filename_prefix=f"neat_ai/checkpoints/deck_builder_trainer/deeper_builder_checkpoint_{file_prefix}_gen-"))
+    p.add_reporter(neat.Checkpointer(generation_interval=0,filename_prefix=f"neat_ai/checkpoints/deck_builder_trainer/deck_builder_checkpoint_{file_prefix}_gen-"))
 
     timeTaken   = time()
     global generation
     generation = 0
     
     
-    generation_count = 5 #currently one generation takes 15 minutes
+    generation_count = 1+1 #currently one generation takes 12 minutes
     eval_function = eval_genomes
 
     winner = p.run(eval_function, generation_count)
     print(f"best fitness overall: {winner.fitness}")
     
     timeTaken = time() - timeTaken
-    print(f"total training time: {round(timeTaken)/60/60} hours")
+    print(f"builder training time: {round(timeTaken)/60/60} hours")
     
     file_path = Path("./neat_ai/trained_ai/")
-    file_path = file_path / f"best_builder_{generation_count}.pickle"
+    file_path = file_path / f"best_builder_{generation}.pickle"
     print(file_path.absolute())
     with open(file_path.absolute(), "wb") as f:
         pickle.dump(winner, f)
