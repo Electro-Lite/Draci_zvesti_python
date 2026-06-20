@@ -1,0 +1,100 @@
+[Sat Sep 13 14:22:19 2025] Entrypoint __main__ starting train_deck_builder()
+[Sat Sep 13 14:22:19 2025] Creating neat.Config...
+[Sat Sep 13 14:22:19 2025] Attempting to restore checkpoint: neat_ai/checkpoints/deck_builder_trainer/builder_checkpoint-0
+[Sat Sep 13 14:22:19 2025] Checkpoint restore returned a Population object.
+[Sat Sep 13 14:22:19 2025] Starting p.run(...)
+[Sat Sep 13 14:22:19 2025] eval_genomes start: generation=1 genomes=6
+[Sat Sep 13 14:22:19 2025] Created tempdir for genomes: C:\Users\DANIEL~1\AppData\Local\Temp\neat_genomes_d52qg3qj
+[Sat Sep 13 14:22:19 2025] Wrote genome file: C:\Users\DANIEL~1\AppData\Local\Temp\neat_genomes_d52qg3qj\genome_1.pkl (size=801 bytes)
+[Sat Sep 13 14:22:19 2025] Wrote genome file: C:\Users\DANIEL~1\AppData\Local\Temp\neat_genomes_d52qg3qj\genome_3.pkl (size=801 bytes)
+[Sat Sep 13 14:22:19 2025] Wrote genome file: C:\Users\DANIEL~1\AppData\Local\Temp\neat_genomes_d52qg3qj\genome_4.pkl (size=764 bytes)
+[Sat Sep 13 14:22:19 2025] Wrote genome file: C:\Users\DANIEL~1\AppData\Local\Temp\neat_genomes_d52qg3qj\genome_2.pkl (size=801 bytes)
+[Sat Sep 13 14:22:19 2025] Wrote genome file: C:\Users\DANIEL~1\AppData\Local\Temp\neat_genomes_d52qg3qj\genome_5.pkl (size=801 bytes)
+[Sat Sep 13 14:22:19 2025] Wrote genome file: C:\Users\DANIEL~1\AppData\Local\Temp\neat_genomes_d52qg3qj\genome_6.pkl (size=801 bytes)
+[Sat Sep 13 14:22:19 2025] Starting ProcessPoolExecutor with max_workers=15 total_matches=15
+[Sat Sep 13 14:30:07 2025] Match 1 vs 6 failed in worker:
+Traceback (most recent call last):
+  File "C:\Users\Daniel Klučka\Desktop\personal\Draci_zvesti_python\Draci_Zvesti_V2\neat_ai\deck_builder_trainer.py", line 77, in _run_match_process
+    deck1.neat_fitness, deck2.neat_fitness = train_deck(deck1, deck2)
+                                             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Daniel Klučka\Desktop\personal\Draci_zvesti_python\Draci_Zvesti_V2\neat_ai\deck_evaluator.py", line 169, in train_deck
+    winner = p.run(eval_function, generation_count)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Daniel Klučka\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\neat\population.py", line 89, in run
+    fitness_function(list(iteritems(self.population)), self.config)
+  File "C:\Users\Daniel Klučka\Desktop\personal\Draci_zvesti_python\Draci_Zvesti_V2\neat_ai\deck_evaluator.py", line 90, in match_corordinator
+    p = neat.Checkpointer.restore_checkpoint(f"{checkpoint_dir}/gen_{generation -1}-0")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Daniel Klučka\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\neat\checkpoint.py", line 76, in restore_checkpoint
+    generation, config, population, species_set, rndstate = pickle.load(f)
+                                                            ^^^^^^^^^^^^^^
+EOFError: Ran out of input
+
+[Sat Sep 13 14:30:55 2025] 3 vs 2
+deck 1: fitness: 20     | cards: Lucisnik   | Lucisnik   | Lucisnik   | Lucisnik   | Panos      | Panos      | Panos      | Pesak      | Pesak      | Strazny   
+deck 2: fitness: 100    | cards: Lucisnik   | Lucisnik   | Lucisnik   | Lucisnik   | Panos      | Panos      | Panos      | Pesak      | Strazny    | Strazny   
+[Sat Sep 13 14:30:55 2025] generation: 1 | training round: 2/15 | top_genome_id: 2 avg_fitness: 100.0
+[Sat Sep 13 14:30:55 2025] 1 vs 3
+deck 1: fitness: 0      | cards: Lucisnik   | Lucisnik   | Lucisnik   | Lucisnik   | Panos      | Pesak      | Strazny    | Strazny    | Strazny    | Strazny   
+deck 2: fitness: 100    | cards: Lucisnik   | Lucisnik   | Lucisnik   | Lucisnik   | Panos      | Panos      | Pesak      | Pesak      | Strazny    | Strazny   
+[Sat Sep 13 14:30:55 2025] generation: 1 | training round: 3/15 | top_genome_id: 2 avg_fitness: 100.0
+[Sat Sep 13 14:31:11 2025] 1 vs 2
+deck 1: fitness: 40     | cards: Lucisnik   | Lucisnik   | Lucisnik   | Lucisnik   | Panos      | Panos      | Pesak      | Pesak      | Strazny    | Strazny   
+deck 2: fitness: 0      | cards: Lucisnik   | Lucisnik   | Lucisnik   | Lucisnik   | Panos      | Panos      | Panos      | Panos      | Pesak      | Strazny   
+[Sat Sep 13 14:31:11 2025] generation: 1 | training round: 4/15 | top_genome_id: 3 avg_fitness: 60.0
+[Sat Sep 13 14:31:13 2025] 3 vs 6
+deck 1: fitness: 40     | cards: Lucisnik   | Lucisnik   | Lucisnik   | Lucisnik   | Panos      | Panos      | Pesak      | Strazny    | Strazny    | Strazny   
+deck 2: fitness: 50     | cards: Lucisnik   | Lucisnik   | Lucisnik   | Lucisnik   | Panos      | Panos      | Pesak      | Pesak      | Strazny    | Strazny   
+[Sat Sep 13 14:31:13 2025] generation: 1 | training round: 5/15 | top_genome_id: 3 avg_fitness: 53.333333333333336
+[Sat Sep 13 14:31:22 2025] 1 vs 4
+deck 1: fitness: 40     | cards: Lucisnik   | Lucisnik   | Lucisnik   | Lucisnik   | Panos      | Panos      | Pesak      | Pesak      | Strazny    | Strazny   
+deck 2: fitness: 20     | cards: Lucisnik   | Lucisnik   | Lucisnik   | Lucisnik   | Panos      | Panos      | Panos      | Pesak      | Pesak      | Pesak     
+[Sat Sep 13 14:31:22 2025] generation: 1 | training round: 6/15 | top_genome_id: 3 avg_fitness: 53.333333333333336
+[Sat Sep 13 14:31:24 2025] 2 vs 5
+deck 1: fitness: 60     | cards: Lucisnik   | Lucisnik   | Lucisnik   | Lucisnik   | Panos      | Panos      | Pesak      | Pesak      | Pesak      | Strazny   
+deck 2: fitness: 40     | cards: Lucisnik   | Lucisnik   | Lucisnik   | Lucisnik   | Panos      | Panos      | Pesak      | Pesak      | Pesak      | Strazny   
+[Sat Sep 13 14:31:24 2025] generation: 1 | training round: 7/15 | top_genome_id: 3 avg_fitness: 53.333333333333336
+[Sat Sep 13 14:32:27 2025] 1 vs 5
+deck 1: fitness: 70     | cards: Lucisnik   | Lucisnik   | Lucisnik   | Lucisnik   | Panos      | Pesak      | Pesak      | Strazny    | Strazny    | Strazny   
+deck 2: fitness: 60     | cards: Lucisnik   | Lucisnik   | Lucisnik   | Lucisnik   | Panos      | Pesak      | Pesak      | Pesak      | Strazny    | Strazny   
+[Sat Sep 13 14:32:27 2025] generation: 1 | training round: 8/15 | top_genome_id: 3 avg_fitness: 53.333333333333336
+[Sat Sep 13 14:32:29 2025] 3 vs 5
+deck 1: fitness: 80     | cards: Lucisnik   | Lucisnik   | Lucisnik   | Lucisnik   | Panos      | Pesak      | Pesak      | Pesak      | Pesak      | Strazny   
+deck 2: fitness: 80     | cards: Lucisnik   | Lucisnik   | Lucisnik   | Lucisnik   | Panos      | Pesak      | Strazny    | Strazny    | Strazny    | Strazny   
+[Sat Sep 13 14:32:29 2025] generation: 1 | training round: 9/15 | top_genome_id: 3 avg_fitness: 60.0
+[Sat Sep 13 14:32:46 2025] 3 vs 4
+deck 1: fitness: 20     | cards: Lucisnik   | Lucisnik   | Lucisnik   | Lucisnik   | Panos      | Pesak      | Pesak      | Strazny    | Strazny    | Strazny   
+deck 2: fitness: 50     | cards: Lucisnik   | Lucisnik   | Lucisnik   | Lucisnik   | Panos      | Panos      | Pesak      | Pesak      | Pesak      | Pesak     
+[Sat Sep 13 14:32:46 2025] generation: 1 | training round: 10/15 | top_genome_id: 5 avg_fitness: 60.0
+[Sat Sep 13 14:32:57 2025] 4 vs 5
+deck 1: fitness: 50     | cards: Lucisnik   | Lucisnik   | Lucisnik   | Lucisnik   | Panos      | Pesak      | Pesak      | Strazny    | Strazny    | Strazny   
+deck 2: fitness: 50     | cards: Lucisnik   | Lucisnik   | Lucisnik   | Lucisnik   | Panos      | Pesak      | Pesak      | Strazny    | Strazny    | Strazny   
+[Sat Sep 13 14:32:57 2025] generation: 1 | training round: 11/15 | top_genome_id: 5 avg_fitness: 57.5
+[Sat Sep 13 14:33:11 2025] 2 vs 6
+deck 1: fitness: 40     | cards: Lucisnik   | Lucisnik   | Lucisnik   | Lucisnik   | Panos      | Pesak      | Strazny    | Strazny    | Strazny    | Strazny   
+deck 2: fitness: 80     | cards: Lucisnik   | Lucisnik   | Lucisnik   | Lucisnik   | Panos      | Panos      | Pesak      | Pesak      | Pesak      | Pesak     
+[Sat Sep 13 14:33:11 2025] generation: 1 | training round: 12/15 | top_genome_id: 6 avg_fitness: 65.0
+[Sat Sep 13 14:33:29 2025] 4 vs 6
+deck 1: fitness: 90     | cards: Lucisnik   | Lucisnik   | Lucisnik   | Lucisnik   | Pesak      | Pesak      | Pesak      | Pesak      | Strazny    | Strazny   
+deck 2: fitness: 40     | cards: Lucisnik   | Lucisnik   | Lucisnik   | Lucisnik   | Panos      | Panos      | Pesak      | Strazny    | Strazny    | Strazny   
+[Sat Sep 13 14:33:29 2025] generation: 1 | training round: 13/15 | top_genome_id: 5 avg_fitness: 57.5
+[Sat Sep 13 14:33:31 2025] 5 vs 6
+deck 1: fitness: 60     | cards: Lucisnik   | Lucisnik   | Lucisnik   | Lucisnik   | Panos      | Pesak      | Pesak      | Strazny    | Strazny    | Strazny   
+deck 2: fitness: 80     | cards: Lucisnik   | Lucisnik   | Lucisnik   | Lucisnik   | Panos      | Panos      | Panos      | Pesak      | Strazny    | Strazny   
+[Sat Sep 13 14:33:31 2025] generation: 1 | training round: 14/15 | top_genome_id: 6 avg_fitness: 62.5
+[Sat Sep 13 14:33:33 2025] 4 vs 2
+deck 1: fitness: 60     | cards: Lucisnik   | Lucisnik   | Lucisnik   | Lucisnik   | Panos      | Panos      | Pesak      | Pesak      | Pesak      | Strazny   
+deck 2: fitness: 60     | cards: Lucisnik   | Lucisnik   | Lucisnik   | Lucisnik   | Panos      | Panos      | Pesak      | Pesak      | Strazny    | Strazny   
+[Sat Sep 13 14:33:33 2025] generation: 1 | training round: 15/15 | top_genome_id: 6 avg_fitness: 62.5
+[Sat Sep 13 14:33:33 2025] eval_genomes finished successfully for this generation.
+[Sat Sep 13 14:33:33 2025] Removed tempdir C:\Users\DANIEL~1\AppData\Local\Temp\neat_genomes_d52qg3qj
+[Sat Sep 13 14:33:33 2025] eval_genomes start: generation=2 genomes=6
+[Sat Sep 13 14:33:33 2025] Created tempdir for genomes: C:\Users\DANIEL~1\AppData\Local\Temp\neat_genomes_pmqzkomg
+[Sat Sep 13 14:33:33 2025] Wrote genome file: C:\Users\DANIEL~1\AppData\Local\Temp\neat_genomes_pmqzkomg\genome_4.pkl (size=771 bytes)
+[Sat Sep 13 14:33:33 2025] Wrote genome file: C:\Users\DANIEL~1\AppData\Local\Temp\neat_genomes_pmqzkomg\genome_3.pkl (size=808 bytes)
+[Sat Sep 13 14:33:33 2025] Wrote genome file: C:\Users\DANIEL~1\AppData\Local\Temp\neat_genomes_pmqzkomg\genome_1.pkl (size=808 bytes)
+[Sat Sep 13 14:33:33 2025] Wrote genome file: C:\Users\DANIEL~1\AppData\Local\Temp\neat_genomes_pmqzkomg\genome_6.pkl (size=808 bytes)
+[Sat Sep 13 14:33:33 2025] Wrote genome file: C:\Users\DANIEL~1\AppData\Local\Temp\neat_genomes_pmqzkomg\genome_5.pkl (size=808 bytes)
+[Sat Sep 13 14:33:33 2025] Wrote genome file: C:\Users\DANIEL~1\AppData\Local\Temp\neat_genomes_pmqzkomg\genome_2.pkl (size=808 bytes)
+[Sat Sep 13 14:33:33 2025] Starting ProcessPoolExecutor with max_workers=15 total_matches=15
+[Sat Sep 13 14:40:07 2025] Removed tempdir C:\Users\DANIEL~1\AppData\Local\Temp\neat_genomes_pmqzkomg
