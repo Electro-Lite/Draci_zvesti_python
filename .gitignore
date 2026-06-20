@@ -1,0 +1,20 @@
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+.zvesti_venv/
+venv/
+env/
+
+# IDEs and Editors
+.vscode/
+
+# Build and Distribution Artifacts
+dist/
+build/
+*.egg-info/
+
+*.db
+
