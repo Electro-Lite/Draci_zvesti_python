@@ -1,4 +1,5 @@
 import sqlite3
+from pathlib import Path
 from typing             import TYPE_CHECKING, Iterable
 from cards.mana         import ManaColor
 from cards.power        import Power
@@ -21,30 +22,37 @@ class DBUtil():
         return cls._instance
 
     def __init__(self):
-        # two separate sqlite files as before
-        self.conn_cards = sqlite3.connect("cards.db")
-        self.conn_decks = sqlite3.connect("decks.db")
+        # Dynamically find the folder containing THIS specific python file
+        base_dir = Path(__file__).parent.resolve()
+
+        # Create absolute paths to your databases
+        cards_path = base_dir / "cards.db"
+        decks_path = base_dir / "decks.db"
+
+        # Connect using the absolute paths as strings
+        self.conn_cards = sqlite3.connect(str(cards_path))
+        self.conn_decks = sqlite3.connect(str(decks_path))
         self._init_databases()
 
     def _init_databases(self):
         # Initialize cards table (unchanged)
         cursor = self.conn_cards.cursor()
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS cards (
-                owner TEXT,
-                id TEXT PRIMARY KEY,
-                name TEXT,
-                power INTEGER,
-                color TEXT,
-                hp INTEGER,
-                dmg INTEGER,
-                color_dmg_buff INTEGER,
-                color_hp_buff INTEGER,
-                ability TEXT,
-                image TEXT,
-                type TEXT
-            )
-        ''')
+                       CREATE TABLE IF NOT EXISTS cards (
+                                                            owner TEXT,
+                                                            id TEXT PRIMARY KEY,
+                                                            name TEXT,
+                                                            power INTEGER,
+                                                            color TEXT,
+                                                            hp INTEGER,
+                                                            dmg INTEGER,
+                                                            color_dmg_buff INTEGER,
+                                                            color_hp_buff INTEGER,
+                                                            ability TEXT,
+                                                            image TEXT,
+                                                            type TEXT
+                       )
+                       ''')
         self.conn_cards.commit()
 
         # Initialize decks header and lines tables
@@ -52,22 +60,23 @@ class DBUtil():
 
         # Header: store deck id and name (id is primary key)
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS decks (
-                id TEXT PRIMARY KEY,
-                name TEXT,
-                description TEXT,
-                power INTEGER,
-                fitness INTEGER
-            )
-        ''')
+                       CREATE TABLE IF NOT EXISTS decks (
+                                                            id TEXT PRIMARY KEY,
+                                                            name TEXT,
+                                                            description TEXT,
+                                                            power INTEGER,
+                                                            fitness INTEGER,
+                                                            is_AI BOOLEAN DEFAULT 0
+                       )
+                       ''')
 
         # Lines: one row per card in a deck (deck_id + card_id).
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS deck_lines (
-                deck_id TEXT,
-                card_id TEXT
-            )
-        ''')
+                       CREATE TABLE IF NOT EXISTS deck_lines (
+                                                                 deck_id TEXT,
+                                                                 card_id TEXT
+                       )
+                       ''')
 
         self.conn_decks.commit()
 
@@ -143,64 +152,64 @@ class DBUtil():
         if exists:
             # Update existing card (include buff columns)
             cursor.execute('''
-                UPDATE cards SET
-                    owner            = ?,
-                    name             = ?,
-                    power            = ?,
-                    color            = ?,
-                    hp               = ?,
-                    dmg              = ?,
-                    color_dmg_buff   = ?,
-                    color_hp_buff    = ?,
-                    ability          = ?,
-                    image            = ?,
-                    type             = ?
-                WHERE id = ?
-            ''', (
-                card.owner,
-                card.name,
-                card.power,
-                card.color,
-                card.hp,
-                card.dmg,
-                color_dmg_buff,
-                color_hp_buff,
-                card.ability.__class__.__name__,
-                card.image,
-                card.type,
-                card.id
-            ))
+                           UPDATE cards SET
+                                            owner            = ?,
+                                            name             = ?,
+                                            power            = ?,
+                                            color            = ?,
+                                            hp               = ?,
+                                            dmg              = ?,
+                                            color_dmg_buff   = ?,
+                                            color_hp_buff    = ?,
+                                            ability          = ?,
+                                            image            = ?,
+                                            type             = ?
+                           WHERE id = ?
+                           ''', (
+                               card.owner,
+                               card.name,
+                               card.power,
+                               card.color,
+                               card.hp,
+                               card.dmg,
+                               color_dmg_buff,
+                               color_hp_buff,
+                               card.ability.__class__.__name__,
+                               card.image,
+                               card.type,
+                               card.id
+                           ))
         else:
             # Insert new card (include buff columns)
             cursor.execute('''
-                INSERT INTO cards (
-                    owner, id, name, power, color, hp, dmg,
-                    color_dmg_buff, color_hp_buff, ability, image, type
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                card.owner,           #0
-                card.id,              #1
-                card.name,            #2
-                card.power,           #3
-                card.color,           #4
-                card.hp,              #5
-                card.dmg,             #6
-                color_dmg_buff,       #7
-                color_hp_buff,        #8
-                card.ability.__class__.__name__,    #9
-                card.image,           #10
-                card.type             #11
-            ))
+                           INSERT INTO cards (
+                               owner, id, name, power, color, hp, dmg,
+                               color_dmg_buff, color_hp_buff, ability, image, type
+                           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                           ''', (
+                               card.owner,           #0
+                               card.id,              #1
+                               card.name,            #2
+                               card.power,           #3
+                               card.color,           #4
+                               card.hp,              #5
+                               card.dmg,             #6
+                               color_dmg_buff,       #7
+                               color_hp_buff,        #8
+                               card.ability.__class__.__name__,    #9
+                               card.image,           #10
+                               card.type             #11
+                           ))
         self.conn_cards.commit()
     @retry
     def load_card(self, card_id:str):
         """Load a card by ID."""
         cursor = self.conn_cards.cursor()
         cursor.execute('''
-            SELECT owner, id, name, power, color, hp, dmg,
-                   color_dmg_buff, color_hp_buff, ability, image, type
-            FROM cards WHERE id = ?
-        ''', (card_id,))
+                       SELECT owner, id, name, power, color, hp, dmg,
+                              color_dmg_buff, color_hp_buff, ability, image, type
+                       FROM cards WHERE id = ?
+                       ''', (card_id,))
         row = cursor.fetchone()
         return self._card_from_row(row) if row else None
     @retry
@@ -208,10 +217,10 @@ class DBUtil():
         """Get all cards from the database."""
         cursor = self.conn_cards.cursor()
         cursor.execute('''
-            SELECT owner, id, name, power, color, hp, dmg,
-                   color_dmg_buff, color_hp_buff, ability, image, type
-            FROM cards
-        ''')
+                       SELECT owner, id, name, power, color, hp, dmg,
+                              color_dmg_buff, color_hp_buff, ability, image, type
+                       FROM cards
+                       ''')
         rows = cursor.fetchall()
         return [self._card_from_row(row) for row in rows]
     @retry
@@ -266,28 +275,23 @@ class DBUtil():
         cursor.execute('SELECT 1 FROM decks WHERE id = ?', (deck_id,))
         if cursor.fetchone():
             cursor.execute('''
-                UPDATE decks SET 
-                    name        = ?,
-                    description = ?,
-                    power       = ?,
-                    fitness     = ?
-                WHERE id = ?
-            ''', (deck_name, deck_description, deck_power, deck_fitness, deck_id))
+                           UPDATE decks SET
+                                            name        = ?,
+                                            description = ?,
+                                            power       = ?,
+                                            fitness     = ?
+                           WHERE id = ?
+                           ''', (deck_name, deck_description, deck_power, deck_fitness, deck_id))
         else:
             cursor.execute('''
-                INSERT INTO decks (id, name, description, power, fitness)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (deck_id, deck_name, deck_description, deck_power, deck_fitness))
+                           INSERT INTO decks (id, name, description, power, fitness)
+                           VALUES (?, ?, ?, ?, ?)
+                           ''', (deck_id, deck_name, deck_description, deck_power, deck_fitness))
 
         # Now handle lines. First remove existing lines for this deck_id
         cursor.execute('DELETE FROM deck_lines WHERE deck_id = ?', (deck_id,))
 
         # Determine iterable of card ids from the provided deck object.
-        # Support multiple shapes:
-        # - deck.card_ids -> iterable of str
-        # - deck.cards -> iterable of Card objects (with .id) or id strings
-        # - deck.lines -> iterable of (deck_id, card_id) tuples (take second)
-        # - or deck itself is an iterable of card ids
         card_ids = []
 
         # 1) explicit card_ids attribute (preferred if present)
@@ -356,9 +360,9 @@ class DBUtil():
 
         # Load deck header
         cursor.execute('''
-            SELECT id, name, description, power, fitness
-            FROM decks WHERE id = ?
-        ''', (deck_id,))
+                       SELECT id, name, description, power, fitness
+                       FROM decks WHERE id = ?
+                       ''', (deck_id,))
         row = cursor.fetchone()
         if not row:
             return None
@@ -411,7 +415,7 @@ class DBUtil():
         cursor.execute('SELECT name FROM decks ORDER BY name')
         rows = cursor.fetchall()
         return [row[0] for row in rows]
-    
+
     @retry
     def get_all_deck_ids(self):
         """Retrieves the names of all saved decks, sorted alphabetically.
