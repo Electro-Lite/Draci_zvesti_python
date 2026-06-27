@@ -18,3 +18,11 @@ build/
 
 *.db
 
+neat_ai/checkpoints/*
+neat_ai/neat_ai/*
+neat_ai/trained_ai/*
+
+# But DO NOT ignore the .gitkeep files inside them
+!neat_ai/checkpoints/.gitkeep
+!neat_ai/neat_ai/.gitkeep
+!neat_ai/trained_ai/.gitkeep
