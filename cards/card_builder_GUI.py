@@ -13,8 +13,6 @@ from cards.card                 import Card
 from utils.database_utils       import DBUtil
 from cards.power                import Power
 from cards.ability.abilities    import Ability
-#TODO image path is stored absolute -> If folder placement changes (someone download the git repo and runs), The images will fail to load.
-
 
 # Optional Pillow import for better image preview; fall back gracefully if not available
 try:
@@ -171,7 +169,6 @@ class CardBuilderApp(ttk.Frame):
         self.lbl_buff_dmg = ttk.Label(self.form, text="Buff DMG")
         self.ent_buff_dmg = ttk.Entry(self.form, textvariable=self.buff_dmg_var, validate='key', validatecommand=vcmd)
 
-        # Image selection restricted to card_images folder
         self.lbl_image = ttk.Label(self.form, text="Image")
         self.btn_browse = ttk.Button(self.form, text="Browse…", command=self.browse_image)
 
@@ -272,7 +269,7 @@ class CardBuilderApp(ttk.Frame):
             messagebox.showwarning('Images folder', f'No card_images folder found at: {image_dir}')
             return
 
-        file = filedialog.askopenfilename(initialdir=image_dir, title='Select card image', filetypes=[('Images', '*.png;*.jpg;*.jpeg')])
+        file = filedialog.askopenfilename(initialdir=image_dir, title='Select card image')
         if not file:
             return
 
@@ -282,11 +279,15 @@ class CardBuilderApp(ttk.Frame):
             if image_dir.resolve() not in file_path.parents and image_dir.resolve() != file_path.parent:
                 messagebox.showerror('Invalid selection', 'Please select an image from the card_images directory.')
                 return
+
+            # Set path to the requested format: cards/card_images/{filename}
+            formatted_path = f"cards/card_images/{file_path.name}"
+            self.image_var.set(formatted_path)
+
         except Exception:
             _log_exc("Error validating selected image path:")
 
-        self.image_var.set(str(file_path))
-        self.show_preview(str(file_path))
+        self.show_preview(self.image_var.get())
 
     def clear_preview(self):
         self.preview_canvas.delete('all')
@@ -302,18 +303,29 @@ class CardBuilderApp(ttk.Frame):
         if not path:
             self.clear_preview()
             return
+
+        # Reconstruct the absolute path for local loading
+        try:
+            cur_dir = Path(__file__).parent
+            # By extracting the filename, we avoid recursive path issues like cards/cards/card_images/...
+            filename = Path(path).name
+            abs_path = cur_dir / 'card_images' / filename
+        except Exception:
+            # Fallback if __file__ is undefined
+            abs_path = Path(os.getcwd()) / path
+
         try:
             if PIL_AVAILABLE:
-                img = Image.open(path)
+                img = Image.open(abs_path)
                 # Use a high-quality resample if available
-                img.thumbnail((pw, ph), Image.LANCZOS if hasattr(Image, 'LANCZOS') else Image.ANTIALIAS)
+                img.thumbnail((pw, ph), Image.LANCZOS if hasattr(Image, 'LANCZOS') else getattr(Image, 'ANTIALIAS', 1))
                 self._preview_img = ImageTk.PhotoImage(img)
                 # center the image
                 self.preview_canvas.create_image(pw/2, ph/2, image=self._preview_img, anchor='center')
                 self.status_var.set(f"Previewing: {Path(path).name}")
             else:
                 # Fallback: try tk.PhotoImage (may fail for JPG)
-                photo = tk.PhotoImage(file=path)
+                photo = tk.PhotoImage(file=str(abs_path))
                 # If image larger than preview, subsample integer-wise
                 w = photo.width()
                 h = photo.height()

@@ -246,8 +246,8 @@ class Game():
 
 
     def game_loop(self):
-        self.p1=Player(1,DBUtil().load_deck("Starter Blue_1"), PygameChoiceStrategy)
-        self.p2=Player(2,DBUtil().load_deck("Starter Blue_1"), PygameChoiceStrategy)
+        self.p1=Player(1,DBUtil().load_deck(self.p1_deck_id), PygameChoiceStrategy)
+        self.p2=Player(2,DBUtil().load_deck(self.p2_deck_id), PygameChoiceStrategy)
         self.board = Board()
         logic_thread = threading.Thread(
             target=run_game, 

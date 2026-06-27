@@ -127,12 +127,12 @@ class BasicPlayMenu(Menu):
                 self.previous_menu.__init__(self.game)
                 self.previous_menu.run_display = True
             elif self.state == PlayMenuStates.P1_DECK:
-                deck_list = [(i + 1, f"Deck {deck_id}") for i, deck_id in enumerate(self.decks_ids)]
+                deck_list = [(i + 1, f"{deck_id}") for i, deck_id in enumerate(self.decks_ids)]
                 choice = self.select_deck_dialog("Choose Player 1 Deck", deck_list)
                 if choice is not None:
                     self.p1_deck_id = choice
             elif self.state == PlayMenuStates.P2_DECK:
-                deck_list = [(i + 1, f"Deck {deck_id}") for i, deck_id in enumerate(self.decks_ids)]
+                deck_list = [(i + 1, f"{deck_id}") for i, deck_id in enumerate(self.decks_ids)]
                 choice = self.select_deck_dialog("Choose Player 1 Deck", deck_list)
                 if choice is not None:
                     self.p2_deck_id = choice
