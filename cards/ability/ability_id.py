@@ -34,6 +34,7 @@ class AbilityId(Enum):
     GO_FIRST                            = 29
     PLUS_1_1_SIDEWAYS                   = 30
 
+
 #   Dragons
     EAT_FIRST                           = 31
     INVERT_BOARD                        = 32

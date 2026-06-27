@@ -116,6 +116,25 @@ class GoBefore1(Ability):
             board.positions[ original_pos ]     = tmp
             board.positions[ original_pos - 1 ] = card
 
+class AttackFront(Ability):
+    def __init__(self):
+        super().__init__(
+            name            = "Attack Next",
+            description     = "Atacks card directly in front of him",
+            id              = AbilityId.ATTACK_FRONT,
+            target_owner    = AbilityTarget.ANY,
+            is_active       = True,
+            is_passive      = False
+        )
+    def activate(self, card, board, args=None):
+        original_pos = board.positions.index(card)
+        if original_pos != 0:
+            target                                 = board.positions[ original_pos - 1 ]
+            if target and target.hp <= card.dmg:
+                target.hp = target.hp - card.dmg
+                board.remove_card(target)
+
+
 # Black dragon
 class EatFirst(Ability):
     def __init__(self):
@@ -160,15 +179,3 @@ class InvertBoard(Ability):
     def activate(self, card, board, args=None):
         board.positions.reverse()
 
-# <### DEPRECATED ###> 
-# Ability registry 
-# abilities = {
-#     "lucisnik": FrontPlus1Attack(),
-#     "panos": SidewaysPlus1(),
-#     "paladin": GoFirst(),
-#     "strazny": GoFirst()
-# }
-# dragon_abilities = {
-#     "cerny": EatFirst(),
-#     "cerveny": BurnAll()
-# }
