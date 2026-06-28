@@ -13,18 +13,27 @@ Player      = p.Player
 GameInfo    = gi.GameInfo
 
 
-def run(player_1: Player, player_2: Player, display_strategy_class: DisplayStrategy = DisplayStrategy, board = Board()):
+def run(player_1: Player, player_2: Player, display_strategy_class: DisplayStrategy = DisplayStrategy, board = None):
+    """run game for players of given type, random if not set"""
+    if board is None:
+        board = Board()
+
+    ### Init Game ###
+    current_round = 0
     """run game for players of given type, random if not set"""
     ### Init Game ###
     current_round = 0
     run           = True
 
-    info          = GameInfo(board, _opposing_player = player_2)
+    # Give each player their own perspective of the game
+    info_p1 = GameInfo(board, _opposing_player = player_2)
+    info_p2 = GameInfo(board, _opposing_player = player_1)
 
     display_strategy = display_strategy_class(player_1, player_2, board)
 
-    player_1.choice_strategy.info = info  # Info is only needed by neat.
-    player_2.choice_strategy.info = info
+    # Assign unique info objects
+    player_1.choice_strategy.info = info_p1  # Info is only needed by neat.
+    player_2.choice_strategy.info = info_p2
 
     player_1.choice_strategy.display    = display_strategy_class  # Info is only needed by pygame.
     player_2.choice_strategy.display    = display_strategy_class
@@ -68,7 +77,7 @@ def run(player_1: Player, player_2: Player, display_strategy_class: DisplayStrat
         ### TODO update game info ###
         while run_turns:  ### TURNS
             board.game_state = GameState.PLAY
-            sleep(2) #TODO remove
+            # sleep(2) #TODO remove
             # change player on turn
             if player_on_turn == player_1:
                 player_on_turn          = player_2
@@ -76,6 +85,10 @@ def run(player_1: Player, player_2: Player, display_strategy_class: DisplayStrat
             else:
                 player_on_turn          = player_1
                 board.player_on_turn    = player_1
+
+            # KEEP GAME INFO UPDATED WITH CURRENT TURN
+            info_p1.player_on_turn = player_on_turn
+            info_p2.player_on_turn = player_on_turn
 
             display_strategy.display_player_on_turn(player_on_turn)
             display_strategy.display_board()
@@ -87,7 +100,7 @@ def run(player_1: Player, player_2: Player, display_strategy_class: DisplayStrat
 
             if not player_on_turn.passed:
                 if  display_strategy.this_player == player_on_turn:
-                  display_strategy.display_hand()
+                    display_strategy.display_hand()
 
                 # select card
                 Player_choice_card          = player_on_turn.choice_strategy.get_choice_card()
@@ -167,7 +180,7 @@ def battle_dragon(board: Board, display_strategy: DisplayStrategy) -> Player:  #
             continue
         # TODO Display battle
         while card.hp > 0 and dragon.hp > 0:  # TODO bug if neither deal dmg
-            sleep(3) #TODO tmp solution for pygame.
+            # sleep(3) #TODO tmp solution for pygame.
             display_strategy.display_dragon_vs_card()
             dragon.hp -= card.dmg
             card.hp   -= dragon.dmg
@@ -185,8 +198,8 @@ def battle_dragon(board: Board, display_strategy: DisplayStrategy) -> Player:  #
     # else put dragon to bottom#
     # TODO restore dragon is tmp solution, convert dragon to card of type Dragon !!!
     if dragon.slain_by == None:
-      dragon.restore()
-      board.dragons.append(dragon)
+        dragon.restore()
+        board.dragons.append(dragon)
     board.dragon = None
 
 
@@ -206,5 +219,3 @@ def random_player(player_1, player_2):
     else:
         player_on_turn = player_2
     return player_on_turn
-
-

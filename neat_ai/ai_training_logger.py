@@ -95,8 +95,7 @@ class AITrainingLogger(DBUtil):
                                                                           score REAL,
                                                                           pickle_path TEXT,
                                                                           training_id INTEGER NOT NULL,
-                                                                          FOREIGN KEY (training_id) REFERENCES training(id) ON DELETE CASCADE,
-                                        FOREIGN KEY (deck_id) REFERENCES decks(id)
+                                                                          FOREIGN KEY (training_id) REFERENCES training(id) ON DELETE CASCADE
                                         );
                                     ''')
 

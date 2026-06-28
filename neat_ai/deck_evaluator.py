@@ -20,8 +20,13 @@ from choice_strategies.choice_strategy_ai_neat      import PlayerChoiceStrategyN
 from choice_strategies.choice_strategy_ai_random    import ChoiceStrategyAIRandom
 from display_strategies.display_strategy_CLI        import DisplayStrategyCLI
 from display_strategies.display_strategy_none       import DisplayStrategyNone
+from neat_ai.ai_training_logger import AITrainingLogger as logger, PCMatch
 
 GENOME_2_WINNER = None
+MATCH_DBT_GUID = None
+train_logger = logger()
+LOG_MATCHES = True
+
 def evaluate_match(genome1_data, genome2_data, config, deck_1, deck_2):
     genome_id1, genome1 = genome1_data
     genome_id2, genome2 = genome2_data
@@ -44,20 +49,20 @@ def eval_genomes_parallel(genomes2, config):
     global genomes1
     global DECK_1
     global DECK_2
-    # print(f"generation: {generation}")
+    global MATCH_DBT_GUID
 
-    # initialize fitness
+    # Initialize all fitness scores to 0 before the matches start
     for _, genome in genomes1:
         genome.fitness = 0
     for _, genome in genomes2:
         genome.fitness = 0
 
-    genomes2_shuffled = sample(genomes2, len(genomes2))  # shuffle genomes so match-ups differ each generation
-    #matches = [((id1, g1), (id2, g2)) for (id1, g1), (id2, g2) in zip(genomes1, genomes2_shuffled)]
+    # Generate the matchups
+    genomes2_shuffled = sample(genomes2, len(genomes2))
     matches = []
     for _, g1 in enumerate(genomes1):
         for _, g2 in enumerate(genomes2_shuffled):
-            matches.append((g1, g2)) 
+            matches.append((g1, g2))
 
     with ProcessPoolExecutor() as executor:
         futures = [executor.submit(evaluate_match, g1, g2, config, copy.deepcopy(DECK_1), copy.deepcopy(DECK_2)) for g1, g2 in matches]
@@ -69,10 +74,18 @@ def eval_genomes_parallel(genomes2, config):
             genome1.fitness += g1_fit
             genome2.fitness += g2_fit
 
+            # Log PCMatch results directly linked to the Outer Loop's MatchDBT
+            if MATCH_DBT_GUID and LOG_MATCHES:
+                train_logger.save_pc_match(PCMatch(
+                    match_dbt_guid=MATCH_DBT_GUID,
+                    gen=generation,
+                    g1_score=g1_fit,
+                    g2_score=g2_fit
+                ))
+
             if i % 10 == 0 or i == len(matches):
                 best_genome1 = max(genomes1, key=lambda g: g[1].fitness if g[1].fitness is not None else float("-inf"))
                 best_genome2 = max(genomes2, key=lambda g: g[1].fitness if g[1].fitness is not None else float("-inf"))
-                # print(f"generation: {generation} |  trainning round: {i}/{len(genomes1)*len(genomes2)} |  top_fitness_g1: {best_genome1[1].fitness}  | top_fitness_g2: {best_genome2[1].fitness} | time: {ctime(time())}")
 
     print(f"\rgeneration {generation}/{generation_count} completed", end="", flush=True)
 
@@ -106,15 +119,18 @@ def match_coordinator(genomes, config):
             pickle.dump(winner, f)
 
 
-            
-def train_deck(deck1, deck2) -> list: #deck1 fitness, deck2 fitness
+
+def train_deck(deck1, deck2, match_dbt_guid: str = None) -> list: #deck1 fitness, deck2 fitness
     global GENOME_2_WINNER
     global DECK_1
     global DECK_2
     global generation
     global generation_count
+    global MATCH_DBT_GUID # Set the global here so the parallel workers can see it
+
     DECK_1 = deck1
     DECK_2 = deck2
+    MATCH_DBT_GUID = match_dbt_guid
 
     local_dir   = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'configs/neat_config_evaluator.txt')
@@ -137,7 +153,7 @@ def train_deck(deck1, deck2) -> list: #deck1 fitness, deck2 fitness
     winner = p.run(eval_function, generation_count)
 
     return [winner.fitness, GENOME_2_WINNER.fitness]
-        
+
 
 
 if __name__ == '__main__':
