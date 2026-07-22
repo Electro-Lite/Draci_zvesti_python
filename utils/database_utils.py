@@ -81,7 +81,58 @@ class DBUtil():
                        )
                        ''')
 
+        self._ensure_column(self.conn_decks, "decks", "is_AI", "BOOLEAN DEFAULT 0")
+        self._ensure_column(self.conn_decks, "decks", "signature", "TEXT")
+        self._ensure_column(self.conn_decks, "deck_lines", "signature", "TEXT")
+
         self.conn_decks.commit()
+
+    def _ensure_column(self, conn, table_name: str, column_name: str, definition: str):
+        cursor = conn.cursor()
+        cursor.execute(f"PRAGMA table_info({table_name})")
+        existing_columns = {row[1] for row in cursor.fetchall()}
+        if column_name not in existing_columns:
+            cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {definition}")
+
+    def _extract_deck_card_ids(self, deck: "Deck") -> list[str]:
+        card_ids = []
+        if hasattr(deck, "card_ids") and deck.card_ids is not None:
+            try:
+                card_ids = [str(c) for c in list(deck.card_ids) if c is not None]
+            except Exception:
+                card_ids = []
+        elif hasattr(deck, "cards") and deck.cards is not None:
+            items = list(deck.cards)
+            extracted = []
+            for it in items:
+                if isinstance(it, str):
+                    extracted.append(it)
+                else:
+                    cid = getattr(it, "id", None)
+                    if cid:
+                        extracted.append(cid)
+            card_ids = [str(c) for c in extracted if c is not None]
+        elif hasattr(deck, "lines") and deck.lines is not None:
+            extracted = []
+            for it in list(deck.lines):
+                if isinstance(it, (list, tuple)) and len(it) >= 2:
+                    extracted.append(it[1])
+                elif isinstance(it, str):
+                    extracted.append(it)
+            card_ids = [str(c) for c in extracted if c is not None]
+        else:
+            try:
+                if isinstance(deck, Iterable):
+                    extracted = [c for c in list(deck) if isinstance(c, str)]
+                    card_ids = [str(c) for c in extracted]
+            except Exception:
+                card_ids = []
+
+        return sorted(card_ids)
+
+    def _deck_signature(self, card_ids: list[str]) -> str:
+        card_str = ",".join(card_ids)
+        return hashlib.md5(card_str.encode('utf-8')).hexdigest()
 
     def _card_from_row(self, row):
         """Convert a database row to a Card object."""
@@ -201,6 +252,17 @@ class DBUtil():
         return [self._card_from_row(row) for row in rows]
 
     @retry
+    def get_all_player_cards(self):
+        cursor = self.conn_cards.cursor()
+        cursor.execute('''
+                       SELECT owner, id, name, power, color, hp, dmg,
+                              color_dmg_buff, color_hp_buff, ability, image, type
+                       FROM cards Where type = 'PLAYER'
+                       ''')
+        rows = cursor.fetchall()
+        return [self._card_from_row(row) for row in rows]
+
+    @retry
     def delete_card(self, card_id):
         cursor = self.conn_cards.cursor()
         cursor.execute("DELETE FROM cards WHERE id = ?", (card_id,))
@@ -209,7 +271,7 @@ class DBUtil():
     # ----------------------
     # Deck operations
     # ----------------------
-    def save_deck(self, deck: "Deck"):
+    def save_deck(self, deck: "Deck", is_ai: bool | None = None):
         deck.validate()
         cursor = self.conn_decks.cursor()
 
@@ -218,43 +280,14 @@ class DBUtil():
         deck_description = getattr(deck, "description", "") or ""
         deck_power       = getattr(deck, "power", 0) or 0
         deck_fitness     = getattr(deck, "fitness", None)
+        deck_is_ai       = bool(is_ai if is_ai is not None else getattr(deck, "is_ai", getattr(deck, "is_AI", False)))
 
         if deck_fitness is None:
             deck_fitness = getattr(deck, "neat_fitness", 0) or 0
 
-        # --- EXTRACT CARDS ---
-        card_ids = []
-        if hasattr(deck, "card_ids") and deck.card_ids is not None:
-            try:
-                card_ids = [str(c) for c in list(deck.card_ids) if c is not None]
-            except Exception:
-                card_ids = []
-        elif hasattr(deck, "cards") and deck.cards is not None:
-            items = list(deck.cards)
-            extracted = []
-            for it in items:
-                if isinstance(it, str): extracted.append(it)
-                else:
-                    cid = getattr(it, "id", None)
-                    if cid: extracted.append(cid)
-            card_ids = [str(c) for c in extracted if c is not None]
-        elif hasattr(deck, "lines") and deck.lines is not None:
-            extracted = []
-            for it in list(deck.lines):
-                if isinstance(it, (list, tuple)) and len(it) >= 2: extracted.append(it[1])
-                elif isinstance(it, str): extracted.append(it)
-            card_ids = [str(c) for c in extracted if c is not None]
-        else:
-            try:
-                if isinstance(deck, Iterable):
-                    extracted = [c for c in list(deck) if isinstance(c, str)]
-                    card_ids = [str(c) for c in extracted]
-            except Exception:
-                card_ids = []
-
         # --- COMPUTE SIGNATURE ---
-        card_str = ",".join(card_ids)
-        signature = hashlib.md5(card_str.encode('utf-8')).hexdigest()
+        card_ids = self._extract_deck_card_ids(deck)
+        signature = self._deck_signature(card_ids)
 
         # --- SAVE COMPOSITION (If New) ---
         cursor.execute('SELECT 1 FROM deck_lines WHERE signature = ? LIMIT 1', (signature,))
@@ -267,7 +300,10 @@ class DBUtil():
             if not deck_name:
                 deck_name = "deck"
 
-            cursor.execute('SELECT id FROM decks WHERE signature = ? AND name = ?', (signature, deck_name))
+            cursor.execute(
+                'SELECT id FROM decks WHERE signature = ? AND name = ? AND COALESCE(is_AI, 0) = ?',
+                (signature, deck_name, int(deck_is_ai))
+            )
             existing_row = cursor.fetchone()
 
             if existing_row:
@@ -292,14 +328,15 @@ class DBUtil():
                                 description = ?,
                                 power       = ?,
                                 fitness     = ?,
+                                is_AI       = ?,
                                 signature   = ?
                            WHERE id = ?
-                           ''', (deck_name, deck_description, deck_power, deck_fitness, signature, deck_id))
+                           ''', (deck_name, deck_description, deck_power, deck_fitness, int(deck_is_ai), signature, deck_id))
         else:
             cursor.execute('''
-                           INSERT INTO decks (id, name, description, power, fitness, signature)
-                           VALUES (?, ?, ?, ?, ?, ?)
-                           ''', (deck_id, deck_name, deck_description, deck_power, deck_fitness, signature))
+                           INSERT INTO decks (id, name, description, power, fitness, is_AI, signature)
+                           VALUES (?, ?, ?, ?, ?, ?, ?)
+                           ''', (deck_id, deck_name, deck_description, deck_power, deck_fitness, int(deck_is_ai), signature))
 
         # --- CLEANUP (Prevent DB Bloat) ---
         cursor.execute('DELETE FROM deck_lines WHERE signature NOT IN (SELECT signature FROM decks)')
@@ -363,15 +400,33 @@ class DBUtil():
         self.conn_decks.commit()
 
     @retry
-    def get_all_decks(self):
+    def delete_decks(self, deck_ids):
+        deck_ids = [deck_id for deck_id in deck_ids if deck_id]
+        if not deck_ids:
+            return
+
         cursor = self.conn_decks.cursor()
-        cursor.execute('SELECT name FROM decks ORDER BY name')
+        placeholders = ",".join("?" for _ in deck_ids)
+        cursor.execute(f'DELETE FROM decks WHERE id IN ({placeholders})', deck_ids)
+        cursor.execute('DELETE FROM deck_lines WHERE signature NOT IN (SELECT signature FROM decks)')
+        self.conn_decks.commit()
+
+    @retry
+    def get_all_decks(self, include_ai: bool = False):
+        cursor = self.conn_decks.cursor()
+        if include_ai:
+            cursor.execute('SELECT name FROM decks ORDER BY name')
+        else:
+            cursor.execute('SELECT name FROM decks WHERE COALESCE(is_AI, 0) = 0 ORDER BY name')
         rows = cursor.fetchall()
         return [row[0] for row in rows]
 
     @retry
-    def get_all_deck_ids(self):
+    def get_all_deck_ids(self, include_ai: bool = False):
         cursor = self.conn_decks.cursor()
-        cursor.execute('SELECT id FROM decks ORDER BY id')
+        if include_ai:
+            cursor.execute('SELECT id FROM decks ORDER BY id')
+        else:
+            cursor.execute('SELECT id FROM decks WHERE COALESCE(is_AI, 0) = 0 ORDER BY id')
         rows = cursor.fetchall()
         return [row[0] for row in rows]

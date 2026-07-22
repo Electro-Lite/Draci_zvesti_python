@@ -1,5 +1,7 @@
 import threading
 import pygame
+from parso.python.tree import String
+
 from py_game.menu.main_menu import MainMenu
 
 # left pos nav is broken, can place on pos 1
@@ -305,3 +307,9 @@ class Game():
         if not size:
             size = self.TEXT_LARGE #TODO calculate size automaticaly
         self.draw_text_bg(text, size, x + w//2, y + h//2)
+
+    def draw_image(self, image_path, x, y, width, height):
+        image = pygame.image.load(image_path)
+        # FIX: Assign the scaled surface back to the 'image' variable
+        image = pygame.transform.scale(image, (int(width), int(height)))
+        self.display.blit(image, (x, y))

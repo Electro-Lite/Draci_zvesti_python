@@ -93,37 +93,44 @@ def run(player_1: Player, player_2: Player, display_strategy_class: DisplayStrat
             display_strategy.display_player_on_turn(player_on_turn)
             display_strategy.display_board()
 
-            # pass?
-            Player_choice_pass = player_on_turn.choice_strategy.get_choice_pass() if player_on_turn.passed == False else True
-            if Player_choice_pass or len(player_on_turn.hand.cards) <= 0:
-                player_on_turn.passed = True
+            choice_strategy = player_on_turn.choice_strategy
+            if hasattr(choice_strategy, "begin_turn_choices"):
+                choice_strategy.begin_turn_choices()
+            try:
+                # pass?
+                Player_choice_pass = choice_strategy.get_choice_pass() if player_on_turn.passed == False else True
+                if Player_choice_pass or len(player_on_turn.hand.cards) <= 0:
+                    player_on_turn.passed = True
 
-            if not player_on_turn.passed:
-                if  display_strategy.this_player == player_on_turn:
-                    display_strategy.display_hand()
+                if not player_on_turn.passed:
+                    if  display_strategy.this_player == player_on_turn:
+                        display_strategy.display_hand()
 
-                # select card
-                Player_choice_card          = player_on_turn.choice_strategy.get_choice_card()
-                Player_choice_position      = player_on_turn.choice_strategy.get_choice_pos()
-                Player_choice_use_ability   = player_on_turn.choice_strategy.get_choice_use_ability()
-                Player_choice_target        = player_on_turn.choice_strategy.get_choice_ability_target()
-                Player_choice_card.owner    = player_on_turn
+                    # select card
+                    Player_choice_card          = choice_strategy.get_choice_card()
+                    Player_choice_position      = choice_strategy.get_choice_pos()
+                    Player_choice_use_ability   = choice_strategy.get_choice_use_ability()
+                    Player_choice_target        = choice_strategy.get_choice_ability_target()
+                    Player_choice_card.owner    = player_on_turn
 
-                display_strategy.display_choice(
-                    Player_choice_card,
-                    Player_choice_position,
-                    Player_choice_use_ability,
-                    Player_choice_target
-                )
-                board.place_card(
-                    Player_choice_card,
-                    Player_choice_position,
-                    Player_choice_use_ability,
-                    Player_choice_target,
-                )
-                ### evaluate ability ###
-                board.recalculate(do_display=False)  # TODO remove do_display, it is responsibility of player strategy
-                display_strategy.display_board()
+                    display_strategy.display_choice(
+                        Player_choice_card,
+                        Player_choice_position,
+                        Player_choice_use_ability,
+                        Player_choice_target
+                    )
+                    board.place_card(
+                        Player_choice_card,
+                        Player_choice_position,
+                        Player_choice_use_ability,
+                        Player_choice_target,
+                    )
+                    ### evaluate ability ###
+                    board.recalculate(do_display=False)  # TODO remove do_display, it is responsibility of player strategy
+                    display_strategy.display_board()
+            finally:
+                if hasattr(choice_strategy, "end_turn_choices"):
+                    choice_strategy.end_turn_choices()
 
             ### check for round end condition ###
             # is board full
@@ -156,8 +163,12 @@ def run(player_1: Player, player_2: Player, display_strategy_class: DisplayStrat
 
         ### clean-up board ###
         board.clear_round(player_1=player_1, player_2=player_2)
-        if current_round > Config.max_rounds:
-            raise IndexError(f"Exceeded max number of game rounds: {current_round}")
+        if current_round > Config.max_rounds: # Terminate too long games
+            winner = get_winner(player_1, player_2)
+            display_strategy.display_game_result(winner)
+            board.winner        = winner # for pygame, #TODO move to display strategy pygame
+            run = False
+            # raise IndexError(f"Exceeded max number of game rounds: {current_round}")
     return
 
 

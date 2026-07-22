@@ -4,6 +4,7 @@ from enum import Enum
 from py_game.menu.base_menu import Menu
 from py_game.menu.options_menu import OptionsMenu
 from py_game.menu.basic_play_menu import BasicPlayMenu
+from py_game.menu.deck_menu import DeckMenu
 
 if TYPE_CHECKING:
     from py_game.game import Game
@@ -108,7 +109,12 @@ class MainMenu(Menu):
                 play_menu.previous_menu     = self
                 play_menu.display_menu()
             elif self.state == MainMenuStates.DECKS:
-                pass # Add logic to switch to Decks Menu
+                self.run_display = False
+
+                deck_menu = DeckMenu(self.game)
+                self.game.curr_menu = deck_menu
+                deck_menu.previous_menu = self
+                deck_menu.display_menu()
             elif self.state == MainMenuStates.TRAIN:
                 pass # Add logic to switch to Train Menu
             elif self.state == MainMenuStates.OPTIONS:
@@ -124,4 +130,3 @@ class MainMenu(Menu):
                 self.run_display    = False
                 self.game.playing   = False
                 self.game.running   = False
-            

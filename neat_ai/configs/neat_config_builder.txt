@@ -2,13 +2,13 @@
 [NEAT]
 fitness_criterion     = mean
 fitness_threshold     = 9999
-pop_size              = 5  #20 caused 4h per generation
+pop_size              = 5
 reset_on_extinction   = True
 
 [DefaultStagnation]
 species_fitness_func = mean
 max_stagnation       = 40
-species_elitism      = 5
+species_elitism      = 4
 
 [DefaultReproduction]
 elitism            = 3
@@ -48,7 +48,7 @@ enabled_default         = True
 enabled_mutate_rate     = 0.01
 
 feed_forward            = True
-initial_connection      = fs_neat_hidden
+initial_connection      = full_direct
 
 # node add/remove rates
 node_add_prob           = 0.2

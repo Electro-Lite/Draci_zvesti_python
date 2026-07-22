@@ -1,4 +1,4 @@
-#!/home/electro/Personal/UPOL/Draci_zvesti_python/.zvesti_venv/bin/python3.12
+#!/home/electro/Personal/UPOL/Draci_zvesti_merged/.zvesti_venv/bin/python3.12
 # -*- coding: utf-8 -*-
 import re
 import sys

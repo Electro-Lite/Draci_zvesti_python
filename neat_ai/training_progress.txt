@@ -1,3 +1,16 @@
 generation: 1 |  trainning round: 0/25 | time: Sat Feb 28 12:24:38 2026
 generation: 1 |  trainning round: 0/25 | time: Sat Feb 28 12:27:40 2026
 generation: 1 |  trainning round: 0/25 | time: Sat Feb 28 12:33:15 2026
+generation: 1 |  trainning round: 0/25 | time: Sat Jun 20 16:54:20 2026
+generation: 1 |  trainning round: 0/9 | time: Sun Jun 21 12:51:42 2026
+generation: 1 |  trainning round: 0/9 | time: Sun Jun 21 13:13:06 2026
+generation: 1 |  trainning round: 0/9 | time: Sat Jun 27 11:24:41 2026
+generation: 1 |  trainning round: 0/9 | time: Sat Jun 27 11:24:49 2026
+generation: 1 |  trainning round: 0/9 | time: Sat Jun 27 16:32:31 2026
+generation: 1 |  trainning round: 0/9 | time: Sat Jun 27 16:32:54 2026
+generation: 1 |  trainning round: 0/9 | time: Sat Jun 27 20:17:22 2026
+generation: 1 |  trainning round: 0/9 | time: Sat Jun 27 20:18:01 2026
+generation: 1 |  trainning round: 0/9 | time: Sat Jun 27 20:19:06 2026
+generation: 1 |  trainning round: 0/9 | time: Sat Jun 27 20:27:44 2026
+generation: 1 |  trainning round: 0/9 | time: Sat Jun 27 20:30:25 2026
+generation: 1 |  training round: 0/3 | time: Sat Jul  4 09:30:01 2026

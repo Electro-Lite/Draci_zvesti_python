@@ -23,6 +23,9 @@ from display_strategies.display_strategy_none   import DisplayStrategyNone
 # Worker-local globals (populated by initializer)
 _WORKER_DECK = None
 
+def _action_penalty(player):
+    return player.fitness - 10
+
 def evaluate_match(genome1_data, genome2_data, config, deck_1, deck_2):
     genome_id1, genome1 = genome1_data
     genome_id2, genome2 = genome2_data
@@ -35,8 +38,8 @@ def evaluate_match(genome1_data, genome2_data, config, deck_1, deck_2):
     run_game(player_1, player_2, DisplayStrategyNone)
 
     # calculate fitness
-    player_1_fitness = 10 * (player_1.score - 1)
-    player_2_fitness = 10 * (player_2.score - 1)
+    player_1_fitness = 10 * (player_1.score - 1) + _action_penalty(player_1)
+    player_2_fitness = 10 * (player_2.score - 1) + _action_penalty(player_2)
 
     return genome_id1, player_1_fitness, genome_id2, player_2_fitness
 
@@ -102,8 +105,8 @@ def _test_pickle_vs_rnd(config, _pickle):
     print("ai   :" + str((score[0]/10))+"%")
     print("draws:" + str((score[1]/10))+"%")
     print("rnd  :" + str((score[2]/10))+"%")
-            
-            
+
+
 def train_deck(_deck):
     local_dir   = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'configs/neat_config_player.txt')
@@ -120,7 +123,7 @@ def train_deck(_deck):
     timeTaken   = time()
     global generation
     generation = 0
-    
+
     global _WORKER_DECK
     _WORKER_DECK = _deck
 
@@ -133,17 +136,17 @@ def train_deck(_deck):
     print(f"best fitness overall: {winner.fitness}")
     _test_pickle_vs_rnd(config, winner)
 
-    
+
     timeTaken = time() - timeTaken
     print(f"training time: {round(timeTaken)/60/60} hours")
-    
+
     file_path = Path("./neat_ai/trained_ai/")
     file_path = file_path / f"best_{_deck.id}_{eval_function.__name__}_{generation_count}.pickle"
     print(file_path.absolute())
     with open(file_path.absolute(), "wb") as f:
         pickle.dump(winner, f)
 
-        
+
 
 
 if __name__ == '__main__':

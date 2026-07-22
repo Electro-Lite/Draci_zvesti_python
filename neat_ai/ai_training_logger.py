@@ -19,7 +19,7 @@ class Training:
 class Genome:
     guid: str
     gen: int
-    deck_id: int
+    deck_id: str
     training_id: int
     score: Optional[float] = None
     pickle_path: Optional[str] = None
@@ -91,7 +91,7 @@ class AITrainingLogger(DBUtil):
                                     CREATE TABLE IF NOT EXISTS genome (
                                                                           guid TEXT PRIMARY KEY,
                                                                           gen INTEGER NOT NULL,
-                                                                          deck_id INTEGER NOT NULL,
+                                                                          deck_id TEXT NOT NULL,
                                                                           score REAL,
                                                                           pickle_path TEXT,
                                                                           training_id INTEGER NOT NULL,
@@ -126,6 +126,39 @@ class AITrainingLogger(DBUtil):
                                         );
                                     ''')
 
+            # 5. AI TRAINING DECK Tables
+            self.conn_train.execute('''
+                                    CREATE TABLE IF NOT EXISTS ai_training_decks (
+                                        id TEXT PRIMARY KEY,
+                                        training_id INTEGER NOT NULL,
+                                        name TEXT,
+                                        description TEXT,
+                                        power INTEGER,
+                                        fitness REAL,
+                                        signature TEXT NOT NULL,
+                                        FOREIGN KEY (training_id) REFERENCES training(id) ON DELETE CASCADE
+                                    );
+                                    ''')
+
+            self.conn_train.execute('''
+                                    CREATE TABLE IF NOT EXISTS ai_training_deck_lines (
+                                        deck_id TEXT NOT NULL,
+                                        card_id TEXT NOT NULL,
+                                        position INTEGER NOT NULL,
+                                        FOREIGN KEY (deck_id) REFERENCES ai_training_decks(id) ON DELETE CASCADE
+                                    );
+                                    ''')
+
+            self.conn_train.execute('''
+                                    CREATE INDEX IF NOT EXISTS idx_ai_training_decks_training_id
+                                    ON ai_training_decks(training_id);
+                                    ''')
+
+            self.conn_train.execute('''
+                                    CREATE INDEX IF NOT EXISTS idx_ai_training_deck_lines_deck_id
+                                    ON ai_training_deck_lines(deck_id);
+                                    ''')
+
 
     ###########################################################################
     #                           TRAINING CRUD                                 #
@@ -157,9 +190,274 @@ class AITrainingLogger(DBUtil):
     @retry
     def delete_training(self, training: Training) -> None:
         if training.id is not None:
-            with self.conn_train:
-                self.conn_train.execute("DELETE FROM training WHERE id = ?", (training.id,))
+            self.clear_training_data(training_id=training.id)
             training.id = None
+
+
+    ###########################################################################
+    #                       AI TRAINING DECK CRUD                             #
+    ###########################################################################
+
+    def _make_training_deck_id(self, training_id: int, deck_name: str, signature: str) -> str:
+        base_id = f"T{training_id}_{deck_name or 'deck'}"
+        deck_id = base_id
+        suffix = 2
+
+        while True:
+            cursor = self.conn_train.execute(
+                "SELECT signature FROM ai_training_decks WHERE id = ?",
+                (deck_id,)
+            )
+            row = cursor.fetchone()
+            if row is None or row["signature"] == signature:
+                return deck_id
+            deck_id = f"{base_id}_{suffix}"
+            suffix += 1
+
+    @retry
+    def save_training_deck(self, deck: "Deck", training_id: int) -> "Deck":
+        deck.validate()
+
+        deck_name = getattr(deck, "name", None) or "deck"
+        deck_description = getattr(deck, "description", "") or ""
+        deck_power = getattr(deck, "power", 0) or 0
+        deck_fitness = getattr(deck, "fitness", None)
+
+        if deck_fitness is None:
+            deck_fitness = getattr(deck, "neat_fitness", 0) or 0
+
+        card_ids = self._extract_deck_card_ids(deck)
+        signature = self._deck_signature(card_ids)
+        deck_id = getattr(deck, "id", None)
+
+        if not deck_id:
+            deck_id = self._make_training_deck_id(training_id, deck_name, signature)
+
+        with self.conn_train:
+            self.conn_train.execute('''
+                                    INSERT INTO ai_training_decks (
+                                        id, training_id, name, description, power, fitness, signature
+                                    )
+                                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                                    ON CONFLICT(id) DO UPDATE SET
+                                        training_id = excluded.training_id,
+                                        name = excluded.name,
+                                        description = excluded.description,
+                                        power = excluded.power,
+                                        fitness = excluded.fitness,
+                                        signature = excluded.signature
+                                    ''', (
+                                        deck_id,
+                                        training_id,
+                                        deck_name,
+                                        deck_description,
+                                        deck_power,
+                                        deck_fitness,
+                                        signature
+                                    ))
+            self.conn_train.execute(
+                "DELETE FROM ai_training_deck_lines WHERE deck_id = ?",
+                (deck_id,)
+            )
+            self.conn_train.executemany('''
+                                        INSERT INTO ai_training_deck_lines (deck_id, card_id, position)
+                                        VALUES (?, ?, ?)
+                                        ''', [
+                                            (deck_id, card_id, position)
+                                            for position, card_id in enumerate(card_ids)
+                                        ])
+
+        try:
+            setattr(deck, "id", deck_id)
+            setattr(deck, "is_ai", True)
+        except Exception:
+            pass
+
+        return deck
+
+    @retry
+    def load_training_deck(self, deck_id: str) -> Optional["Deck"]:
+        from cards.deck import Deck
+
+        cursor = self.conn_train.execute('''
+                                         SELECT id, name, description, power, fitness
+                                         FROM ai_training_decks
+                                         WHERE id = ?
+                                         ''', (deck_id,))
+        row = cursor.fetchone()
+        if not row:
+            return None
+
+        deck = Deck()
+        deck.id = row["id"]
+        deck.name = row["name"] or ""
+        deck.description = row["description"] or ""
+        deck.power = row["power"] or 0
+        deck.neat_fitness = row["fitness"] or 0
+
+        cursor = self.conn_train.execute('''
+                                         SELECT card_id
+                                         FROM ai_training_deck_lines
+                                         WHERE deck_id = ?
+                                         ORDER BY position, rowid
+                                         ''', (deck_id,))
+
+        for card_row in cursor.fetchall():
+            card = self.load_card(card_row["card_id"])
+            if card:
+                deck.add_card(card)
+
+        return deck
+
+    def _training_match_filter(self, training_id: Optional[int]) -> tuple[str, tuple]:
+        if training_id is None:
+            return "", ()
+
+        filter_sql = '''
+            WHERE genome_1 IN (SELECT guid FROM genome WHERE training_id = ?)
+               OR genome_2 IN (SELECT guid FROM genome WHERE training_id = ?)
+        '''
+        return filter_sql, (training_id, training_id)
+
+    def _legacy_training_deck_ids(self, training_id: Optional[int]) -> set[str]:
+        deck_ids = set()
+        if training_id is None:
+            genome_cursor = self.conn_train.execute("SELECT deck_id FROM genome")
+            match_cursor = self.conn_train.execute("SELECT deck_1, deck_2 FROM match_dbt")
+        else:
+            genome_cursor = self.conn_train.execute(
+                "SELECT deck_id FROM genome WHERE training_id = ?",
+                (training_id,)
+            )
+            match_cursor = self.conn_train.execute('''
+                                                  SELECT deck_1, deck_2
+                                                  FROM match_dbt
+                                                  WHERE genome_1 IN (
+                                                      SELECT guid FROM genome WHERE training_id = ?
+                                                  )
+                                                     OR genome_2 IN (
+                                                      SELECT guid FROM genome WHERE training_id = ?
+                                                  )
+                                                  ''', (training_id, training_id))
+
+        for row in genome_cursor.fetchall():
+            if row["deck_id"]:
+                deck_ids.add(str(row["deck_id"]))
+
+        for row in match_cursor.fetchall():
+            if row["deck_1"]:
+                deck_ids.add(str(row["deck_1"]))
+            if row["deck_2"]:
+                deck_ids.add(str(row["deck_2"]))
+
+        ai_training_cursor = self.conn_train.execute("SELECT id FROM ai_training_decks")
+        ai_training_ids = {str(row["id"]) for row in ai_training_cursor.fetchall()}
+        deck_ids -= ai_training_ids
+
+        deck_cursor = self.conn_decks.cursor()
+        if training_id is None:
+            deck_cursor.execute("SELECT id FROM decks WHERE COALESCE(is_AI, 0) = 1")
+            deck_ids.update(str(row[0]) for row in deck_cursor.fetchall() if row[0])
+
+        if not deck_ids:
+            return set()
+
+        placeholders = ",".join("?" for _ in deck_ids)
+        deck_cursor.execute(f"SELECT id FROM decks WHERE id IN ({placeholders})", list(deck_ids))
+        return {str(row[0]) for row in deck_cursor.fetchall()}
+
+    @retry
+    def clear_training_data(
+            self,
+            training_id: Optional[int] = None,
+            delete_legacy_decks: bool = True,
+            dry_run: bool = False
+    ) -> dict[str, int]:
+        match_filter, match_params = self._training_match_filter(training_id)
+        legacy_deck_ids = self._legacy_training_deck_ids(training_id) if delete_legacy_decks else set()
+
+        if training_id is None:
+            counts = {
+                "training": self.conn_train.execute("SELECT COUNT(*) FROM training").fetchone()[0],
+                "genome": self.conn_train.execute("SELECT COUNT(*) FROM genome").fetchone()[0],
+                "match_dbt": self.conn_train.execute("SELECT COUNT(*) FROM match_dbt").fetchone()[0],
+                "pc_match": self.conn_train.execute("SELECT COUNT(*) FROM pc_match").fetchone()[0],
+                "ai_training_decks": self.conn_train.execute("SELECT COUNT(*) FROM ai_training_decks").fetchone()[0],
+                "legacy_decks": len(legacy_deck_ids),
+            }
+        else:
+            match_guid_query = f"SELECT guid FROM match_dbt {match_filter}"
+            counts = {
+                "training": self.conn_train.execute(
+                    "SELECT COUNT(*) FROM training WHERE id = ?",
+                    (training_id,)
+                ).fetchone()[0],
+                "genome": self.conn_train.execute(
+                    "SELECT COUNT(*) FROM genome WHERE training_id = ?",
+                    (training_id,)
+                ).fetchone()[0],
+                "match_dbt": self.conn_train.execute(
+                    f"SELECT COUNT(*) FROM match_dbt {match_filter}",
+                    match_params
+                ).fetchone()[0],
+                "pc_match": self.conn_train.execute(
+                    f"SELECT COUNT(*) FROM pc_match WHERE match_dbt_guid IN ({match_guid_query})",
+                    match_params
+                ).fetchone()[0],
+                "ai_training_decks": self.conn_train.execute(
+                    "SELECT COUNT(*) FROM ai_training_decks WHERE training_id = ?",
+                    (training_id,)
+                ).fetchone()[0],
+                "legacy_decks": len(legacy_deck_ids),
+            }
+
+        if dry_run:
+            return counts
+
+        with self.conn_train:
+            if training_id is None:
+                self.conn_train.execute("DELETE FROM pc_match")
+                self.conn_train.execute("DELETE FROM match_dbt")
+                self.conn_train.execute("DELETE FROM genome")
+                self.conn_train.execute("DELETE FROM ai_training_deck_lines")
+                self.conn_train.execute("DELETE FROM ai_training_decks")
+                self.conn_train.execute("DELETE FROM training")
+                self.conn_train.execute(
+                    "DELETE FROM sqlite_sequence WHERE name IN ('training', 'pc_match')"
+                )
+            else:
+                match_guid_query = f"SELECT guid FROM match_dbt {match_filter}"
+                self.conn_train.execute(
+                    f"DELETE FROM pc_match WHERE match_dbt_guid IN ({match_guid_query})",
+                    match_params
+                )
+                self.conn_train.execute(
+                    f"DELETE FROM match_dbt {match_filter}",
+                    match_params
+                )
+                self.conn_train.execute(
+                    "DELETE FROM genome WHERE training_id = ?",
+                    (training_id,)
+                )
+                self.conn_train.execute('''
+                                        DELETE FROM ai_training_deck_lines
+                                        WHERE deck_id IN (
+                                            SELECT id FROM ai_training_decks WHERE training_id = ?
+                                        )
+                                        ''', (training_id,))
+                self.conn_train.execute(
+                    "DELETE FROM ai_training_decks WHERE training_id = ?",
+                    (training_id,)
+                )
+                self.conn_train.execute(
+                    "DELETE FROM training WHERE id = ?",
+                    (training_id,)
+                )
+
+        if delete_legacy_decks:
+            self.delete_decks(legacy_deck_ids)
+
+        return counts
 
 
     ###########################################################################

@@ -27,6 +27,9 @@ MATCH_DBT_GUID = None
 train_logger = logger()
 LOG_MATCHES = True
 
+def _action_penalty(player):
+    return player.fitness - 10
+
 def evaluate_match(genome1_data, genome2_data, config, deck_1, deck_2):
     genome_id1, genome1 = genome1_data
     genome_id2, genome2 = genome2_data
@@ -39,8 +42,8 @@ def evaluate_match(genome1_data, genome2_data, config, deck_1, deck_2):
     run_game(player_1, player_2, DisplayStrategyNone)
 
     # calculate fitness
-    player_1_fitness = 10 * (player_1.score - player_2.score)
-    player_2_fitness = 10 * (player_2.score - player_1.score)
+    player_1_fitness = 10 * (player_1.score - player_2.score) + _action_penalty(player_1)
+    player_2_fitness = 10 * (player_2.score - player_1.score) + _action_penalty(player_2)
 
     return genome_id1, player_1_fitness, genome_id2, player_2_fitness
 
@@ -147,7 +150,7 @@ def train_deck(deck1, deck2, match_dbt_guid: str = None) -> list: #deck1 fitness
     generation  = 0
     timeTaken   = time()
 
-    generation_count = 25
+    generation_count = 35
     eval_function = match_coordinator
 
     winner = p.run(eval_function, generation_count)
