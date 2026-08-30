@@ -17,6 +17,8 @@ build/
 *.egg-info/
 
 *.db
+.analysis_cache/
+.ui_training/
 
 neat_ai/checkpoints/*
 neat_ai/neat_ai/*
