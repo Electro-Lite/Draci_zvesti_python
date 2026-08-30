@@ -1,59 +1,88 @@
+from cards.mana import ManaColor
+from config import Config
 from core.board import Board
 from core.player import Player
-from cards.mana import ManaColor
+
+
+CARD_FEATURE_COUNT = 8
+BOARD_POSITION_COUNT = 6
+HAND_SLOT_COUNT = 12
+GAME_INFO_INPUT_COUNT = 158
+
+
 class GameInfo:
-    def __init__(self, _game_board:Board = None, _opposing_player:Player = None):
-        self.game_board     = _game_board
+    def __init__(self, _game_board: Board = None, _opposing_player: Player = None):
+        self.game_board = _game_board
         self.player_on_turn = _game_board.player_on_turn
-        self.opponent       = _opposing_player
+        self.opponent = _opposing_player
 
-    def _get_card_neat_ids(self, card): pass
-        
+    @staticmethod
+    def _scale(value, maximum):
+        return float(value) / float(maximum) if maximum else 0.0
+
     def get_game_info(self):
-        info = []
-        positions = self.game_board.positions
-        # Round number
-        # Score
-        # Mana color
-        info.append(self.game_board.mana_pool[0].color.value)
-        # Dragons remaining (Colors, 4 values)
-        dragons = self.game_board.dragons
-        dragon_colors = [d.color for d in dragons]
-        info.append(1 if dragon_colors.count(ManaColor.BLUE)  >0 else 0)   # Blue
-        info.append(1 if dragon_colors.count(ManaColor.RED)   >0 else 0)   # Red
-        info.append(1 if dragon_colors.count(ManaColor.BLACK) >0 else 0)   # Black
-        info.append(1 if dragon_colors.count(ManaColor.GREEN) >0 else 0)   # Green
+        player = self.player_on_turn
+        board = self.game_board
+        mana = board.mana_pool[0].color
 
-        # Card count opponent hand
-        info.append( len( self.opponent.hand.cards))
-        # Card count opponent deck
-        info.append( len( self.opponent.deck.cards))
-        # Card count in deck
-        info.append( len( self.player_on_turn.deck.cards))
-        # Board (card_id + owner on each positopn)
-        for pos in positions:
-            info.extend(self._get_card_neat_ids(pos))
+        info = [
+            1.0 if mana == ManaColor.RED else 0.0,
+            1.0 if mana == ManaColor.BLACK else 0.0,
+            1.0 if mana == ManaColor.BLUE else 0.0,
+        ]
 
-        # Cards in hand
-        player_hand         = self.player_on_turn.hand.cards
-        player_card_count   = len(self.player_on_turn.hand.cards)
-        for i in range(0, 12):
-            if player_card_count > i:
-                info.extend( self._get_card_neat_ids( player_hand[i]))
-            else:
-                info.extend( self._get_card_neat_ids( None))
+        dragon_colors = [dragon.color for dragon in board.dragons]
+        info.extend(
+            1.0 if color in dragon_colors else 0.0
+            for color in (
+                ManaColor.BLUE,
+                ManaColor.RED,
+                ManaColor.BLACK,
+                ManaColor.GREEN,
+            )
+        )
 
+        info.extend(
+            [
+                self._scale(board.round, Config.max_rounds),
+                self._scale(player.score, 2),
+                self._scale(self.opponent.score, 2),
+                1.0 if self.opponent.passed else 0.0,
+                self._scale(len(self.opponent.hand.cards), HAND_SLOT_COUNT),
+                self._scale(len(self.opponent.deck.cards), HAND_SLOT_COUNT),
+                self._scale(len(player.deck.cards), HAND_SLOT_COUNT),
+            ]
+        )
+
+        for card in board.positions:
+            info.extend(self._get_card_neat_ids(card))
+
+        for index in range(HAND_SLOT_COUNT):
+            card = player.hand.cards[index] if index < len(player.hand.cards) else None
+            info.extend(self._get_card_neat_ids(card))
+
+        if len(info) != GAME_INFO_INPUT_COUNT:
+            raise RuntimeError(
+                f"Expected {GAME_INFO_INPUT_COUNT} NEAT inputs, got {len(info)}"
+            )
         return info
-    
 
     def _get_card_neat_ids(self, card):
-
-        neat_ids  = []
         if card is None:
-            neat_ids.extend( [0] * 8)
-            return neat_ids
-        neat_ids = card.get_neat_ids()
-        # owner
-        neat_ids.append( self.player_on_turn.id if card.owner == None else card.owner.id )
-        return neat_ids
-    
+            return [0.0] * CARD_FEATURE_COUNT
+
+        features = card.get_neat_ids()
+        owner = 0.0
+        if card.owner is not None:
+            owner = 1.0 if card.owner == self.player_on_turn else -1.0
+
+        return [
+            self._scale(features[0], 2),
+            self._scale(features[1], 4),
+            self._scale(features[2], 3),
+            self._scale(features[3], 3),
+            self._scale(features[4], 9),
+            self._scale(features[5], 9),
+            self._scale(features[6], 32),
+            owner,
+        ]
