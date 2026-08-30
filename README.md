@@ -90,11 +90,22 @@ Controls:
 
 - Arrow keys move through menu items, cards, and board positions.
 - Enter confirms the highlighted menu item or selected game action.
-- Backspace exits the active game view back to the menu.
+- Backspace or Escape exits the active view back to the menu.
 
-The active menu flow supports local match setup and deck selection. The main
-menu also shows placeholders for deck management and AI training, but those are
-not wired into the Pygame menu.
+The active menu flow supports:
+
+- local human-vs-human, human-vs-AI, and AI-vs-AI matches,
+- random AI and compatible trained player-controller pickle files,
+- player-deck creation, validation, editing, deletion, and scrolling,
+- a selectable trained deck-builder advisor that ranks legal card additions
+  with the same 91-input network used by `neat_ai.deck_builder.build_deck`,
+- specific-deck player training and full deck-builder experiment setup,
+- active job progress plus compact completed-run and result summaries.
+
+Pygame starts training in a separate process. UI-launched logs, metadata,
+checkpoints, summaries, and winner files are grouped under `.ui_training/`.
+The launch action is disabled while `train.db` contains an unfinished training
+row, preventing accidental concurrent experiments.
 
 ### Clear training data
 
@@ -340,28 +351,39 @@ Training outputs may include:
 - checkpoint files under `neat_ai/checkpoints/`,
 - winner pickles under `neat_ai/trained_ai/`.
 
-These files can become large. The current local `train.db` is hundreds of MB.
+These files can become large. The current local `train.db` is several GB.
 
 ### Player Controller Training
 
 Entrypoint:
 
 ```bash
-python -m neat_ai.player_trainer
+python -m neat_ai.player_trainer "Starter Blue_1"
+```
+
+Configurable example:
+
+```bash
+python -m neat_ai.player_trainer "Starter Blue_1" \
+  --generations 35 \
+  --workers 8 \
+  --evaluation-games 100 \
+  --run-label professor-demo
 ```
 
 Current behavior:
 
-- trains NEAT player controllers on a hardcoded `Starter Blue_1` deck,
+- trains NEAT player controllers on the requested deck,
 - uses `neat_ai/configs/neat_config_player.txt`,
-- current config has `pop_size = 10`, `num_inputs = 152`,
-  `num_outputs = 5`,
-- saves a winner pickle under `neat_ai/trained_ai/`.
+- current config has `pop_size = 15`, `num_inputs = 158`,
+  `num_outputs = 28`,
+- evaluates the winner against a random controller with deterministic,
+  balanced starting-player assignments,
+- saves a winner pickle under `neat_ai/trained_ai/`, or under the artifact
+  directory supplied by the Pygame training service.
 
-The script defines an argparse `deck_id`, but the parse call is currently
-commented out and the hardcoded deck is used. To train another deck without
-editing the script, call `train_deck(DBUtil().load_deck("Deck ID"))` from a
-small Python snippet.
+The controller uses the same outcome-based fitness and masked action policy as
+the nested evaluator.
 
 ### Deck Evaluator Training
 
@@ -375,33 +397,80 @@ Current behavior:
 
 - trains player-controller populations for both decks,
 - uses `neat_ai/configs/neat_config_evaluator.txt`,
-- current config has `pop_size = 15`, `num_inputs = 152`,
-  `num_outputs = 5`,
+- current config has `pop_size = 15`, `num_inputs = 158`,
+  `num_outputs = 28`,
+- uses masked categorical actions instead of modulo-repaired scalar actions,
+- defaults to 50 inner generations and 20 paired holdout seeds,
+- records frozen holdouts at generations 5, 20, 35, and final generation 50
+  using the same paired seeds,
+- supports optional cross-generation play with
+  `--crossplay-reference-generation`,
+- records card plays and active-ability uses for holdouts only,
+- freezes the best controllers and returns only held-out, seat-balanced fitness,
 - the evaluator is used by the deck-builder trainer to score generated decks,
 - when called from the deck-builder trainer, it logs `pc_match` rows linked to
-  the current outer match GUID.
+  the current outer match GUID, including outcomes, seeds, phases, and rounds.
 
 ### Deck Builder Training
 
-Entrypoint:
+Final multi-generation metagame experiment:
 
 ```bash
 python -m neat_ai.deck_builder_trainer
 ```
 
+The default run label is `final-meta-evolution`, keeping these runs distinct
+from the completed `final-deck-discovery`, replication, and inner-ceiling
+datasets. Each training row also stores a human-readable experiment
+description alongside the structured JSON metadata. Override it for an ad hoc
+experiment with `--description "purpose and comparison being tested"`.
+
+Timing and integrity pilot using the full inner-evaluator settings:
+
+```bash
+python -m neat_ai.deck_builder_trainer \
+  --run-label pilot \
+  --seeds 667615478 \
+  --outer-generations 1
+```
+
+Resume one seed from a checkpoint, where `--outer-generations` is the number of
+additional generations to run:
+
+```bash
+python -m neat_ai.deck_builder_trainer \
+  --run-label resumed \
+  --seeds 104729 \
+  --checkpoint neat_ai/checkpoints/deck_builder_trainer/<checkpoint> \
+  --outer-generations 6
+```
+
 Current behavior:
 
 - uses `neat_ai/configs/neat_config_builder.txt`,
-- current config has `pop_size = 5`, `num_inputs = 91`,
+- current config has `pop_size = 20`, `num_inputs = 91`,
   `num_outputs = 2`,
 - builds one candidate deck per genome,
 - saves generated decks to `train.db` with `save_training_deck()`,
-- logs genomes and outer matches,
-- evaluates every pair of generated decks in a generation,
-- saves the final winner to `neat_ai/trained_ai/best_builder_<generation>.pickle`.
+- runs 10 outer generations for each of 4 pre-registered independent seeds,
+- uses 50 inner generations and held-out checkpoints at 5, 20, 35, and 50,
+- gives every genome exactly 12 current-generation opponents,
+- enforces an effective population of 18-24 and 2-6 species,
+- uses two outer evaluators with 12 inner workers each on a 24-thread machine,
+- records both NEAT configs, settings, database hashes, Git state, observed
+  populations, species counts, seeds, and termination status,
+- stores held-out outcomes and actions but skips redundant raw co-evolution
+  rows unless `--log-training-games` is supplied,
+- saves seed- and training-specific checkpoints and winner pickles.
 
-This is expensive because the outer deck-builder loop runs nested evaluator
-training for deck pairs. Start with very small config values when debugging.
+The command is expected to run for approximately 8.5-9.5 hours on the measured
+24-thread machine. Because contemporary deck fitness is zero-sum, outer
+progress is evaluated through changes in card frequency, archetypes, diversity,
+and matchup distributions rather than population mean fitness. See
+`trainin-plan.md` for the evidence, methodology, stop conditions, and thesis
+interpretation limits. Runs made with the follow-up defaults must not be pooled
+with the completed replicated experiment as if their configurations were
+identical.
 
 ### Training Cleanup
 
@@ -425,11 +494,20 @@ For safer workflow:
 
 Analysis helpers live under `neat_ai/analysis/`.
 
+The canonical experiment review is
+`neat_ai/analysis/notebooks/definitive_training_analysis.ipynb`. It discovers
+the configured experiment from its stable run label, displays the exact runs
+admitted to analysis with their descriptions, performs integrity checks, and
+covers outer learning, controller convergence,
+active-ability card value, card balance, holdouts, and final deck rankings.
+Run its large controller-data cell only after training completes; the notebook
+blocks that scan while a selected experiment is unfinished.
+
 Recommended setup:
 
 ```bash
 source .venv/bin/activate
-python -m pip install pandas numpy plotly
+python -m pip install pandas numpy plotly jupyter ipykernel
 ```
 
 Useful modules:
@@ -515,8 +593,6 @@ python -m py_compile \
   `choice_strategies/choice_strategy_human_CLI.py`.
 - `py_game/old/` contains older Pygame experiments and should not be treated as
   the primary UI.
-- `neat_ai/player_trainer.py` has an argparse placeholder but currently trains
-  the hardcoded `Starter Blue_1` deck.
 - Some GUI code still reads deck rows directly with SQL. Prefer `DBUtil` for new
   code so AI deck filtering and migrations are centralized.
 - `AITrainingLogger` opens `train.db` relative to the current working directory,

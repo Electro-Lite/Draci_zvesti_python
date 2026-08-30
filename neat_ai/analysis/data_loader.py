@@ -65,6 +65,13 @@ def _has_table(conn: sqlite3.Connection, table_name: str) -> bool:
     return cursor.fetchone() is not None
 
 
+def has_column(conn: sqlite3.Connection, table_name: str, column_name: str) -> bool:
+    return any(
+        row[1] == column_name
+        for row in conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+    )
+
+
 def deck_source_ctes(
     conn: sqlite3.Connection,
     training_id: int | None = None,
@@ -282,6 +289,7 @@ def load_matchup_df(
     include_inner_generation: bool = False,
     outer_gen: int | None = None,
     inner_gen: int | None = None,
+    phase: str | None = "auto",
 ) -> pd.DataFrame:
     """
     Load deck-vs-deck matchup data.
@@ -309,12 +317,33 @@ def load_matchup_df(
     if inner_gen is not None:
         filters.append("p.gen = :inner_gen")
         params["inner_gen"] = inner_gen
-    where_sql = f"WHERE {' AND '.join(filters)}" if filters else ""
+    with training_connection() as conn:
+        if phase is not None and has_column(conn, "pc_match", "phase"):
+            selected_phase = phase
+            if phase == "auto":
+                base_where = f"WHERE {' AND '.join(filters)}" if filters else "WHERE 1=1"
+                holdout_query = f"""
+                    SELECT 1
+                    FROM pc_match p
+                    JOIN match_dbt m ON p.match_dbt_guid = m.guid
+                    {match_joins}
+                    {base_where}
+                      AND COALESCE(p.phase, 'training') = 'holdout'
+                    LIMIT 1
+                """
+                selected_phase = (
+                    "holdout"
+                    if conn.execute(holdout_query, params).fetchone() is not None
+                    else "training"
+                )
+            filters.append("COALESCE(p.phase, 'training') = :phase")
+            params["phase"] = selected_phase
+        where_sql = f"WHERE {' AND '.join(filters)}" if filters else ""
 
-    if aggregate:
-        inner_select = ", p.gen AS inner_gen" if include_inner_generation else ""
-        inner_group = ", p.gen" if include_inner_generation else ""
-        query = f"""
+        if aggregate:
+            inner_select = ", p.gen AS inner_gen" if include_inner_generation else ""
+            inner_group = ", p.gen" if include_inner_generation else ""
+            query = f"""
             SELECT
                 m.deck_1,
                 m.deck_2,
@@ -334,8 +363,8 @@ def load_matchup_df(
             GROUP BY m.deck_1, m.deck_2, m.gen{inner_group}
             ORDER BY m.gen, m.deck_1, m.deck_2
         """
-    else:
-        query = f"""
+        else:
+            query = f"""
             SELECT
                 m.deck_1,
                 m.deck_2,
@@ -351,8 +380,6 @@ def load_matchup_df(
             {where_sql}
             ORDER BY m.gen, m.deck_1, m.deck_2, p.gen
         """
-
-    with training_connection() as conn:
         return pd.read_sql_query(query, conn, params=params)
 
 

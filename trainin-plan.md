@@ -150,9 +150,13 @@ For every evaluated deck pair:
 
 1. Train the two controllers for the configured inner generations.
 2. Freeze the best controller from each side.
-3. Run 12 deterministic seed pairs, once in each seating order: 24 held-out
+3. Run 20 deterministic seed pairs, once in each seating order: 40 held-out
    games per deck pair.
-4. Use only these 24 held-out games for deck-builder fitness.
+4. Use only these 40 held-out games for deck-builder fitness.
+
+Also evaluate the best generation-5 controllers on the same 40 games and log
+them as `holdout_early`. These rows measure a weaker-player diagnostic only;
+they must not contribute to deck-builder fitness.
 
 The paired games must use the same deck shuffles, mana order, and dragon order,
 then explicitly swap seats and force the opposite starting player. This
@@ -163,45 +167,140 @@ many deck types and freeze them before deck-builder training. This removes
 deck-specific controller learning as a confound. The configuration below is a
 practical plan that remains close to the current nested evaluator.
 
-## Final Experiment Design
+## Completed Replicated Experiment
 
-Run two independent builder trainings with identical settings and different
-seeds:
+Training IDs 13-16 completed with identical settings and different seeds:
 
 ```text
 run A seed: 104729
 run B seed: 130363
+run C seed: 155921
+run D seed: 196613
 outer generations per run: 12
 intended builder population: 20
-maximum current-generation opponents per genome: 10
+maximum current-generation opponents per genome: 12
 inner evaluator generations: 20
 inner evaluator population: 15
-held-out games per deck pair: 24
+held-out games per deck pair: 40
 outer concurrent deck evaluations: 2
 inner workers per deck evaluation: 12
 ```
 
-With an effective builder population of 20, one outer generation contains 100
-deck matchups. The historical runtime model predicts:
+The runs took 63.8, 65.5, 66.2, and 70.5 minutes, about 4 hours 26 minutes in
+total. Populations remained at 19-21 and species at 2-4. Every matchup contains
+all 20 paired holdout seeds and both seat orders. These runs are the replicated
+thesis dataset and must retain their original 12/20 configuration in analysis.
+
+All four runs were recorded from a dirty worktree. Their settings, database
+hashes, and Git commit are recorded, but the dirty flag limits exact source
+reproducibility and must be disclosed in the thesis.
+
+## Completed Post-Replication Experiment
+
+Training IDs 17-20 completed the following sensitivity configuration:
 
 ```text
-12 outer generations * 100 deck matchups * 20 inner generations
-* 0.0002 hours = 4.8 hours per seed
+outer generations per run: 10
+intended builder population: 20
+maximum current-generation opponents per genome: 12
+inner evaluator generations: 35
+inner evaluator population: 15
+held-out games per deck pair: 40
+outer concurrent deck evaluations: 2
+inner workers per deck evaluation: 12
+independent seeds: 104729, 130363, 155921, 196613
 ```
 
-Two seeds therefore require approximately 9.6 hours for evolutionary training,
-plus held-out evaluation and database overhead. Allow 12-14 hours in practice.
-The machine has 24 logical CPUs and enough available RAM; two outer evaluations
-with 12 inner workers each use the CPU without creating the current potential
-48-worker oversubscription.
+All four runs completed in 6 hours 1 minute. Their best outer-generation score
+occurred in generation 1. Controller outcome and game-length metrics changed
+little after generation 20, and active-card ordering matched generation 35 by
+generation 10. Longer training exposed card-specific weaknesses but did not
+show that active cards become uniformly useful.
 
-The 4.8-hour estimate was measured with the current 152-input, 5-output
-controller. The proposed 158-input, 28-output controller changes network cost,
-so the one-generation pilot must replace the historical coefficient with its
-measured value before the final runs.
+## Completed Inner-Ceiling-50 Experiment
 
-If the first-generation timing predicts more than 14 total hours, reduce the
-held-out games from 24 to 16. Do not reduce the two independent seeds.
+The existing data does not demonstrate convergence at generation 35.
+Same-generation evaluation cannot detect improvement shared by both
+co-evolving players, and active-card coefficients still moved by 1.1-2.1
+fitness points from generation 30 to 35. IDs 21-24 therefore performed direct
+generation-35 versus generation-50 cross-play:
+
+```text
+run label: inner-ceiling-50
+seeds: 230003, 262147, 300007, 350003
+outer generations per run: 1
+intended builder population: 20
+maximum current-generation opponents per genome: 12
+inner evaluator generations: 50
+inner evaluator population: 15
+frozen holdout generations: 5, 10, 15, 20, 25, 30, 35, 40, 45, 50
+cross-play generations: 35 versus 50 in both deck directions
+held-out games per checkpoint and deck pair: 40
+outer concurrent deck evaluations: 2
+inner workers per deck evaluation: 12
+```
+
+The intermediate evaluations freeze the best-so-far controllers and replay the
+same paired environments. Holdout rows record per-card plays and active-ability
+uses; training rows do not, to control database growth.
+
+The four runs completed in 53.0 minutes. Generation 50 exceeded the
+pre-registered five-point threshold with a positive 95% interval in every seed:
+mean advantages were 13.85, 17.53, 18.96, and 11.04. The pooled advantage was
+15.35 fitness points with a 12.16-18.53 interval. Generation 50 is therefore
+preferred to generation 35.
+
+The pre-registered generation-35 versus generation-50 decision was:
+
+- use 50 generations when its mean cross-play advantage exceeds 5 fitness
+  points and its 95% interval is above zero in at least three of four seeds;
+- retain 35 when the absolute advantage is at most 5 points and its interval
+  includes zero in every seed, provided deck ranks and active-use rates are
+  also stable;
+- treat mixed seeds as inconclusive and add one outer generation only for the
+  conflicting seeds rather than launching another long builder experiment.
+
+Ability-use policy continued changing through generation 50, particularly for
+`Strazny_1` and `Zabijak_1`. This justifies one final independent
+generation-50 versus generation-65 ceiling test:
+
+```text
+run label: inner-ceiling-65
+seeds: 400009, 450001, 500009, 550007
+outer generations per run: 1
+inner evaluator generations: 65
+frozen holdout generations: every 5 generations from 5 through 65
+cross-play generations: 50 versus 65 in both deck directions
+all other settings: unchanged from inner-ceiling-50
+expected runtime: 65-80 minutes
+```
+
+IDs 26-29 completed this experiment in 70.9 minutes. Generation 65 advantages
+were 2.39, 0.93, 13.61, and 10.66 points. Only two seeds exceeded five points
+with a positive 95% interval, so the pre-registered rule was not met.
+Generation 50 is the selected final setting.
+
+### Launch commands
+
+The configured defaults now run the final multi-generation metagame
+experiment:
+
+```bash
+source .zvesti_venv/bin/activate
+python -m neat_ai.deck_builder_trainer
+```
+
+The command records the label `final-meta-evolution` and a shared description
+of the four-seed, ten-outer-generation experiment on every training row. For a
+variant protocol, pass an explicit `--description` stating its purpose so it
+cannot later be mistaken for this final collection.
+
+It contains four new pre-registered seeds, 50 inner generations, ten outer
+generations, 12 opponents per genome, and 20 paired holdout seeds. Raw
+co-evolution rows are disabled, while held-out outcomes and actions at
+generations 5, 20, 35, and 50 remain logged. Expected runtime is 8.5-9.5 hours.
+Do not run seeds in separate shells because each run already uses all 24
+logical CPUs.
 
 ## Deck-Builder NEAT Configuration
 
@@ -277,7 +376,7 @@ weight_mutate_rate      = 0.5
 weight_replace_rate     = 0.05
 
 [DefaultSpeciesSet]
-compatibility_threshold = 5.0
+compatibility_threshold = 3.2
 ```
 
 Reasons for the main changes:
@@ -286,8 +385,8 @@ Reasons for the main changes:
   run 5.
 - `min_species_size=2`, one protected species, and one elite prevent species
   floors and elitism from consuming most of the population.
-- A compatibility threshold of 5.0 should reduce the one-species-per-initial-
-  genome behavior seen in the stored runs. The operational target is 2-6
+- A compatibility threshold of 3.2 produces four initial species for both
+  planned seeds with this configuration. The operational target remains 2-6
   species, not a specific hard-coded species count.
 - Mutation is lower than the current simultaneous 0.5 add/delete and 0.2
   node-add/delete rates. Existing populations remain diverse but do not show
@@ -370,22 +469,23 @@ weight_mutate_rate      = 0.7
 weight_replace_rate     = 0.05
 
 [DefaultSpeciesSet]
-compatibility_threshold = 4.0
+compatibility_threshold = 2.6
 ```
 
-Keep the evaluator population at 15. The existing data shows meaningful
-learning with approximately this effective size. Reduce inner generations from
-35 to 20 because controller progress is mostly saturated by then.
+Keep the evaluator population at 15 and use 50 inner generations. The direct
+generation-35/50 and generation-50/65 experiments establish this stopping
+point. The final collection must not reopen the ceiling decision by searching
+generation 55 or 60 after seeing the registered comparison.
 
 If the action representation cannot be changed before training, retain
 `num_inputs=152` and `num_outputs=5`, keep ReLU activation, and use the same
-population, reproduction, mutation, and 20-generation recommendations above.
+population, reproduction, mutation, and 50-generation recommendation above.
 Label such a run as a legacy controller experiment; it should not be the main
 evidence for claims about realistic player behavior.
 
 ## Match Scheduling
 
-For a 20-genome builder population, each genome must play exactly 10 distinct
+For a 20-genome builder population, each genome must play exactly 12 distinct
 current-generation opponents. Preserve equal deck-1 and deck-2 appearances.
 Randomize the regular pairing graph from the recorded run seed.
 
@@ -433,13 +533,13 @@ Primary metrics:
 - first-player advantage;
 - card inclusion rate and average copies;
 - card score lift within the same outer generation;
-- rank agreement between the two independent seeds;
+- rank agreement between the four independent seeds;
 - agreement between AI rankings and the small tabletop calibration set.
 
 Secondary metrics:
 
 - controller win rate by inner generation;
-- deck performance at inner generations 5 and 20 as an estimate of floor and
+- deck performance at inner generations 5 and 35 as an estimate of floor and
   ceiling;
 - effective number of archetypes and top-archetype share;
 - matchup polarization;
@@ -451,19 +551,19 @@ statistics require the new event logging described above.
 
 ## Pre-Run Checks And Stop Conditions
 
-Run one outer generation as a timing and integrity pilot before the two final
+Run one outer generation as a timing and integrity pilot before the four final
 seeds. It is a validation run and must not be merged into the final results.
 
 Continue only if all conditions hold:
 
 - effective builder population is between 18 and 24;
 - the builder has 2-6 species after initial stabilization;
-- every genome has exactly 10 distinct current-generation opponents;
+- every genome has exactly 12 distinct current-generation opponents;
 - each deck match has all expected inner generations and held-out games;
 - seat counts are balanced;
 - invalid-action count is zero after masking;
 - no controller or deck score is null;
-- projected two-seed runtime is at most 14 hours;
+- projected four-seed runtime is at most 6 hours;
 - available disk space covers at least 1 GB of additional training data.
 
 If there are more than 6 species, raise builder compatibility threshold by 1.0
