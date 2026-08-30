@@ -1,3 +1,4 @@
+import os
 import sqlite3
 from dataclasses import dataclass, asdict
 from typing import Optional
@@ -13,6 +14,8 @@ class Training:
     start_date: str
     config: Optional[str] = None
     end_date: Optional[str] = None
+    metadata: Optional[str] = None
+    description: Optional[str] = None
     id: Optional[int] = None
 
 @dataclass
@@ -40,6 +43,20 @@ class PCMatch:
     gen: Optional[int] = None
     g1_score: Optional[float] = None
     g2_score: Optional[float] = None
+    phase: str = "training"
+    seed: Optional[int] = None
+    seat_swap: bool = False
+    p1_game_score: Optional[int] = None
+    p2_game_score: Optional[int] = None
+    winner_id: Optional[int] = None
+    rounds: Optional[int] = None
+    starting_player_id: Optional[int] = None
+    deck1_controller_gen: Optional[int] = None
+    deck2_controller_gen: Optional[int] = None
+    p1_card_plays: Optional[str] = None
+    p2_card_plays: Optional[str] = None
+    p1_active_ability_uses: Optional[str] = None
+    p2_active_ability_uses: Optional[str] = None
     id: Optional[int] = None
 
 
@@ -51,15 +68,34 @@ class AITrainingLogger(DBUtil):
     _instance = None
 
     def __init__(self):
-        if not hasattr(self, 'initialized'):
+        process_id = os.getpid()
+        train_db_path = os.environ.get("TRAIN_DB_PATH", "train.db")
+        needs_connection = (
+            not getattr(self, "initialized", False)
+            or getattr(self, "process_id", None) != process_id
+            or getattr(self, "train_db_path", None) != train_db_path
+        )
+        if needs_connection:
+            old_connection = getattr(self, "conn_train", None)
+            if old_connection is not None:
+                try:
+                    old_connection.close()
+                except sqlite3.Error:
+                    pass
             # check_same_thread=False allows multi-threaded AI workers to log data
-            self.conn_train = sqlite3.connect("train.db", check_same_thread=False)
+            self.conn_train = sqlite3.connect(
+                train_db_path,
+                timeout=30.0,
+                check_same_thread=False,
+            )
 
             # Returns rows as dictionary-like objects instead of plain tuples
             self.conn_train.row_factory = sqlite3.Row
 
             super().__init__()
             self.initialized = True
+            self.process_id = process_id
+            self.train_db_path = train_db_path
 
     def __new__(cls):
         if cls._instance is None:
@@ -73,6 +109,7 @@ class AITrainingLogger(DBUtil):
         # Pragmas for data integrity and high-concurrency training
         self.conn_train.execute("PRAGMA foreign_keys = ON;")
         self.conn_train.execute("PRAGMA journal_mode = WAL;")
+        self.conn_train.execute("PRAGMA busy_timeout = 30000;")
 
         # Using a context manager automatically commits on success or rolls back on error
         with self.conn_train:
@@ -85,6 +122,8 @@ class AITrainingLogger(DBUtil):
                                                                             end_date TEXT
                                     );
                                     ''')
+            self._ensure_column(self.conn_train, "training", "metadata", "TEXT")
+            self._ensure_column(self.conn_train, "training", "description", "TEXT")
 
             # 2. GENOME Table
             self.conn_train.execute('''
@@ -125,6 +164,30 @@ class AITrainingLogger(DBUtil):
                                                                             FOREIGN KEY (match_dbt_guid) REFERENCES match_dbt(guid) ON DELETE CASCADE
                                         );
                                     ''')
+            self._ensure_column(self.conn_train, "pc_match", "phase", "TEXT DEFAULT 'training'")
+            self._ensure_column(self.conn_train, "pc_match", "seed", "INTEGER")
+            self._ensure_column(self.conn_train, "pc_match", "seat_swap", "BOOLEAN DEFAULT 0")
+            self._ensure_column(self.conn_train, "pc_match", "p1_game_score", "INTEGER")
+            self._ensure_column(self.conn_train, "pc_match", "p2_game_score", "INTEGER")
+            self._ensure_column(self.conn_train, "pc_match", "winner_id", "INTEGER")
+            self._ensure_column(self.conn_train, "pc_match", "rounds", "INTEGER")
+            self._ensure_column(self.conn_train, "pc_match", "starting_player_id", "INTEGER")
+            self._ensure_column(self.conn_train, "pc_match", "deck1_controller_gen", "INTEGER")
+            self._ensure_column(self.conn_train, "pc_match", "deck2_controller_gen", "INTEGER")
+            self._ensure_column(self.conn_train, "pc_match", "p1_card_plays", "TEXT")
+            self._ensure_column(self.conn_train, "pc_match", "p2_card_plays", "TEXT")
+            self._ensure_column(
+                self.conn_train,
+                "pc_match",
+                "p1_active_ability_uses",
+                "TEXT",
+            )
+            self._ensure_column(
+                self.conn_train,
+                "pc_match",
+                "p2_active_ability_uses",
+                "TEXT",
+            )
 
             # 5. AI TRAINING DECK Tables
             self.conn_train.execute('''
@@ -169,14 +232,22 @@ class AITrainingLogger(DBUtil):
         with self.conn_train:
             if training.id is None:
                 cursor = self.conn_train.execute('''
-                                                 INSERT INTO training (start_date, config, end_date)
-                                                 VALUES (:start_date, :config, :end_date)
+                                                 INSERT INTO training (
+                                                     start_date, config, end_date, metadata, description
+                                                 )
+                                                 VALUES (
+                                                     :start_date, :config, :end_date, :metadata, :description
+                                                 )
                                                  ''', asdict(training))
                 training.id = cursor.lastrowid
             else:
                 self.conn_train.execute('''
                                         UPDATE training
-                                        SET start_date = :start_date, config = :config, end_date = :end_date
+                                        SET start_date = :start_date,
+                                            config = :config,
+                                            end_date = :end_date,
+                                            metadata = :metadata,
+                                            description = :description
                                         WHERE id = :id
                                         ''', asdict(training))
         return training
@@ -533,17 +604,77 @@ class AITrainingLogger(DBUtil):
         with self.conn_train:
             if pc_match.id is None:
                 cursor = self.conn_train.execute('''
-                                                 INSERT INTO pc_match (gen, match_dbt_guid, g1_score, g2_score)
-                                                 VALUES (:gen, :match_dbt_guid, :g1_score, :g2_score)
+                                                 INSERT INTO pc_match (
+                                                     gen, match_dbt_guid, g1_score, g2_score,
+                                                     phase, seed, seat_swap, p1_game_score,
+                                                     p2_game_score, winner_id, rounds,
+                                                     starting_player_id, deck1_controller_gen,
+                                                     deck2_controller_gen, p1_card_plays,
+                                                     p2_card_plays, p1_active_ability_uses,
+                                                     p2_active_ability_uses
+                                                 )
+                                                 VALUES (
+                                                     :gen, :match_dbt_guid, :g1_score, :g2_score,
+                                                     :phase, :seed, :seat_swap, :p1_game_score,
+                                                     :p2_game_score, :winner_id, :rounds,
+                                                     :starting_player_id, :deck1_controller_gen,
+                                                     :deck2_controller_gen, :p1_card_plays,
+                                                     :p2_card_plays, :p1_active_ability_uses,
+                                                     :p2_active_ability_uses
+                                                 )
                                                  ''', asdict(pc_match))
                 pc_match.id = cursor.lastrowid
             else:
                 self.conn_train.execute('''
                                         UPDATE pc_match
-                                        SET gen = :gen, match_dbt_guid = :match_dbt_guid, g1_score = :g1_score, g2_score = :g2_score
+                                        SET gen = :gen,
+                                            match_dbt_guid = :match_dbt_guid,
+                                            g1_score = :g1_score,
+                                            g2_score = :g2_score,
+                                            phase = :phase,
+                                            seed = :seed,
+                                            seat_swap = :seat_swap,
+                                            p1_game_score = :p1_game_score,
+                                            p2_game_score = :p2_game_score,
+                                            winner_id = :winner_id,
+                                            rounds = :rounds,
+                                            starting_player_id = :starting_player_id,
+                                            deck1_controller_gen = :deck1_controller_gen,
+                                            deck2_controller_gen = :deck2_controller_gen,
+                                            p1_card_plays = :p1_card_plays,
+                                            p2_card_plays = :p2_card_plays,
+                                            p1_active_ability_uses = :p1_active_ability_uses,
+                                            p2_active_ability_uses = :p2_active_ability_uses
                                         WHERE id = :id
                                         ''', asdict(pc_match))
         return pc_match
+
+    @retry
+    def save_pc_matches(self, pc_matches: list[PCMatch]) -> None:
+        if not pc_matches:
+            return
+        rows = [asdict(pc_match) for pc_match in pc_matches]
+        with self.conn_train:
+            self.conn_train.executemany('''
+                                        INSERT INTO pc_match (
+                                            gen, match_dbt_guid, g1_score, g2_score,
+                                            phase, seed, seat_swap, p1_game_score,
+                                            p2_game_score, winner_id, rounds,
+                                            starting_player_id, deck1_controller_gen,
+                                            deck2_controller_gen, p1_card_plays,
+                                            p2_card_plays, p1_active_ability_uses,
+                                            p2_active_ability_uses
+                                        )
+                                        VALUES (
+                                            :gen, :match_dbt_guid, :g1_score, :g2_score,
+                                            :phase, :seed, :seat_swap, :p1_game_score,
+                                            :p2_game_score, :winner_id, :rounds,
+                                            :starting_player_id, :deck1_controller_gen,
+                                            :deck2_controller_gen, :p1_card_plays,
+                                            :p2_card_plays, :p1_active_ability_uses,
+                                            :p2_active_ability_uses
+                                        )
+                                        ''', rows)
 
     @retry
     def get_pc_match(self, pc_match_id: int) -> Optional[PCMatch]:
