@@ -1,141 +1,121 @@
-import pygame as pg
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
-from enum import Enum
-from py_game.menu.base_menu import Menu
-from py_game.menu.options_menu import OptionsMenu
-from py_game.menu.basic_play_menu import BasicPlayMenu
-from utils.database_utils import DBUtil
+
 from py_game.deck_editor import DeckBuilderMenu
+from py_game.menu.base_menu import Menu
+from utils.database_utils import DBUtil
 
 if TYPE_CHECKING:
     from py_game.game import Game
 
-class DeckMenuStates(Enum):
-    RETURN   = 1
-    NEW      = 2
-    DECK     = 3
 
 class DeckMenu(Menu):
-    def __init__(self, game: 'Game'):
-        Menu.__init__(self, game)
-        self.state = DeckMenuStates.RETURN
+    PAGE_SIZE = 10
 
-        # Define coordinates for menu items
-        self.return_x, self.return_y = self.mid_w, self.mid_h + 10 + self.TEXT_NORMAL * 1
-        self.new_x, self.new_y       = self.mid_w, self.mid_h + 10 + self.TEXT_NORMAL * 2
+    def __init__(self, game: "Game"):
+        super().__init__(game)
+        self.previous_menu = None
+        self.deck_ids = DBUtil().get_all_deck_ids()
+        self.items = ["Back", "Create deck", *self.deck_ids]
+        self.selected = 0
 
-        self.DECK_LIST = DBUtil().get_all_deck_ids()
-        self.deck_pos = []
-        for i in range(len(self.DECK_LIST)):
-            self.deck_pos.append({
-                'x': self.mid_w,
-                'y': self.mid_h + 10 + self.TEXT_NORMAL * (4 + i)
-            })
+    def _return(self):
+        self.run_display = False
+        self.game.curr_menu = self.previous_menu
+        if self.previous_menu is not None:
+            self.previous_menu.__init__(self.game)
+            self.previous_menu.run_display = True
 
-        self.cursor_rect.midtop = (self.return_x + self.offset, self.return_y)
+    def _open_editor(self, deck_id=None):
+        self.run_display = False
+        editor = DeckBuilderMenu(self.game, deck_id)
+        self.game.curr_menu = editor
+        editor.previous_menu = self
+        editor.display_menu()
+
+    def check_input(self):
+        if self.game.UP_KEY:
+            self.selected = (self.selected - 1) % len(self.items)
+        if self.game.DOWN_KEY:
+            self.selected = (self.selected + 1) % len(self.items)
+        if self.game.BACK_KEY:
+            self._return()
+            return
+        if not self.game.START_KEY:
+            return
+        if self.selected == 0:
+            self._return()
+        elif self.selected == 1:
+            self._open_editor()
+        else:
+            self._open_editor(self.items[self.selected])
 
     def display_menu(self):
         self.run_display = True
-
-        self.game.START_KEY = False
-        self.game.DOWN_KEY = False
-        self.game.UP_KEY = False
-
+        self.game.reset_keys()
         while self.run_display:
             self.game.check_events()
             self.check_input()
-            self.move_cursor()
-
+            if not self.run_display:
+                break
             self.game.display.fill(self.game.BLACK)
+            self.game.draw_text(
+                "Deck Menu",
+                self.TEXT_LARGE,
+                self.mid_w,
+                self.mid_h - 40,
+            )
+            return_y = self.mid_h + 25
+            create_y = return_y + self.TEXT_NORMAL
+            deck_start_y = create_y + self.TEXT_NORMAL * 2
+            self.game.draw_text("Return", self.TEXT_NORMAL, self.mid_w, return_y)
+            self.game.draw_text(
+                "Create deck",
+                self.TEXT_NORMAL,
+                self.mid_w,
+                create_y,
+            )
 
-            # Draw Title
-            self.game.draw_text('Deck Menu', self.TEXT_LARGE, self.game.DISPLAY_W / 2, self.game.DISPLAY_H / 2 - 40)
-
-            # Draw Options
-            self.game.draw_text("Return", self.TEXT_NORMAL, self.return_x, self.return_y)
-            self.game.draw_text("Create deck", self.TEXT_NORMAL, self.new_x, self.new_y)
-            for i in range(len(self.DECK_LIST)):
+            deck_selected = max(0, self.selected - 2)
+            deck_offset = max(
+                0,
+                min(
+                    deck_selected - self.PAGE_SIZE + 1,
+                    len(self.deck_ids) - self.PAGE_SIZE,
+                ),
+            )
+            for row, deck_id in enumerate(
+                self.deck_ids[deck_offset : deck_offset + self.PAGE_SIZE]
+            ):
                 self.game.draw_text(
-                    self.DECK_LIST[i],
+                    deck_id,
                     self.TEXT_NORMAL,
-                    self.deck_pos[i]['x'],
-                    self.deck_pos[i]['y']
+                    self.mid_w,
+                    deck_start_y + row * self.TEXT_NORMAL,
                 )
 
-            self.draw_cursor()
-            self.blit_screen()
-
-    def move_cursor(self):
-        # DOWN KEY LOGIC
-        if self.game.DOWN_KEY:
-            self.game.DOWN_KEY = False # Consume the input
-            if self.state == DeckMenuStates.RETURN:
-                self.cursor_rect.midtop = (self.new_x + self.offset, self.new_y)
-                self.state = DeckMenuStates.NEW
-            elif self.state == DeckMenuStates.NEW:
-                # Adding a safety check in case the database returns 0 decks
-                if len(self.DECK_LIST) > 0:
-                    self.cursor_rect.midtop = (self.deck_pos[0]['x'] + self.offset, self.deck_pos[0]['y'])
-                    self.CUR_DECK = 0
-                    self.state = DeckMenuStates.DECK
-                else:
-                    self.cursor_rect.midtop = (self.return_x + self.offset, self.return_y)
-                    self.state = DeckMenuStates.RETURN
-
-            elif self.state == DeckMenuStates.DECK:
-                if self.CUR_DECK < len(self.DECK_LIST) - 1:
-                    self.CUR_DECK += 1
-                    self.cursor_rect.midtop = (self.deck_pos[self.CUR_DECK]['x'] + self.offset, self.deck_pos[self.CUR_DECK]['y'])
-                else:
-                    self.state = DeckMenuStates.RETURN
-                    self.cursor_rect.midtop = (self.return_x + self.offset, self.return_y)
-
-        # UP KEY LOGIC
-        if self.game.UP_KEY:
-            self.game.UP_KEY = False # Consume the input
-            if self.state == DeckMenuStates.RETURN:
-                # Wrap around to the bottom of the list (last deck)
-                if len(self.DECK_LIST) > 0:
-                    self.CUR_DECK = len(self.DECK_LIST) - 1
-                    self.state = DeckMenuStates.DECK
-                    self.cursor_rect.midtop = (self.deck_pos[self.CUR_DECK]['x'] + self.offset, self.deck_pos[self.CUR_DECK]['y'])
-                else:
-                    # If there are no decks, wrap around to NEW instead
-                    self.state = DeckMenuStates.NEW
-                    self.cursor_rect.midtop = (self.new_x + self.offset, self.new_y)
-
-            elif self.state == DeckMenuStates.NEW:
-                # Move up to RETURN
-                self.state = DeckMenuStates.RETURN
-                self.cursor_rect.midtop = (self.return_x + self.offset, self.return_y)
-
-            elif self.state == DeckMenuStates.DECK:
-                # If we are at the first deck, move up to NEW
-                if self.CUR_DECK > 0:
-                    self.CUR_DECK -= 1
-                    self.cursor_rect.midtop = (self.deck_pos[self.CUR_DECK]['x'] + self.offset, self.deck_pos[self.CUR_DECK]['y'])
-                else:
-                    self.state = DeckMenuStates.NEW
-                    self.cursor_rect.midtop = (self.new_x + self.offset, self.new_y)
-
-    def check_input(self):
-        if self.game.START_KEY:
-            self.game.START_KEY = False
-            if self.state == DeckMenuStates.RETURN:
-                self.run_display = False
-                self.game.curr_menu = self.previous_menu
-                self.previous_menu.__init__(self.game)
-                self.previous_menu.run_display = True
+            if self.selected == 0:
+                cursor_y = return_y
+            elif self.selected == 1:
+                cursor_y = create_y
             else:
-                self.run_display = False
-
-                if self.state == DeckMenuStates.NEW:
-                    deck_builder_menu = DeckBuilderMenu(self.game)
-                elif self.state == DeckMenuStates.DECK:
-                    deck_builder_menu = DeckBuilderMenu(self.game, self.DECK_LIST[self.CUR_DECK])
-
-                self.game.curr_menu = deck_builder_menu
-                deck_builder_menu.previous_menu = self
-
-                deck_builder_menu.run_display = True
-                deck_builder_menu.display_menu()
+                cursor_y = (
+                    deck_start_y
+                    + (deck_selected - deck_offset) * self.TEXT_NORMAL
+                )
+            self.cursor_rect.midtop = (
+                self.mid_w + self.offset,
+                cursor_y,
+            )
+            self.draw_cursor()
+            if self.selected >= 2:
+                deck = DBUtil().load_deck(self.items[self.selected])
+                if deck:
+                    self.game.draw_text(
+                        f"{len(deck.cards)} cards",
+                        self.TEXT_NORMAL,
+                        self.mid_w,
+                        555,
+                    )
+            self.blit_screen()
