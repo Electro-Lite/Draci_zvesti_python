@@ -1,260 +1,517 @@
+import argparse
 import datetime
+import hashlib
+import json
+import math
+import os
+import pickle
 import random
-
-from neat_ai.ai_training_logger import AITrainingLogger as logger, Training, Genome, MatchDBT
-from cards.deck                 import Deck
-from neat_ai.deck_builder       import build_deck
-from neat_ai.deck_evaluator     import train_deck
-from neat_ai.player_trainer     import train_deck as test_deck
+import shutil
+import subprocess
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from dataclasses import asdict, dataclass
+from pathlib import Path
+from time import ctime, time
 
 import neat
-import pickle
 
-from concurrent.futures import ProcessPoolExecutor
-from time import sleep, time, ctime
-import sys
-import io
-import os
-from pathlib import Path
+from neat_ai.ai_training_logger import AITrainingLogger, Genome, MatchDBT, Training
+from neat_ai.deck_builder import build_deck
+from neat_ai.deck_evaluator import (
+    DEFAULT_CROSSPLAY_REFERENCE_GENERATION,
+    DEFAULT_DIAGNOSTIC_HOLDOUT_GENERATIONS,
+    DEFAULT_EVALUATOR_GENERATIONS,
+    EvaluatorSettings,
+    train_deck,
+)
 
-training_row = None
-train_logger = logger()
+
+DEFAULT_SEEDS = (
+    667615478,
+    2069633686,
+    915632071,
+    274633778,
+)
+DEFAULT_RUN_LABEL = "final-meta-evolution"
+DEFAULT_RUN_DESCRIPTION = (
+    "Final multi-generation metagame experiment: four independent "
+    "10-generation builder populations evaluated by 50-generation player "
+    "controllers; measures card-frequency shifts, archetype survival, "
+    "composition-aware diversity, and matchup distributions."
+)
+DEFAULT_OUTER_GENERATIONS = 10
+MIN_EFFECTIVE_POPULATION = 18
+MAX_EFFECTIVE_POPULATION = 24
+MIN_SPECIES = 2
+MAX_SPECIES = 6
+MIN_FREE_DISK_BYTES = 1 << 30
+
+
+@dataclass(frozen=True)
+class BuilderSettings:
+    seed: int
+    run_label: str = DEFAULT_RUN_LABEL
+    description: str = DEFAULT_RUN_DESCRIPTION
+    outer_generations: int = DEFAULT_OUTER_GENERATIONS
+    max_matches_per_genome: int = 12
+    outer_workers: int = 2
+    evaluator_generations: int = DEFAULT_EVALUATOR_GENERATIONS
+    evaluator_workers: int = 12
+    holdout_seed_pairs: int = 20
+    early_holdout_generation: int = 5
+    diagnostic_holdout_generations: tuple[int, ...] = (
+        DEFAULT_DIAGNOSTIC_HOLDOUT_GENERATIONS
+    )
+    crossplay_reference_generation: int | None = (
+        DEFAULT_CROSSPLAY_REFERENCE_GENERATION
+    )
+    log_training_games: bool = False
+    checkpoint_path: str | None = None
+    enforce_population_guard: bool = True
+
+    def __post_init__(self):
+        if self.outer_generations < 1:
+            raise ValueError("Outer generations must be positive")
+        if self.max_matches_per_genome < 1:
+            raise ValueError("Matches per genome must be positive")
+        if self.max_matches_per_genome % 2:
+            raise ValueError("Matches per genome must be even for seat balance")
+        if self.outer_workers < 1:
+            raise ValueError("Outer workers must be positive")
+        self.evaluator_settings()
+
+    def evaluator_settings(self) -> EvaluatorSettings:
+        return EvaluatorSettings(
+            generations=self.evaluator_generations,
+            workers=self.evaluator_workers,
+            holdout_seed_pairs=self.holdout_seed_pairs,
+            early_holdout_generation=self.early_holdout_generation,
+            diagnostic_holdout_generations=self.diagnostic_holdout_generations,
+            crossplay_reference_generation=self.crossplay_reference_generation,
+            seed=self.seed,
+            log_training_games=self.log_training_games,
+        )
+
 
 def _genome_guid(training_id: int, generation: int, genome_id: int) -> str:
     return f"{training_id}-gen{generation}-{genome_id}"
 
-def eval_match(deck1: Deck, deck2: Deck, match_guid: str):
-    deck1.neat_fitness, deck2.neat_fitness = train_deck(deck1, deck2, match_guid)
 
-    deck1.cards.sort(key=lambda card: card.name)
-    deck2.cards.sort(key=lambda card: card.name)
+def _file_sha256(path: Path) -> str | None:
+    if not path.exists():
+        return None
+    digest = hashlib.sha256()
+    with path.open("rb") as file_handle:
+        for block in iter(lambda: file_handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
 
-    print(f"deck 1: fitness: {str(deck1.neat_fitness).ljust(3)} | cards: ", end="")
-    for card in deck1.cards:
-        print(f"{card.name.ljust(10)} |", end="")
-    print()
 
-    print(f"deck 2: fitness: {str(deck2.neat_fitness).ljust(3)} | cards: ", end="")
-    for card in deck2.cards:
-        print(f"{card.name.ljust(10)} |", end="")
-    print()
+def _git_metadata(project_root: Path) -> dict:
+    def run_git(*args):
+        completed = subprocess.run(
+            ["git", *args],
+            cwd=project_root,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        return completed.stdout.strip() if completed.returncode == 0 else None
 
-def _evaluate_pair(i, j, genome_id1, deck1, genome_id2, deck2, match_guid):
-    if genome_id1 != genome_id2:
-        eval_match(deck1, deck2, match_guid)
-    else:
-        deck1.neat_fitness = 0
-        deck2.neat_fitness = 0
+    return {
+        "commit": run_git("rev-parse", "HEAD"),
+        "branch": run_git("branch", "--show-current"),
+        "dirty": bool(run_git("status", "--porcelain")),
+    }
 
-    return i, j, genome_id1, deck1.neat_fitness, genome_id2, deck2.neat_fitness, match_guid
 
-def eval_genomes(genomes, config, max_concurrent_games: int = 2, max_matches_per_genome: int = None):
-    global Training
-    global generation
-    generation += 1
-    n = len(genomes)
+def _training_metadata(
+        project_root: Path,
+        builder_config: str,
+        evaluator_config: str,
+        settings: BuilderSettings,
+) -> dict:
+    return {
+        "schema_version": 3,
+        "description": settings.description,
+        "settings": asdict(settings),
+        "builder_config": builder_config,
+        "evaluator_config": evaluator_config,
+        "git": _git_metadata(project_root),
+        "database_hashes": {
+            "cards": _file_sha256(project_root / "utils" / "cards.db"),
+            "decks": _file_sha256(project_root / "utils" / "decks.db"),
+        },
+        "observed_populations": [],
+        "termination_reason": None,
+    }
 
-    # ---------------------------------------------------------
-    # 1. DETERMINE MATCH PAIRINGS (EVEN DISTRIBUTION)
-    # ---------------------------------------------------------
-    matches_to_play = []
 
-    if max_matches_per_genome is None:
-        # Fallback to Everyone vs Everyone
-        total_possible_matches = n * (n - 1) // 2
-        for i, (genome_id1, genome1) in enumerate(genomes):
-            for genome_id2, genome2 in genomes[i + 1:]:
-                matches_to_play.append((genome_id1, genome1, genome_id2, genome2))
-    else:
-        # Cap matches to the maximum possible opponents (n - 1)
-        x = min(max_matches_per_genome, n - 1)
+def build_matchups(genomes, max_matches_per_genome: int, rng: random.Random):
+    population = list(genomes)
+    size = len(population)
+    if size < 2:
+        return []
 
-        # A valid regular graph requires (n * x) to be even.
-        # If it's not, we reduce the match count by 1 to make it possible.
-        if (n * x) % 2 != 0:
-            x -= 1
+    opponent_count = min(max_matches_per_genome, size - 1)
+    if (size * opponent_count) % 2:
+        opponent_count -= 1
+    if opponent_count <= 0:
+        return []
 
-        if x <= 0:
-            total_possible_matches = 0
-        else:
-            total_possible_matches = (n * x) // 2
+    shuffled = population[:]
+    rng.shuffle(shuffled)
+    matches = []
+    for index in range(size):
+        for offset in range(1, opponent_count // 2 + 1):
+            target = (index + offset) % size
+            matches.append((shuffled[index], shuffled[target]))
 
-            # Randomize nodes to ensure opponents are random despite the strict ring topology
-            shuffled_genomes = list(genomes)
-            random.shuffle(shuffled_genomes)
+        if opponent_count % 2:
+            target = (index + size // 2) % size
+            if index < size // 2:
+                matches.append((shuffled[index], shuffled[target]))
+    return matches
 
-            for i in range(n):
-                # Connect to x // 2 nodes moving "forward" in the list
-                for j in range(1, (x // 2) + 1):
-                    target = (i + j) % n
-                    matches_to_play.append((shuffled_genomes[i][0], shuffled_genomes[i][1],
-                                            shuffled_genomes[target][0], shuffled_genomes[target][1]))
 
-                # If x is odd, also connect to the node exactly opposite in the circle
-                if x % 2 != 0:
-                    opposite = (i + n // 2) % n
-                    if i < n // 2: # Prevents adding the same match twice
-                        matches_to_play.append((shuffled_genomes[i][0], shuffled_genomes[i][1],
-                                                shuffled_genomes[opposite][0], shuffled_genomes[opposite][1]))
+def _evaluate_pair(
+        genome_id1,
+        deck1,
+        genome_id2,
+        deck2,
+        match_guid: str,
+        evaluator_settings: EvaluatorSettings,
+):
+    fitness1, fitness2 = train_deck(
+        deck1,
+        deck2,
+        match_guid,
+        settings=evaluator_settings,
+    )
+    return genome_id1, fitness1, genome_id2, fitness2, match_guid
 
-    with open("training_progress.txt", "a") as f:
-        f.write(f"generation: {generation} |  training round: 0/{total_possible_matches} | time: {ctime(time())}\n")
 
-    # ---------------------------------------------------------
-    # 2. PRE-BUILD DECKS AND SAVE GENOMES TO LOGGER
-    # ---------------------------------------------------------
+def eval_genomes(
+        genomes,
+        config,
+        settings: BuilderSettings,
+        training_row: Training,
+        generation: int,
+        species_count: int,
+        metadata: dict,
+):
+    population_size = len(genomes)
+    metadata["observed_populations"].append(
+        {
+            "generation": generation,
+            "population": population_size,
+            "species": species_count,
+        }
+    )
+    if settings.enforce_population_guard and not (
+            MIN_EFFECTIVE_POPULATION <= population_size <= MAX_EFFECTIVE_POPULATION
+    ):
+        raise RuntimeError(
+            "Effective builder population must remain between "
+            f"{MIN_EFFECTIVE_POPULATION} and {MAX_EFFECTIVE_POPULATION}; "
+            f"generation {generation} has {population_size}"
+        )
+    if settings.enforce_population_guard and not (
+            MIN_SPECIES <= species_count <= MAX_SPECIES
+    ):
+        raise RuntimeError(
+            f"Builder species count must remain between {MIN_SPECIES} and "
+            f"{MAX_SPECIES}; generation {generation} has {species_count}"
+        )
+
+    rng = random.Random(f"{settings.seed}:{generation}:matchups")
+    matches_to_play = build_matchups(
+        genomes,
+        settings.max_matches_per_genome,
+        rng,
+    )
+    if not matches_to_play:
+        raise RuntimeError("Builder generation has no legal matchups")
+
+    progress_path = os.environ.get("TRAINING_PROGRESS_PATH", "training_progress.txt")
+    with open(progress_path, "a") as progress_file:
+        progress_file.write(
+            f"training_id: {training_row.id} | seed: {settings.seed} | "
+            f"generation: {generation} | training round: 0/{len(matches_to_play)} "
+            f"| time: {ctime(time())}\n"
+        )
+
+    logger = AITrainingLogger()
     decks_by_genome = {}
     for genome_id, genome in genomes:
         net = neat.nn.FeedForwardNetwork.create(genome, config)
         deck = build_deck(net)
         deck.name = f"Gen{generation}_ID{genome_id}"
-
-        # Save generated decks with the training data
-        train_logger.save_training_deck(deck, training_row.id)
+        logger.save_training_deck(deck, training_row.id)
         decks_by_genome[genome_id] = deck
-
-        # Create unique GUID for this genome in this training session
-        genome_guid = _genome_guid(training_row.id, generation, genome_id)
-
-        genome_row = Genome(
-            guid=genome_guid,
-            gen=generation,
-            deck_id=deck.id,
-            training_id=training_row.id,
-            score=0.0
+        logger.save_genome(
+            Genome(
+                guid=_genome_guid(training_row.id, generation, genome_id),
+                gen=generation,
+                deck_id=deck.id,
+                training_id=training_row.id,
+                score=0.0,
+            )
         )
-        train_logger.save_genome(genome_row)
+        genome.fitness = 0.0
 
-    # Initialize fitness uniformly to 0
-    for genome_id, genome in genomes:
-        genome.fitness = 0
-
-    # Build matches using the pre-built decks mapped from our dictionary
-    matches = []
-    for idx, (genome_id1, genome1, genome_id2, genome2) in enumerate(matches_to_play):
-        # GENERATE AND SAVE BEFORE THE MATCH RUNS
-        match_guid = f"T{training_row.id}:{genome_id1}-vs-{genome_id2}:gen{generation}"
-
-        match_row = MatchDBT(
-            guid=match_guid,
-            genome_1=_genome_guid(training_row.id, generation, genome_id1),
-            genome_2=_genome_guid(training_row.id, generation, genome_id2),
-            deck_1=decks_by_genome[genome_id1].id,
-            deck_2=decks_by_genome[genome_id2].id,
-            gen=generation,
-            result=0.0 # Placeholder
+    fitness_counts = {genome_id: 0 for genome_id, _ in genomes}
+    scheduled_matches = []
+    for (genome_id1, _), (genome_id2, _) in matches_to_play:
+        match_guid = (
+            f"T{training_row.id}:{genome_id1}-vs-{genome_id2}:gen{generation}"
         )
-        train_logger.save_match_dbt(match_row)
+        logger.save_match_dbt(
+            MatchDBT(
+                guid=match_guid,
+                genome_1=_genome_guid(training_row.id, generation, genome_id1),
+                genome_2=_genome_guid(training_row.id, generation, genome_id2),
+                deck_1=decks_by_genome[genome_id1].id,
+                deck_2=decks_by_genome[genome_id2].id,
+                gen=generation,
+                result=None,
+            )
+        )
+        scheduled_matches.append(
+            (
+                genome_id1,
+                decks_by_genome[genome_id1],
+                genome_id2,
+                decks_by_genome[genome_id2],
+                match_guid,
+                settings.evaluator_settings(),
+            )
+        )
 
-        matches.append((idx, 0, genome_id1, decks_by_genome[genome_id1], genome_id2, decks_by_genome[genome_id2], match_guid))
+    genomes_by_id = dict(genomes)
+    completed_matches = 0
+    with ProcessPoolExecutor(max_workers=max(1, settings.outer_workers)) as executor:
+        futures = [executor.submit(_evaluate_pair, *match) for match in scheduled_matches]
+        for future in as_completed(futures):
+            genome_id1, fit1, genome_id2, fit2, match_guid = future.result()
+            if not math.isfinite(fit1) or not math.isfinite(fit2):
+                raise RuntimeError(
+                    f"Deck matchup {match_guid} produced non-finite fitness"
+                )
+            genomes_by_id[genome_id1].fitness += fit1
+            genomes_by_id[genome_id2].fitness += fit2
+            fitness_counts[genome_id1] += 1
+            fitness_counts[genome_id2] += 1
+            completed_matches += 1
 
-    total_matches = len(matches)
-    if total_matches == 0:
-        return
+            saved_match = logger.get_match_dbt(match_guid)
+            if saved_match is not None:
+                saved_match.result = fit1
+                logger.save_match_dbt(saved_match)
 
-    max_concurrent = max(1, int(max_concurrent_games))
-    dict_genomes = dict(genomes)
+            print(
+                f"generation: {generation} | training round: "
+                f"{completed_matches}/{len(scheduled_matches)} | "
+                f"time: {ctime(time())}"
+            )
 
-    # ---------------------------------------------------------
-    # 3. RUN MATCHES AND LOG MATCH DATA
-    # ---------------------------------------------------------
-    with ProcessPoolExecutor(max_workers=max_concurrent) as executor:
-        completed_matches = 0
-        for start in range(0, total_matches, max_concurrent):
-            batch = matches[start:start + max_concurrent]
-            futures = [executor.submit(_evaluate_pair, *m) for m in batch]
-
-            for fut in futures:
-                i, j, g1_id, g1_fit, g2_id, g2_fit, returned_match_guid = fut.result()
-                completed_matches += 1
-
-                genome1 = dict_genomes[g1_id]
-                genome2 = dict_genomes[g2_id]
-
-                genome1.fitness += g1_fit
-                genome2.fitness += g2_fit
-
-                saved_match = train_logger.get_match_dbt(returned_match_guid)
-                if saved_match:
-                    saved_match.result = g1_fit
-                    train_logger.save_match_dbt(saved_match)
-
-                best_genome = max(genomes, key=lambda g: g[1].fitness if g[1].fitness is not None else float("-inf"))
-                print(f"generation: {generation} |  training round: {completed_matches}/{total_matches} |  top_fitness: {best_genome[1].fitness}  | time: {ctime(time())}")
-
-    # ---------------------------------------------------------
-    # 4. POST-GENERATION: UPDATE FINAL GENOME SCORES
-    # ---------------------------------------------------------
+    expected_opponents = min(settings.max_matches_per_genome, population_size - 1)
+    if (population_size * expected_opponents) % 2:
+        expected_opponents -= 1
     for genome_id, genome in genomes:
-        genome_guid = _genome_guid(training_row.id, generation, genome_id)
-        saved_genome = train_logger.get_genome(genome_guid)
-        if saved_genome:
-            saved_genome.score = genome.fitness
-            train_logger.save_genome(saved_genome)
+        if fitness_counts[genome_id] != expected_opponents:
+            raise RuntimeError(
+                f"Genome {genome_id} played {fitness_counts[genome_id]} opponents; "
+                f"expected {expected_opponents}"
+            )
+        genome.fitness /= fitness_counts[genome_id]
+        genome_row = logger.get_genome(
+            _genome_guid(training_row.id, generation, genome_id)
+        )
+        if genome_row is not None:
+            genome_row.score = genome.fitness
+            logger.save_genome(genome_row)
 
-def test_genome(genome, config):
-    net  = neat.nn.FeedForwardNetwork.create(genome, config)
-    deck = build_deck(net)
-    deck.cards.sort(key=lambda card: card.name)
-    for card in deck.cards:
-        print(f"{card.name.ljust(10)} |", end="")
-    print()
+    training_row.metadata = json.dumps(metadata, sort_keys=True)
+    logger.save_training(training_row)
 
-def train_deck_builder():
-    file_prefix = str(datetime.datetime.now().date())
-    local_dir   = os.path.dirname(__file__)
-    config_path = os.path.join(local_dir, 'configs/neat_config_builder.txt')
-    config      = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
-                              neat.DefaultSpeciesSet, neat.DefaultStagnation,
-                              config_path)
 
-    checkpoint_path = os.environ.get("DECK_BUILDER_CHECKPOINT")
-    if checkpoint_path:
-        p = neat.Checkpointer.restore_checkpoint(checkpoint_path)
+def train_deck_builder(settings: BuilderSettings):
+    project_root = Path(__file__).resolve().parents[1]
+    if shutil.disk_usage(project_root).free < MIN_FREE_DISK_BYTES:
+        raise RuntimeError("At least 1 GiB of free disk space is required")
+
+    local_dir = Path(__file__).resolve().parent
+    artifact_root = Path(os.environ.get("TRAINING_ARTIFACT_DIR", local_dir))
+    builder_config_path = local_dir / "configs" / "neat_config_builder.txt"
+    evaluator_config_path = local_dir / "configs" / "neat_config_evaluator.txt"
+    builder_config_text = builder_config_path.read_text()
+    evaluator_config_text = evaluator_config_path.read_text()
+    config = neat.Config(
+        neat.DefaultGenome,
+        neat.DefaultReproduction,
+        neat.DefaultSpeciesSet,
+        neat.DefaultStagnation,
+        str(builder_config_path),
+    )
+
+    random.seed(settings.seed)
+    if settings.checkpoint_path:
+        population = neat.Checkpointer.restore_checkpoint(settings.checkpoint_path)
     else:
-        p = neat.Population(config)
+        population = neat.Population(config)
 
-    stats = neat.StatisticsReporter()
-    p.add_reporter(stats)
-    checkpoint_dir = Path(local_dir) / "checkpoints" / "deck_builder_trainer"
+    logger = AITrainingLogger()
+    metadata = _training_metadata(
+        project_root,
+        builder_config_text,
+        evaluator_config_text,
+        settings,
+    )
+    training_row = logger.save_training(
+        Training(
+            start_date=str(datetime.datetime.now()),
+            config=builder_config_text,
+            metadata=json.dumps(metadata, sort_keys=True),
+            description=settings.description,
+        )
+    )
+    print(f"training id: {training_row.id} | seed: {settings.seed}")
+
+    checkpoint_dir = artifact_root / "checkpoints" / "deck_builder_trainer"
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
-    p.add_reporter(neat.Checkpointer(generation_interval=0, filename_prefix=str(checkpoint_dir / f"deck_builder_checkpoint_{file_prefix}_gen-")))
+    checkpoint_prefix = checkpoint_dir / (
+        f"training_{training_row.id}_seed_{settings.seed}_gen-"
+    )
+    population.add_reporter(neat.StatisticsReporter())
+    population.add_reporter(
+        neat.Checkpointer(generation_interval=1, filename_prefix=str(checkpoint_prefix))
+    )
 
-    timeTaken = time()
-    global generation
-    generation = p.generation
-    generation_count = 15
+    generation = population.generation
+    started_at = time()
 
-    # ---------------------------------------------------------
-    # SET YOUR DESIRED MAXIMUM MATCHES PER GENOME HERE
-    # ---------------------------------------------------------
-    MAX_MATCHES_PER_GENOME = 15 # None means full => every onve vs everyone
+    def evaluate_generation(genomes, neat_config):
+        nonlocal generation
+        generation += 1
+        eval_genomes(
+            genomes,
+            neat_config,
+            settings,
+            training_row,
+            generation,
+            len(population.species.species),
+            metadata,
+        )
 
-    # Use lambda to inject max_matches_per_genome cleanly into NEAT's expected signature
-    eval_function = lambda genomes, conf: eval_genomes(genomes, conf, max_concurrent_games=2, max_matches_per_genome=MAX_MATCHES_PER_GENOME)
-
-    global training_row
-    training_row = Training(str(datetime.datetime.now()))
-    training_row.config = open(config_path).read()
-
-    training_row = train_logger.save_training(training_row)
-
-    winner = p.run(eval_function, generation_count)
-    print(f"best fitness overall: {winner.fitness}")
+    try:
+        winner = population.run(evaluate_generation, settings.outer_generations)
+        metadata["termination_reason"] = "completed"
+    except BaseException as error:
+        metadata["termination_reason"] = f"failed: {type(error).__name__}: {error}"
+        training_row.end_date = str(datetime.datetime.now())
+        training_row.metadata = json.dumps(metadata, sort_keys=True)
+        logger.save_training(training_row)
+        raise
 
     training_row.end_date = str(datetime.datetime.now())
-    train_logger.save_training(training_row)
+    training_row.metadata = json.dumps(metadata, sort_keys=True)
+    logger.save_training(training_row)
 
-    timeTaken = time() - timeTaken
-    print(f"builder training time: {round(timeTaken)/60/60} hours")
+    output_dir = artifact_root / "trained_ai"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    winner_path = output_dir / (
+        f"best_builder_training_{training_row.id}_seed_{settings.seed}_gen_{generation}.pickle"
+    )
+    with winner_path.open("wb") as winner_file:
+        pickle.dump(winner, winner_file)
 
-    file_path = Path("./neat_ai/trained_ai/")
-    file_path = file_path / f"best_builder_{generation}.pickle"
-    print(file_path.absolute())
-    with open(file_path.absolute(), "wb") as f:
-        pickle.dump(winner, f)
+    elapsed_hours = (time() - started_at) / 3600
+    print(f"best fitness: {winner.fitness}")
+    print(f"training time: {elapsed_hours:.2f} hours")
+    print(f"winner: {winner_path}")
+    return winner
 
-    test_genome(winner, config)
 
-if __name__ == '__main__':
-    train_deck_builder()
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Run the final multi-generation metagame experiment"
+    )
+    parser.add_argument("--seeds", type=int, nargs="+", default=list(DEFAULT_SEEDS))
+    parser.add_argument("--run-label", default=DEFAULT_RUN_LABEL)
+    parser.add_argument(
+        "--description",
+        default=DEFAULT_RUN_DESCRIPTION,
+        help="Human-readable experiment purpose stored with every training run",
+    )
+    parser.add_argument(
+        "--outer-generations",
+        type=int,
+        default=DEFAULT_OUTER_GENERATIONS,
+    )
+    parser.add_argument("--max-matches-per-genome", type=int, default=12)
+    parser.add_argument("--outer-workers", type=int, default=2)
+    parser.add_argument(
+        "--evaluator-generations",
+        type=int,
+        default=DEFAULT_EVALUATOR_GENERATIONS,
+    )
+    parser.add_argument("--evaluator-workers", type=int, default=12)
+    parser.add_argument("--holdout-seed-pairs", type=int, default=20)
+    parser.add_argument("--early-holdout-generation", type=int, default=5)
+    parser.add_argument(
+        "--diagnostic-holdout-generations",
+        type=int,
+        nargs="+",
+        default=list(DEFAULT_DIAGNOSTIC_HOLDOUT_GENERATIONS),
+    )
+    parser.add_argument(
+        "--crossplay-reference-generation",
+        type=int,
+        default=DEFAULT_CROSSPLAY_REFERENCE_GENERATION,
+    )
+    parser.add_argument(
+        "--log-training-games",
+        action="store_true",
+        help=(
+            "Store raw co-evolution games. Held-out games are always stored; "
+            "leave this disabled for the final metagame experiment."
+        ),
+    )
+    parser.add_argument("--checkpoint")
+    parser.add_argument(
+        "--allow-population-outside-guard",
+        action="store_true",
+        help="Disable the 18-24 effective population safety check",
+    )
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    arguments = parse_args()
+    if arguments.checkpoint and len(arguments.seeds) != 1:
+        raise SystemExit("--checkpoint requires exactly one --seeds value")
+    for run_seed in arguments.seeds:
+        train_deck_builder(
+            BuilderSettings(
+                seed=run_seed,
+                run_label=arguments.run_label,
+                description=arguments.description,
+                outer_generations=arguments.outer_generations,
+                max_matches_per_genome=arguments.max_matches_per_genome,
+                outer_workers=arguments.outer_workers,
+                evaluator_generations=arguments.evaluator_generations,
+                evaluator_workers=arguments.evaluator_workers,
+                holdout_seed_pairs=arguments.holdout_seed_pairs,
+                early_holdout_generation=arguments.early_holdout_generation,
+                diagnostic_holdout_generations=tuple(
+                    arguments.diagnostic_holdout_generations
+                ),
+                crossplay_reference_generation=(
+                    arguments.crossplay_reference_generation
+                ),
+                log_training_games=arguments.log_training_games,
+                checkpoint_path=arguments.checkpoint,
+                enforce_population_guard=not arguments.allow_population_outside_guard,
+            )
+        )

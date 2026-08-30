@@ -3,6 +3,7 @@ import pandas as pd
 from .data_loader import (
     deck_source_ctes,
     get_analysis_training_id,
+    has_column,
     load_deck_compositions,
     training_connection,
 )
@@ -77,7 +78,7 @@ def load_deck_learning_curves(
         params["outer_gen"] = outer_gen
     training_id = get_analysis_training_id()
     match_joins = ""
-    match_where = ""
+    match_filters = []
     if training_id is not None:
         params["analysis_training_id"] = training_id
         match_joins = """
@@ -86,13 +87,20 @@ def load_deck_learning_curves(
             JOIN genome g2
                 ON m.genome_2 = g2.guid
         """
-        match_where = """
-            WHERE g1.training_id = :analysis_training_id
-              AND g2.training_id = :analysis_training_id
-        """
+        match_filters.extend(
+            [
+                "g1.training_id = :analysis_training_id",
+                "g2.training_id = :analysis_training_id",
+            ]
+        )
     where_clause = f"WHERE {' AND '.join(filters)}" if filters else ""
 
     with training_connection() as conn:
+        if has_column(conn, "pc_match", "phase"):
+            match_filters.append("COALESCE(p.phase, 'training') = 'training'")
+        match_where = (
+            f"WHERE {' AND '.join(match_filters)}" if match_filters else ""
+        )
         query = f"""
         {deck_source_ctes(conn, training_id=training_id)},
         match_scores AS (

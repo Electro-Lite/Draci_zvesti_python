@@ -23,6 +23,7 @@ class Menu():
         self.game.window.blit(self.game.display, (0, 0))
         pg.display.update()
         self.game.reset_keys()
+        self.game.clock.tick(60)
 
     def display_menu(self):
         raise NotImplementedError()

@@ -1,121 +1,110 @@
-from core.player import PlayerChoiceStrategy
-from cards.card import Card
 from enum import Enum
 from time import sleep
-from random import randint
+
+from cards.ability.ability_target import AbilityTarget
+from cards.card import Card
+from choice_strategies.choice_strategy import PlayerChoiceStrategy
+
 
 class ChoiceType(Enum):
-        NONE        = 0
-        CARD        = 1
-        POSITION    = 2
-        PASS        = 3
-        USE_ABILITY = 4
-        TARGET      = 5
-
+    NONE = 0
+    CARD = 1
+    POSITION = 2
+    PASS = 3
+    USE_ABILITY = 4
+    TARGET = 5
 
 
 class PygameChoiceStrategy(PlayerChoiceStrategy):
-    def __init__(self, _player):
-        super().__init__(_player)
-        self.choice      = None
-        self.waiting_for = ChoiceType.NONE
-        self.do_exit    = False
+    """Blocking human strategy bridged to the pygame event loop."""
 
-    def _wait_for_input(self, waiting_for:ChoiceType):
-        self.waiting_for    = waiting_for
-        while waiting_for != ChoiceType.NONE and self.choice == None:
+    def __init__(self, player):
+        super().__init__(player)
+        self.choice = None
+        self.waiting_for = ChoiceType.NONE
+        self.do_exit = False
+        self.selected_card = None
+        self.selected_position = None
+
+    def _wait_for_input(self, waiting_for: ChoiceType):
+        self.waiting_for = waiting_for
+        while self.choice is None:
             if self.do_exit:
-                exit()
-            else:
-                sleep(0.2)
-        self.waiting_for    = ChoiceType.NONE
+                self.waiting_for = ChoiceType.NONE
+                raise SystemExit
+            sleep(0.02)
+        self.waiting_for = ChoiceType.NONE
         choice = self.choice
-        self.choice         = None
+        self.choice = None
         return choice
 
-    def set_choice(self, choice_type:ChoiceType, choice_value):
-        if self.waiting_for == choice_type:
-            self.choice = choice_value
-        else:
-            raise ValueError()
-
-    def get_choice_card(self) -> Card:
-        # Blocks until Pygame sends a Card object
-        card = self._wait_for_input(ChoiceType.CARD)
-
-        pos = self.this_player.hand.cards.index(card)
-        return self.this_player.hand.cards.pop(pos)
-
-    def get_choice_pos(self) -> int:
-        # Blocks until Pygame sends an int (0-5)
-        return self._wait_for_input(ChoiceType.POSITION)
-    
-    def exit_thread(self):
-        self.do_exit = True
-    # def get_choice_pass(self) -> bool:
-    #     # Blocks until Pygame sends a bool
-    #     return self._wait_for_input(ChoiceType.PASS)
-
-    # def get_choice_use_ability(self) -> bool:
-    #     # Blocks until Pygame sends a bool
-    #     return self._wait_for_input(ChoiceType.USE_ABILITY)
-    
-    # def get_choice_ability_target(self) -> int:
-    #     # Blocks until Pygame sends an int target
-    #     return self._wait_for_input(ChoiceType.TARGET)
-
-    def get_choice_use_ability(self):
+    def set_choice(self, choice_type: ChoiceType, choice_value):
+        if self.waiting_for != choice_type:
+            return False
+        self.choice = choice_value
         return True
 
-    def get_choice_pass(self):
-        return False
-    
-    def get_choice_ability_target(self): #TODO should not select self (Nepotrebny_novic)
-        game_board  = self.info.game_board
-        start_pos = randint(0, 6) # 6 positions
-        for i in range(0, 6):
-            pos = ( start_pos + i ) % 6 
-            if game_board.positions[pos] != None:
-                return pos
-    """
-    def __init__(self, _player):
-        super().__init__(_player)
-        # We need the display strategy because it holds the input_queue
-        self.display = None
-
-    def _wait_for_input(self, input_type: str):
-        with self.display.lock:
-            self.display.waiting_for = input_type
-            # Update prompt so the user knows what to do
-            self.display.status_message = f"Please select: {input_type}"
-        
-        # --- BLOCKING CALL ---
-        # The code stops here until Pygame puts something in the queue
-        user_input = self.display.input_queue.get() 
-        
-        # Reset waiting state
-        with self.display.lock:
-            self.display.waiting_for = None
-            
-        return user_input
-
     def get_choice_card(self) -> Card:
-        # Blocks until Pygame sends a Card object
-        return self._wait_for_input("CARD")
+        card = self._wait_for_input(ChoiceType.CARD)
+        position = self.this_player.hand.cards.index(card)
+        self.selected_card = self.this_player.hand.cards.pop(position)
+        return self.selected_card
 
     def get_choice_pos(self) -> int:
-        # Blocks until Pygame sends an int (0-5)
-        return self._wait_for_input("POSITION")
+        self.selected_position = self._wait_for_input(ChoiceType.POSITION)
+        return self.selected_position
+
+    def exit_thread(self):
+        self.do_exit = True
 
     def get_choice_pass(self) -> bool:
-        # Blocks until Pygame sends a bool
-        return self._wait_for_input("PASS_DECISION")
+        self.selected_card = None
+        self.selected_position = None
+        return bool(self._wait_for_input(ChoiceType.PASS))
 
     def get_choice_use_ability(self) -> bool:
-        # Blocks until Pygame sends a bool
-        return self._wait_for_input("USE_ABILITY")
-    
+        if self.selected_card is None or not self.selected_card.ability.is_active:
+            return False
+        target_owner = getattr(
+            self.selected_card.ability,
+            "target_owner",
+            AbilityTarget.ANY,
+        )
+        if target_owner != AbilityTarget.DRAGON and not self.legal_targets():
+            return False
+        return bool(self._wait_for_input(ChoiceType.USE_ABILITY))
+
+    def legal_targets(self) -> list[int]:
+        if self.selected_card is None:
+            return []
+        target_owner = getattr(
+            self.selected_card.ability,
+            "target_owner",
+            AbilityTarget.ANY,
+        )
+        if target_owner == AbilityTarget.DRAGON:
+            return []
+
+        legal = []
+        for index, card in enumerate(self.info.game_board.positions):
+            if index == self.selected_position:
+                card_owner = self.this_player
+            elif card is None:
+                continue
+            else:
+                card_owner = card.owner
+
+            if target_owner == AbilityTarget.ANY:
+                legal.append(index)
+            elif target_owner == AbilityTarget.ALLY and card_owner == self.this_player:
+                legal.append(index)
+            elif target_owner == AbilityTarget.ENEMY and card_owner != self.this_player:
+                legal.append(index)
+        return legal
+
     def get_choice_ability_target(self) -> int:
-        # Blocks until Pygame sends an int target
-        return self._wait_for_input("TARGET")
-    """
+        if self.selected_card is None:
+            return 0
+        if self.selected_card.ability.target_owner == AbilityTarget.DRAGON:
+            return 0
+        return self._wait_for_input(ChoiceType.TARGET)

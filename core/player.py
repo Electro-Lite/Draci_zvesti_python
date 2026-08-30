@@ -30,6 +30,16 @@ class Player:
         
         self.score      = 0
         self.passed     = False
+        self.card_plays = {}
+        self.active_ability_uses = {}
+
+    def record_card_play(self, card, used_active_ability: bool) -> None:
+        card_id = str(card.id)
+        self.card_plays[card_id] = self.card_plays.get(card_id, 0) + 1
+        if card.ability.is_active and used_active_ability:
+            self.active_ability_uses[card_id] = (
+                self.active_ability_uses.get(card_id, 0) + 1
+            )
     
     def draw_hand(self):
         self.draw_cards(5)

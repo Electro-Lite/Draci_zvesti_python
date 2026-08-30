@@ -1,4 +1,8 @@
-from random                                 import shuffle, randint
+import hashlib
+import random
+from dataclasses import dataclass, field
+from typing import Optional
+
 from .                                      import game_info as gi
 from .                                      import player as p
 from config                                 import Config
@@ -7,14 +11,52 @@ from core.board                             import Board
 from display_strategies.display_strategy    import DisplayStrategy
 from cards.mana                             import ManaColor
 from core.enums.game_state                  import GameState
-from time import sleep
 
 Player      = p.Player
 GameInfo    = gi.GameInfo
 
 
-def run(player_1: Player, player_2: Player, display_strategy_class: DisplayStrategy = DisplayStrategy, board = None):
+@dataclass(frozen=True)
+class GameResult:
+    player_1_score: int
+    player_2_score: int
+    winner_id: Optional[int]
+    rounds: int
+    starting_player_id: int
+    seed: Optional[int]
+    player_1_card_plays: dict[str, int] = field(default_factory=dict)
+    player_2_card_plays: dict[str, int] = field(default_factory=dict)
+    player_1_active_ability_uses: dict[str, int] = field(default_factory=dict)
+    player_2_active_ability_uses: dict[str, int] = field(default_factory=dict)
+
+
+def _derived_seed(seed: int, namespace: str) -> int:
+    digest = hashlib.sha256(f"{seed}:{namespace}".encode("utf-8")).digest()
+    return int.from_bytes(digest[:8], "big")
+
+
+def _shuffle_deck(deck, seed: Optional[int], namespace: str) -> None:
+    if seed is None:
+        random.shuffle(deck.cards)
+        return
+    # Canonicalizing first gives identical compositions the same draw order,
+    # even when their generated database IDs or construction order differ.
+    deck.cards.sort(key=lambda card: str(card.id))
+    composition = ",".join(str(card.id) for card in deck.cards)
+    random.Random(_derived_seed(seed, f"{namespace}:{composition}")).shuffle(deck.cards)
+
+
+def run(
+        player_1: Player,
+        player_2: Player,
+        display_strategy_class: DisplayStrategy = DisplayStrategy,
+        board=None,
+        seed: Optional[int] = None,
+        starting_player_id: Optional[int] = None,
+) -> GameResult:
     """run game for players of given type, random if not set"""
+    if seed is not None:
+        random.seed(_derived_seed(seed, "environment"))
     if board is None:
         board = Board()
 
@@ -41,8 +83,8 @@ def run(player_1: Player, player_2: Player, display_strategy_class: DisplayStrat
     # player_1.deck=decks_lib.get_base_blue_deck()    # Will be handled by db later
     # player_2.deck=decks_lib.get_base_blue_deck()
 
-    shuffle(player_1.deck.cards)
-    shuffle(player_2.deck.cards)
+    _shuffle_deck(player_1.deck, seed, "deck")
+    _shuffle_deck(player_2.deck, seed, "deck")
 
     player_1.draw_hand()
     player_2.draw_hand()
@@ -50,7 +92,16 @@ def run(player_1: Player, player_2: Player, display_strategy_class: DisplayStrat
     player_1.hand.sort()
     player_2.hand.sort()
 
-    player_on_turn = random_player(player_1, player_2)
+    if starting_player_id is None:
+        player_on_turn = random_player(player_1, player_2)
+    elif starting_player_id == player_1.id:
+        player_on_turn = player_1
+    elif starting_player_id == player_2.id:
+        player_on_turn = player_2
+    else:
+        raise ValueError(f"Unknown starting player id: {starting_player_id}")
+    first_player_id = player_on_turn.id
+    winner = None
     ### Game loop ###
     while run:  ### ROUNDS
         board.game_state = GameState.PREP
@@ -78,13 +129,7 @@ def run(player_1: Player, player_2: Player, display_strategy_class: DisplayStrat
         while run_turns:  ### TURNS
             board.game_state = GameState.PLAY
             # sleep(2) #TODO remove
-            # change player on turn
-            if player_on_turn == player_1:
-                player_on_turn          = player_2
-                board.player_on_turn    = player_2
-            else:
-                player_on_turn          = player_1
-                board.player_on_turn    = player_1
+            board.player_on_turn = player_on_turn
 
             # KEEP GAME INFO UPDATED WITH CURRENT TURN
             info_p1.player_on_turn = player_on_turn
@@ -125,6 +170,10 @@ def run(player_1: Player, player_2: Player, display_strategy_class: DisplayStrat
                         Player_choice_use_ability,
                         Player_choice_target,
                     )
+                    player_on_turn.record_card_play(
+                        Player_choice_card,
+                        Player_choice_use_ability,
+                    )
                     ### evaluate ability ###
                     board.recalculate(do_display=False)  # TODO remove do_display, it is responsibility of player strategy
                     display_strategy.display_board()
@@ -141,6 +190,9 @@ def run(player_1: Player, player_2: Player, display_strategy_class: DisplayStrat
             elif player_1.passed and player_2.passed:  # end player actions, goto finish round
                 run_turns = False
                 dragon_slain_by = battle_dragon(board, display_strategy)
+
+            if run_turns:
+                player_on_turn = player_2 if player_on_turn == player_1 else player_1
 
         ### handle result ###
         if dragon_slain_by == player_1:
@@ -169,7 +221,18 @@ def run(player_1: Player, player_2: Player, display_strategy_class: DisplayStrat
             board.winner        = winner # for pygame, #TODO move to display strategy pygame
             run = False
             # raise IndexError(f"Exceeded max number of game rounds: {current_round}")
-    return
+    return GameResult(
+        player_1_score=player_1.score,
+        player_2_score=player_2.score,
+        winner_id=winner.id if winner is not None else None,
+        rounds=current_round,
+        starting_player_id=first_player_id,
+        seed=seed,
+        player_1_card_plays=dict(player_1.card_plays),
+        player_2_card_plays=dict(player_2.card_plays),
+        player_1_active_ability_uses=dict(player_1.active_ability_uses),
+        player_2_active_ability_uses=dict(player_2.active_ability_uses),
+    )
 
 
 def battle_dragon(board: Board, display_strategy: DisplayStrategy) -> Player:  # returns winner or None if dragon survived
@@ -200,7 +263,6 @@ def battle_dragon(board: Board, display_strategy: DisplayStrategy) -> Player:  #
         # if slain
         if dragon.hp <= 0:  # if dragon defeated
             dragon.slain_by = card.owner
-            card.owner.score += 1
             break
         board.remove_card(card)
         board.recalculate(False)
@@ -212,6 +274,7 @@ def battle_dragon(board: Board, display_strategy: DisplayStrategy) -> Player:  #
         dragon.restore()
         board.dragons.append(dragon)
     board.dragon = None
+    return dragon.slain_by
 
 
 def get_winner(player_1, player_2):
@@ -225,7 +288,7 @@ def get_winner(player_1, player_2):
 
 
 def random_player(player_1, player_2):
-    if randint(1, 2) == 1:
+    if random.randint(1, 2) == 1:
         player_on_turn = player_1
     else:
         player_on_turn = player_2

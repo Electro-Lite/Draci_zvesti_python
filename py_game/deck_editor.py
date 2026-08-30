@@ -1,332 +1,470 @@
-import pygame as pg
-from typing import TYPE_CHECKING
+from __future__ import annotations
+
 from enum import Enum
+from typing import TYPE_CHECKING
+
+import pygame as pg
+
+from cards.deck import Deck
+from cards.power import Power
+from py_game.deck_advisor import DeckAdvisor, discover_advisors
 from py_game.menu.base_menu import Menu
 from utils.database_utils import DBUtil
 
 if TYPE_CHECKING:
     from py_game.game import Game
 
-class ActivePane(Enum):
-    AVAILABLE = 1
-    MIDDLE    = 2
-    DECK      = 3
 
-class MiddleOptions(Enum):
-    SAVE   = 0
-    RETURN = 1
-    DELETE = 2
+class ActivePane(Enum):
+    AVAILABLE = 0
+    ACTIONS = 1
+    DECK = 2
+
 
 class DeckBuilderMenu(Menu):
-    def __init__(self, game: 'Game', deck_id=None):
-        Menu.__init__(self, game)
+    PAGE_SIZE = 12
+
+    def __init__(self, game: "Game", deck_id=None):
+        super().__init__(game)
         self.db = DBUtil()
-
-        # --- Layout Coordinates ---
-        self.col_left_x  = self.game.DISPLAY_W * 0.20
-        self.col_mid_x   = self.game.DISPLAY_W * 0.50
-        self.col_right_x = self.game.DISPLAY_W * 0.80
-        self.start_y     = self.game.DISPLAY_H * 0.20
-
-        # --- Data Lists ---
-        self.all_cards          = self.db.get_all_player_cards()
-        self.available_cards    = list(self.all_cards)
-
-        self.deck_cards = []
-
-        # If editing an existing deck, load it
+        self.previous_menu = None
         self.current_deck_id = deck_id
-        if self.current_deck_id:
-            loaded_deck = self.db.load_deck(self.current_deck_id)
-            if loaded_deck and hasattr(loaded_deck, 'cards'):
-                self.deck_cards = loaded_deck.cards
+        loaded = self.db.load_deck(deck_id) if deck_id else None
+        self.deck_name = loaded.name if loaded else ""
+        self.deck_description = loaded.description if loaded else ""
+        self.deck_cards = list(loaded.cards) if loaded else []
+        self.all_cards = sorted(
+            self.db.get_all_player_cards(),
+            key=lambda card: (card.name.lower(), str(card.id)),
+        )
 
-                # --- FILTER LOADED DECK ---
-                for card in list(self.available_cards):
-                    if self.deck_cards.count(card) >= 4:
-                        self.available_cards.remove(card)
-
-        # --- Nested State Tracking ---
         self.active_pane = ActivePane.AVAILABLE
+        self.indices = {
+            ActivePane.AVAILABLE: 0,
+            ActivePane.ACTIONS: 0,
+            ActivePane.DECK: 0,
+        }
+        self.advisor_options = discover_advisors()
+        self.advisor_index = 0
+        self.advisor = None
+        self.advice = {}
+        self.dirty = False
+        self.message = ""
+        self.message_color = self.game.WHITE
+        self.image_cache = {}
+        self.actions = ["Advisor", "Save deck", "Rename deck", "Delete deck", "Back"]
 
-        # Indices for vertical navigation within each pane
-        self.index_available = 0
-        self.index_middle    = 0
-        self.index_deck      = 0
+    def _copy_count(self, card) -> int:
+        return sum(
+            1
+            for deck_card in self.deck_cards
+            if str(deck_card.id) == str(card.id)
+        )
 
-        self.middle_options = ["Save Deck", "Return", "Delete Deck"]
+    @staticmethod
+    def _copy_limit(card) -> int:
+        return 1 if card.power == Power.LEGENDARY else 4
 
-        self.update_cursor_pos()
+    def _available_cards(self):
+        if len(self.deck_cards) >= 12:
+            return []
+        return [
+            card
+            for card in self.all_cards
+            if self._copy_count(card) < self._copy_limit(card)
+        ]
 
-    def display_menu(self):
-        self.run_display = True
+    def _items(self, pane):
+        if pane == ActivePane.AVAILABLE:
+            return self._available_cards()
+        if pane == ActivePane.ACTIONS:
+            return self.actions
+        return self.deck_cards
 
-        # Clear ghost inputs from previous menu transitions
-        self.game.START_KEY = False
-        self.game.DOWN_KEY = False
-        self.game.UP_KEY = False
-        self.game.LEFT_KEY = False
-        self.game.RIGHT_KEY = False
+    def _clamp_indices(self):
+        for pane in ActivePane:
+            items = self._items(pane)
+            self.indices[pane] = min(
+                self.indices[pane],
+                max(0, len(items) - 1),
+            )
 
-        while self.run_display:
-            self.game.check_events()
-            self.check_input()
-            self.move_cursor()
+    def _selected_card(self):
+        if self.active_pane == ActivePane.ACTIONS:
+            return None
+        items = self._items(self.active_pane)
+        if not items:
+            return None
+        return items[self.indices[self.active_pane]]
 
-            self.game.display.fill(self.game.BLACK)
+    def _set_message(self, message: str, error: bool = False):
+        self.message = message
+        self.message_color = (235, 105, 105) if error else self.game.WHITE
 
-            # Draw Headers
-            self.game.draw_text('Deck Builder', self.TEXT_LARGE, self.col_mid_x, 40)
-            self.game.draw_text('Available Cards', self.TEXT_NORMAL, self.col_left_x, self.start_y - 40)
-            self.game.draw_text('Deck Cards', self.TEXT_NORMAL, self.col_right_x, self.start_y - 40)
+    def _refresh_advice(self):
+        self.advice = {}
+        option = self.advisor_options[self.advisor_index]
+        if option.path is None:
+            self.advisor = None
+            return
+        try:
+            self.advisor = DeckAdvisor(option.path)
+            self.advice = self.advisor.score_cards(
+                self.deck_cards,
+                self._available_cards(),
+            )
+            self._set_message(f"Using {option.path.stem}")
+        except Exception as error:
+            self.advisor = None
+            self.advisor_index = 0
+            self._set_message(f"Advisor could not load: {error}", error=True)
 
-            # --- DRAW LEFT PANE (Available Cards) ---
-            for i, card in enumerate(self.available_cards):
-                y_pos = self.start_y + (i * self.TEXT_NORMAL)
-                self.game.draw_text(getattr(card, 'name', 'Unknown'), self.TEXT_NORMAL, self.col_left_x, y_pos)
+    def _cycle_advisor(self, direction=1):
+        self.advisor_index = (
+            self.advisor_index + direction
+        ) % len(self.advisor_options)
+        self._refresh_advice()
 
-            # --- DRAW MIDDLE PANE (Top: Options, Bottom: Details) ---
-            for i, option in enumerate(self.middle_options):
-                y_pos = self.start_y + (i * self.TEXT_NORMAL)
-                self.game.draw_text(option, self.TEXT_NORMAL, self.col_mid_x, y_pos)
+    def _move_vertical(self, direction):
+        items = self._items(self.active_pane)
+        if items:
+            self.indices[self.active_pane] = (
+                self.indices[self.active_pane] + direction
+            ) % len(items)
 
-            # Bottom Details (Based on hovered card)
-            self.draw_card_details()
+    def _move_horizontal(self, direction):
+        pane_index = list(ActivePane).index(self.active_pane)
+        pane_index = max(0, min(len(ActivePane) - 1, pane_index + direction))
+        self.active_pane = list(ActivePane)[pane_index]
 
-            # --- DRAW RIGHT PANE (Deck) ---
-            for i, card in enumerate(self.deck_cards):
-                y_pos = self.start_y + (i * self.TEXT_NORMAL)
-                self.game.draw_text(getattr(card, 'name', 'Unknown'), self.TEXT_NORMAL, self.col_right_x, y_pos)
+    def _add_selected(self):
+        cards = self._available_cards()
+        if not cards:
+            self._set_message("The deck is full", error=True)
+            return
+        card = cards[self.indices[ActivePane.AVAILABLE]]
+        self.deck_cards.append(card)
+        self.dirty = True
+        self._clamp_indices()
+        if self.advisor is not None:
+            self._refresh_advice()
 
-            self.draw_cursor()
-            self.blit_screen()
+    def _remove_selected(self):
+        if not self.deck_cards:
+            return
+        self.deck_cards.pop(self.indices[ActivePane.DECK])
+        self.dirty = True
+        self._clamp_indices()
+        if self.advisor is not None:
+            self._refresh_advice()
 
-    def draw_card_details(self):
-        """Draws the selected card details in the mid-bottom section."""
-        selected_card = None
-        if self.active_pane == ActivePane.AVAILABLE and self.available_cards:
-            selected_card = self.available_cards[self.index_available]
-        elif self.active_pane == ActivePane.DECK and self.deck_cards:
-            selected_card = self.deck_cards[self.index_deck]
+    def _deck_from_state(self):
+        deck = Deck()
+        deck.id = self.current_deck_id or ""
+        deck.name = self.deck_name
+        deck.description = self.deck_description
+        deck.cards = list(self.deck_cards)
+        return deck
 
-        detail_start_y = self.game.DISPLAY_H * 0.55
-        self.game.draw_text('--- Card Details ---', self.TEXT_NORMAL, self.col_mid_x, detail_start_y)
+    def _save(self):
+        try:
+            self._deck_from_state().validate()
+        except ValueError as error:
+            self._set_message(str(error), error=True)
+            return
+        if not self.deck_name:
+            name = self._text_dialog("Deck name", "")
+            if name is None:
+                return
+            self.deck_name = name.strip() or "Custom Deck"
+        deck = self._deck_from_state()
+        try:
+            self.db.save_deck(deck, is_ai=False)
+        except (ValueError, OSError) as error:
+            self._set_message(str(error), error=True)
+            return
+        self.current_deck_id = deck.id
+        self.dirty = False
+        self._set_message(f"Saved {deck.name}")
 
-        if selected_card:
-            name = getattr(selected_card, 'name', 'N/A')
-            hp = getattr(selected_card, 'hp', 'N/A')
-            dmg = getattr(selected_card, 'dmg', 'N/A')
-            image_path = getattr(selected_card, 'image', None)
+    def _rename(self):
+        name = self._text_dialog("Deck name", self.deck_name)
+        if name is not None and name.strip():
+            self.deck_name = name.strip()
+            self.dirty = True
+            self._set_message("Name updated; save to keep changes")
 
-            # Define Maximum Available Space (Bounding Box)
-            max_w = (self.col_right_x - self.col_left_x) * 0.8
-            image_start_y = detail_start_y + 30
-            text_reserved_space = 80
-            max_h = self.game.DISPLAY_H - image_start_y - text_reserved_space
+    def _delete(self):
+        if not self.current_deck_id:
+            self._set_message("This deck has not been saved", error=True)
+            return
+        if not self._confirm_dialog(f"Delete {self.deck_name}?"):
+            return
+        self.db.delete_deck(self.current_deck_id)
+        self.dirty = False
+        self._return()
 
-            # Calculate Dynamic Dimensions (Maintaining Aspect Ratio)
-            card_aspect_ratio = 5 / 7
-            img_w = max_w
-            img_h = img_w / card_aspect_ratio
-
-            if img_h > max_h:
-                img_h = max_h
-                img_w = img_h * card_aspect_ratio
-
-            img_w = int(img_w)
-            img_h = int(img_h)
-
-            # Center the Image and Draw
-            img_x = self.col_mid_x - (img_w / 2)
-            img_y = image_start_y
-
-            if image_path:
-                self.game.draw_image(image_path, img_x, img_y, img_w, img_h)
-
-            # Position Text Dynamically Below the Image
-            text_y = img_y + img_h + 20
-            self.game.draw_text(f"Name: {name}", self.TEXT_NORMAL, self.col_mid_x, text_y)
-            self.game.draw_text(f"HP: {hp} | DMG: {dmg}", self.TEXT_NORMAL, self.col_mid_x, text_y + 30)
-
-    def update_cursor_pos(self):
-        if self.active_pane == ActivePane.AVAILABLE:
-            if len(self.available_cards) > 0:
-                x = self.col_left_x
-                y = self.start_y + (self.index_available * self.TEXT_NORMAL)
-            else:
-                x = self.col_left_x
-                y = self.start_y
-        elif self.active_pane == ActivePane.MIDDLE:
-            x = self.col_mid_x
-            y = self.start_y + (self.index_middle * self.TEXT_NORMAL)
-        elif self.active_pane == ActivePane.DECK:
-            if len(self.deck_cards) > 0:
-                x = self.col_right_x
-                y = self.start_y + (self.index_deck * self.TEXT_NORMAL)
-            else:
-                x = self.col_right_x
-                y = self.start_y
-
-        self.cursor_rect.midtop = (x + self.offset, y)
-
-    def move_cursor(self):
-        if self.game.RIGHT_KEY:
-            self.game.RIGHT_KEY = False
-            if self.active_pane == ActivePane.AVAILABLE:
-                self.active_pane = ActivePane.MIDDLE
-            elif self.active_pane == ActivePane.MIDDLE:
-                self.active_pane = ActivePane.DECK
-            self.update_cursor_pos()
-
-        elif self.game.LEFT_KEY:
-            self.game.LEFT_KEY = False
-            if self.active_pane == ActivePane.DECK:
-                self.active_pane = ActivePane.MIDDLE
-            elif self.active_pane == ActivePane.MIDDLE:
-                self.active_pane = ActivePane.AVAILABLE
-            self.update_cursor_pos()
-
-        elif self.game.DOWN_KEY:
-            self.game.DOWN_KEY = False
-            if self.active_pane == ActivePane.AVAILABLE and self.available_cards:
-                self.index_available = (self.index_available + 1) % len(self.available_cards)
-            elif self.active_pane == ActivePane.MIDDLE:
-                self.index_middle = (self.index_middle + 1) % len(self.middle_options)
-            elif self.active_pane == ActivePane.DECK and self.deck_cards:
-                self.index_deck = (self.index_deck + 1) % len(self.deck_cards)
-            self.update_cursor_pos()
-
-        elif self.game.UP_KEY:
-            self.game.UP_KEY = False
-            if self.active_pane == ActivePane.AVAILABLE and self.available_cards:
-                self.index_available = (self.index_available - 1) % len(self.available_cards)
-            elif self.active_pane == ActivePane.MIDDLE:
-                self.index_middle = (self.index_middle - 1) % len(self.middle_options)
-            elif self.active_pane == ActivePane.DECK and self.deck_cards:
-                self.index_deck = (self.index_deck - 1) % len(self.deck_cards)
-            self.update_cursor_pos()
-
-    def check_input(self):
-        if getattr(self.game, 'START_KEY', False):
-            self.game.START_KEY = False
-
-            if self.active_pane == ActivePane.AVAILABLE:
-                if self.available_cards and len(self.deck_cards) < 12:
-                    card = self.available_cards[self.index_available]
-                    self.deck_cards.append(card)
-
-                    if self.deck_cards.count(card) >= 4:
-                        self.available_cards.pop(self.index_available)
-                        if self.index_available >= len(self.available_cards) and self.index_available > 0:
-                            self.index_available -= 1
-
-                    self.update_cursor_pos()
-
-            elif self.active_pane == ActivePane.DECK:
-                if self.deck_cards:
-                    card = self.deck_cards.pop(self.index_deck)
-
-                    if self.index_deck >= len(self.deck_cards) and self.index_deck > 0:
-                        self.index_deck -= 1
-
-                    if card not in self.available_cards:
-                        self.available_cards.append(card)
-
-                    self.update_cursor_pos()
-
-            elif self.active_pane == ActivePane.MIDDLE:
-                if self.index_middle == MiddleOptions.SAVE.value:
-                    self._save_deck_logic()
-                elif self.index_middle == MiddleOptions.RETURN.value:
-                    self._return_to_previous()
-                elif self.index_middle == MiddleOptions.DELETE.value:
-                    self._delete_deck_logic()
-
-        if getattr(self.game, 'BACK_KEY', False):
-            self.game.BACK_KEY = False
-            self._return_to_previous()
-
-    # --- Action Helpers ---
-    def _return_to_previous(self):
+    def _return(self):
+        if self.dirty and not self._confirm_dialog("Discard unsaved changes?"):
+            return
         self.run_display = False
-        if hasattr(self, 'previous_menu'):
-            self.game.curr_menu = self.previous_menu
+        self.game.curr_menu = self.previous_menu
+        if self.previous_menu is not None:
             self.previous_menu.__init__(self.game)
             self.previous_menu.run_display = True
 
-    def _get_deck_name_input(self):
-        """Displays a simple overlay to capture text input for a new deck name."""
-        input_text = ""
-        input_active = True
+    def _activate_action(self):
+        action = self.indices[ActivePane.ACTIONS]
+        if action == 0:
+            self._cycle_advisor()
+        elif action == 1:
+            self._save()
+        elif action == 2:
+            self._rename()
+        elif action == 3:
+            self._delete()
+        else:
+            self._return()
 
-        # Disable game standard event checking during this mini-loop
-        while input_active:
-            self.game.display.fill(self.game.BLACK)
+    def check_input(self):
+        if self.game.BACK_KEY:
+            self._return()
+            return
+        if self.game.UP_KEY:
+            self._move_vertical(-1)
+        if self.game.DOWN_KEY:
+            self._move_vertical(1)
+        if self.game.LEFT_KEY:
+            if (
+                self.active_pane == ActivePane.ACTIONS
+                and self.indices[ActivePane.ACTIONS] == 0
+            ):
+                self._cycle_advisor(-1)
+            else:
+                self._move_horizontal(-1)
+        if self.game.RIGHT_KEY:
+            if (
+                self.active_pane == ActivePane.ACTIONS
+                and self.indices[ActivePane.ACTIONS] == 0
+            ):
+                self._cycle_advisor(1)
+            else:
+                self._move_horizontal(1)
+        if not self.game.START_KEY:
+            return
+        if self.active_pane == ActivePane.AVAILABLE:
+            self._add_selected()
+        elif self.active_pane == ActivePane.DECK:
+            self._remove_selected()
+        else:
+            self._activate_action()
 
-            # Draw the prompt overlay
-            self.game.draw_text("Enter Deck Name:", self.TEXT_LARGE, self.col_mid_x, self.game.DISPLAY_H / 2 - 50)
-            self.game.draw_text(input_text + "_", self.TEXT_NORMAL, self.col_mid_x, self.game.DISPLAY_H / 2)
-            self.game.draw_text("Press ENTER to save, ESC to cancel", self.TEXT_SMALL, self.col_mid_x, self.game.DISPLAY_H / 2 + 50)
+    def _draw_list(self, pane, x, width):
+        items = self._items(pane)
+        selected = self.indices[pane]
+        offset = max(0, min(selected - self.PAGE_SIZE + 1, len(items) - self.PAGE_SIZE))
+        for row, item in enumerate(items[offset : offset + self.PAGE_SIZE]):
+            index = offset + row
+            y = self.game.DISPLAY_H * 0.20 + row * self.TEXT_NORMAL
+            if pane == ActivePane.AVAILABLE:
+                advice = self.advice.get(str(item.id))
+                value = f"  #{advice.rank} {advice.score:.2f}" if advice else ""
+                label = f"{item.name}{value}"
+            elif pane == ActivePane.DECK:
+                label = item.name
+            else:
+                if index == 0:
+                    label = (
+                        "Advisor: Off"
+                        if self.advisor_index == 0
+                        else (
+                            f"Advisor: {self.advisor_index}/"
+                            f"{len(self.advisor_options) - 1}"
+                        )
+                    )
+                else:
+                    label = str(item)
+            self.game.draw_text(label, self.TEXT_NORMAL, x, y)
 
-            self.blit_screen()
-
-            for event in pg.event.get():
-                if event.type == pg.QUIT:
-                    pg.quit()
-                    exit()
-                if event.type == pg.KEYDOWN:
-                    if event.key == pg.K_RETURN:
-                        return input_text.strip()
-                    elif event.key == pg.K_ESCAPE:
-                        return None
-                    elif event.key == pg.K_BACKSPACE:
-                        input_text = input_text[:-1]
-                    else:
-                        # Limit deck name length to avoid rendering issues
-                        if len(input_text) < 20:
-                            input_text += event.unicode
-
-    def _save_deck_logic(self):
-        # Local import to prevent circular dependencies
-        from cards.deck import Deck
-
-        # Ensure the deck isn't completely empty before trying to save
-        if not self.deck_cards:
+    def _draw_details(self):
+        card = self._selected_card()
+        detail_y = self.game.DISPLAY_H * 0.55
+        x = self.game.DISPLAY_W * 0.50
+        self.game.draw_text(
+            "--- Card Details ---",
+            self.TEXT_NORMAL,
+            x,
+            detail_y,
+        )
+        if card is None:
             return
 
-        deck = Deck()
-        deck.cards = self.deck_cards
+        image_start_y = detail_y + 30
+        max_width = self.game.DISPLAY_W * 0.24
+        max_height = max(60, self.game.DISPLAY_H - image_start_y - 115)
+        image_width = max_width
+        image_height = image_width / (5 / 7)
+        if image_height > max_height:
+            image_height = max_height
+            image_width = image_height * (5 / 7)
+        if card.image:
+            self.game.draw_image(
+                card.image,
+                x - image_width / 2,
+                image_start_y,
+                image_width,
+                image_height,
+            )
 
-        # If we are editing an existing deck, pull its old data
-        if self.current_deck_id:
-            deck.id = self.current_deck_id
-            old_deck = self.db.load_deck(self.current_deck_id)
-            if old_deck:
-                deck.name = old_deck.name
-                deck.description = old_deck.description
-        else:
-            # If it's a new deck, prompt for a name
-            new_name = self._get_deck_name_input()
+        text_y = image_start_y + image_height + 15
+        self.game.draw_text(
+            f"Name: {card.name}",
+            self.TEXT_NORMAL,
+            x,
+            text_y,
+        )
+        self.game.draw_text(
+            f"HP: {card.hp} | DMG: {card.dmg}",
+            self.TEXT_NORMAL,
+            x,
+            text_y + 25,
+        )
+        advice = self.advice.get(str(card.id))
+        if advice:
+            self.game.draw_text(
+                (
+                    f"Advisor: #{advice.rank}/{advice.candidate_count} "
+                    f"value {advice.score:.3f}"
+                ),
+                self.TEXT_NORMAL,
+                x,
+                text_y + 50,
+            )
 
-            # Consume any leftover inputs so they don't trigger menu actions instantly
-            self.game.START_KEY = False
-            self.game.BACK_KEY = False
+    def _update_cursor(self):
+        pane_x = {
+            ActivePane.AVAILABLE: self.game.DISPLAY_W * 0.20,
+            ActivePane.ACTIONS: self.game.DISPLAY_W * 0.50,
+            ActivePane.DECK: self.game.DISPLAY_W * 0.80,
+        }
+        items = self._items(self.active_pane)
+        selected = self.indices[self.active_pane]
+        offset = max(
+            0,
+            min(selected - self.PAGE_SIZE + 1, len(items) - self.PAGE_SIZE),
+        )
+        y = (
+            self.game.DISPLAY_H * 0.20
+            + (selected - offset) * self.TEXT_NORMAL
+        )
+        self.cursor_rect.midtop = (
+            pane_x[self.active_pane] + self.offset,
+            y,
+        )
 
-            if new_name is None:
-                return # User cancelled the save
+    def display_menu(self):
+        self.run_display = True
+        self.game.reset_keys()
+        while self.run_display:
+            self.game.check_events()
+            self.check_input()
+            if not self.run_display:
+                break
+            self._clamp_indices()
+            self.game.display.fill(self.game.BLACK)
+            self.game.draw_text(
+                "Deck Builder",
+                self.TEXT_LARGE,
+                self.game.DISPLAY_W // 2,
+                40,
+            )
+            width = self.game.DISPLAY_W
+            start_y = self.game.DISPLAY_H * 0.20
+            self.game.draw_text(
+                "Available Cards",
+                self.TEXT_NORMAL,
+                width * 0.20,
+                start_y - 40,
+            )
+            self.game.draw_text(
+                "Deck Cards",
+                self.TEXT_NORMAL,
+                width * 0.80,
+                start_y - 40,
+            )
+            self._draw_list(
+                ActivePane.AVAILABLE,
+                width * 0.20,
+                width * 0.28,
+            )
+            self._draw_list(
+                ActivePane.ACTIONS,
+                width * 0.50,
+                width * 0.24,
+            )
+            self._draw_list(
+                ActivePane.DECK,
+                width * 0.80,
+                width * 0.28,
+            )
+            self._draw_details()
+            self._update_cursor()
+            self.draw_cursor()
+            if self.message:
+                self.game.draw_text(
+                    self.message,
+                    self.TEXT_NORMAL,
+                    self.game.DISPLAY_W // 2,
+                    565,
+                    self.message_color,
+                )
+            self.blit_screen()
 
-            deck.name = new_name if new_name else "Custom Deck"
+    def _text_dialog(self, title, initial):
+        value = initial
+        while True:
+            for event in pg.event.get():
+                if event.type == pg.QUIT:
+                    return None
+                if event.type != pg.KEYDOWN:
+                    continue
+                if event.key == pg.K_ESCAPE:
+                    return None
+                if event.key == pg.K_RETURN:
+                    return value
+                if event.key == pg.K_BACKSPACE:
+                    value = value[:-1]
+                elif event.unicode.isprintable() and len(value) < 32:
+                    value += event.unicode
+            self.game.display.fill(self.game.BLACK)
+            self.game.draw_text(title, self.TEXT_LARGE, self.mid_w, 235)
+            field = pg.Rect(self.mid_w - 220, 280, 440, 55)
+            pg.draw.rect(self.game.display, (20, 22, 24), field)
+            pg.draw.rect(self.game.display, self.game.ORANGE, field, 2)
+            self.game.draw_text(value, self.TEXT_NORMAL, self.mid_w, 307)
+            self.blit_screen()
 
-        # Save to DB and update our current state
-        self.db.save_deck(deck)
-        self.current_deck_id = deck.id
-
-        # Optional UX: Flash a quick "Saved" indicator or just return to previous menu
-        self._return_to_previous()
-
-    def _delete_deck_logic(self):
-        if self.current_deck_id:
-            self.db.delete_deck(self.current_deck_id)
-
-        # Once deleted, this editor session is invalid, so force close it
-        self._return_to_previous()
+    def _confirm_dialog(self, title):
+        selected = False
+        while True:
+            for event in pg.event.get():
+                if event.type == pg.QUIT:
+                    return False
+                if event.type != pg.KEYDOWN:
+                    continue
+                if event.key in (pg.K_ESCAPE, pg.K_BACKSPACE):
+                    return False
+                if event.key in (pg.K_LEFT, pg.K_RIGHT):
+                    selected = not selected
+                if event.key in (pg.K_RETURN, pg.K_SPACE):
+                    return selected
+            self.game.display.fill(self.game.BLACK)
+            self.game.draw_text(title, self.TEXT_LARGE, self.mid_w, 245)
+            self.game.draw_text(
+                "Confirm" if selected else "Cancel",
+                self.TEXT_NORMAL,
+                self.mid_w,
+                320,
+                self.game.ORANGE,
+            )
+            self.blit_screen()
