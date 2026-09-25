@@ -21,6 +21,8 @@ from choice_strategies.choice_strategy_ai_neat      import PlayerChoiceStrategyN
 from choice_strategies.choice_strategy_ai_random    import ChoiceStrategyAIRandom
 from display_strategies.display_strategy_none   import DisplayStrategyNone
 from neat_ai.deck_evaluator import DEFAULT_EVALUATOR_GENERATIONS, fitness_from_result
+from neat_ai.training_plan import evaluation_checkpoints
+from neat_ai.training_telemetry import emit_training_event
 
 
 @dataclass(frozen=True)
@@ -43,6 +45,7 @@ class PlayerTrainerSettings:
 # Worker-local globals (populated by initializer)
 _WORKER_DECK = None
 _SETTINGS = PlayerTrainerSettings()
+_TRAINING_STARTED_AT = None
 
 def evaluate_match(genome1_data, genome2_data, config, deck_1, deck_2):
     genome_id1, genome1 = genome1_data
@@ -72,6 +75,15 @@ def eval_genomes_parallel(genomes, config):
         for g2 in genomes[i+1:]:
             matches.append((g1, g2))
     matches_count_10_percent = max(1, len(matches) // 10)
+    emit_training_event(
+        "phase_progress",
+        phase="controller_training",
+        generation=generation,
+        total_generations=_SETTINGS.generations,
+        completed=0,
+        total=len(matches),
+        phase_progress=max(0.0, (generation - 1) / _SETTINGS.generations),
+    )
     match_counts = {genome_id: 0 for genome_id, _ in genomes}
     with ProcessPoolExecutor(max_workers=_SETTINGS.workers) as executor:
         futures = [executor.submit(evaluate_match, g1, g2, config, copy.deepcopy(_WORKER_DECK), copy.deepcopy(_WORKER_DECK)) for g1, g2 in matches]
@@ -88,15 +100,58 @@ def eval_genomes_parallel(genomes, config):
             if i % matches_count_10_percent == 0 or i == len(matches):
                 best_genome = max(genomes, key=lambda g: g[1].fitness if g[1].fitness is not None else float("-inf"))
                 print(f"generation: {generation} |  trainning round: {i}/{len(matches)} |  top_fitness: {best_genome[1].fitness}  | time: {ctime(time())}")
+                phase_progress = min(
+                    1.0,
+                    ((generation - 1) + i / max(1, len(matches)))
+                    / _SETTINGS.generations,
+                )
+                eta_seconds = None
+                if _TRAINING_STARTED_AT is not None and phase_progress >= 0.01:
+                    elapsed = time() - _TRAINING_STARTED_AT
+                    eta_seconds = elapsed * (1.0 - phase_progress) / phase_progress
+                emit_training_event(
+                    "phase_progress",
+                    phase="controller_training",
+                    generation=generation,
+                    total_generations=_SETTINGS.generations,
+                    completed=i,
+                    total=len(matches),
+                    phase_progress=phase_progress,
+                    eta_seconds=eta_seconds,
+                )
 
     for genome_id, genome in genomes:
         genome.fitness /= match_counts[genome_id]
+    best_genome = max(
+        genomes,
+        key=lambda item: item[1].fitness
+        if item[1].fitness is not None
+        else float("-inf"),
+    )
     print(f"generation {generation} completed")
+    emit_training_event(
+        "generation_completed",
+        phase="controller_training",
+        generation=generation,
+        total_generations=_SETTINGS.generations,
+        phase_progress=generation / _SETTINGS.generations,
+        best_score=best_genome[1].fitness,
+    )
 
 
-def _test_pickle_vs_rnd(config, winner, rounds: int, seed: int):
-    print("running evaluation test")
-    global _WORKER_DECK
+def _test_genome_vs_random(
+    config,
+    winner,
+    player_deck,
+    opponent_deck,
+    rounds: int,
+    seed: int,
+    checkpoint_generation: int,
+    checkpoint_index: int,
+    checkpoint_total: int,
+    evaluation_started_at: float,
+):
+    print(f"running evaluation test: {player_deck.name} vs {opponent_deck.name}")
     winner_net = neat.nn.FeedForwardNetwork.create(winner, config)
     score = [0,0,0]
     bar_length = 30
@@ -108,9 +163,9 @@ def _test_pickle_vs_rnd(config, winner, rounds: int, seed: int):
             bar = "#" * filled + "-" * (bar_length - filled)
             print(f"\rTesting progress: |{bar}| {percent}%", end="", flush=True)
 
-        player_1        = Player(1, copy.deepcopy(_WORKER_DECK), PlayerChoiceStrategyNeat)
+        player_1        = Player(1, copy.deepcopy(player_deck), PlayerChoiceStrategyNeat)
         player_1.net    = winner_net
-        player_2        = Player(2, copy.deepcopy(_WORKER_DECK), ChoiceStrategyAIRandom)
+        player_2        = Player(2, copy.deepcopy(opponent_deck), ChoiceStrategyAIRandom)
 
         game_seed = seed + i
         run_game(
@@ -127,6 +182,31 @@ def _test_pickle_vs_rnd(config, winner, rounds: int, seed: int):
             score[2]+=1
         else:
             score[1]+=1
+        completed = i + 1
+        if completed % max(1, rounds // 20) == 0 or completed == rounds:
+            overall_completed = checkpoint_index * rounds + completed
+            overall_total = checkpoint_total * rounds
+            phase_progress = overall_completed / max(1, overall_total)
+            phase_elapsed = time() - evaluation_started_at
+            eta_seconds = (
+                phase_elapsed * (1.0 - phase_progress) / phase_progress
+                if phase_progress >= 0.05
+                else None
+            )
+            emit_training_event(
+                "phase_progress",
+                phase="checkpoint_evaluation",
+                checkpoint_generation=checkpoint_generation,
+                checkpoint_index=checkpoint_index + 1,
+                checkpoint_total=checkpoint_total,
+                completed=overall_completed,
+                total=overall_total,
+                wins=score[0],
+                draws=score[1],
+                losses=score[2],
+                phase_progress=phase_progress,
+                eta_seconds=eta_seconds,
+            )
 
     print("\nfinal score is:")
     print("ai   :" + str((score[0] / rounds) * 100) + "%")
@@ -141,10 +221,22 @@ def _test_pickle_vs_rnd(config, winner, rounds: int, seed: int):
     }
 
 
-def train_deck(_deck, settings: PlayerTrainerSettings | None = None):
+def train_deck(
+    _deck,
+    opponent_deck=None,
+    settings: PlayerTrainerSettings | None = None,
+):
+    # Preserve the former train_deck(deck, settings) API.
+    if isinstance(opponent_deck, PlayerTrainerSettings) and settings is None:
+        settings = opponent_deck
+        opponent_deck = None
     if _deck is None:
         raise ValueError("Deck does not exist")
+    opponent_deck = opponent_deck or _deck
+    if opponent_deck is None:
+        raise ValueError("Opponent deck does not exist")
     _deck.validate()
+    opponent_deck.validate()
     settings = settings or PlayerTrainerSettings()
     local_dir   = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'configs/neat_config_player.txt')
@@ -158,6 +250,9 @@ def train_deck(_deck, settings: PlayerTrainerSettings | None = None):
     # p.add_reporter(neat.Checkpointer(generation_interval=10,filename_prefix="checkpoit-"))
 
     timeTaken   = time()
+    run_started_at = timeTaken
+    global _TRAINING_STARTED_AT
+    _TRAINING_STARTED_AT = run_started_at
     global generation
     generation = 0
 
@@ -166,23 +261,62 @@ def train_deck(_deck, settings: PlayerTrainerSettings | None = None):
     global _SETTINGS
     _SETTINGS = settings
     random.seed(settings.seed)
+    emit_training_event(
+        "run_started",
+        phase="controller_training",
+        generation=0,
+        total_generations=settings.generations,
+        phase_progress=0.0,
+        deck_id=_deck.id,
+        opponent_deck_id=opponent_deck.id,
+    )
 
     generation_count = settings.generations
     #eval_function = eval_genomes_same_deck
     eval_function = eval_genomes_parallel
     # eval_function = eval_genomes_parallel_rnd
 
-    winner = p.run(eval_function, generation_count)
+    winners_by_generation = []
+    completed = 0
+    winner = None
+    for checkpoint in evaluation_checkpoints(generation_count):
+        winner = p.run(eval_function, checkpoint - completed)
+        completed = checkpoint
+        winners_by_generation.append((checkpoint, copy.deepcopy(winner)))
+        print(f"checkpoint generation {checkpoint}: fitness {winner.fitness}")
+    if winner is None:
+        raise RuntimeError("Training did not produce a controller")
     print(f"best fitness overall: {winner.fitness}")
-    evaluation = _test_pickle_vs_rnd(
-        config,
-        winner,
-        settings.evaluation_games,
-        settings.seed,
+    training_elapsed_seconds = time() - run_started_at
+    skill_evaluations = []
+    evaluation_started_at = time()
+    emit_training_event(
+        "phase_started",
+        phase="checkpoint_evaluation",
+        checkpoint_total=len(winners_by_generation),
+        completed=0,
+        total=len(winners_by_generation) * settings.evaluation_games,
+        phase_progress=0.0,
     )
+    for checkpoint_index, (checkpoint, checkpoint_winner) in enumerate(winners_by_generation):
+        result = _test_genome_vs_random(
+            config,
+            checkpoint_winner,
+            _deck,
+            opponent_deck,
+            settings.evaluation_games,
+            settings.seed + checkpoint * 100_003,
+            checkpoint,
+            checkpoint_index,
+            len(winners_by_generation),
+            evaluation_started_at,
+        )
+        skill_evaluations.append({"generation": checkpoint, **result})
+    evaluation = skill_evaluations[-1]
 
 
-    timeTaken = time() - timeTaken
+    evaluation_elapsed_seconds = time() - evaluation_started_at
+    timeTaken = time() - run_started_at
     print(f"training time: {round(timeTaken)/60/60} hours")
 
     artifact_root = Path(os.environ.get("TRAINING_ARTIFACT_DIR", local_dir))
@@ -199,15 +333,30 @@ def train_deck(_deck, settings: PlayerTrainerSettings | None = None):
         "kind": "specific_deck_player",
         "deck_id": _deck.id,
         "deck_name": _deck.name,
+        "opponent_deck_id": opponent_deck.id,
+        "opponent_deck_name": opponent_deck.name,
         "settings": asdict(settings),
         "best_fitness": winner.fitness,
         "elapsed_seconds": timeTaken,
+        "training_elapsed_seconds": training_elapsed_seconds,
+        "evaluation_elapsed_seconds": evaluation_elapsed_seconds,
         "artifact_path": str(file_path.absolute()),
         "evaluation": evaluation,
+        "skill_evaluations": skill_evaluations,
     }
     summary_path = os.environ.get("PLAYER_TRAINING_SUMMARY_PATH")
     if summary_path:
         Path(summary_path).write_text(json.dumps(summary, indent=2, sort_keys=True))
+    emit_training_event(
+        "run_completed",
+        phase="completed",
+        generation=generation_count,
+        total_generations=generation_count,
+        phase_progress=1.0,
+        elapsed_seconds=timeTaken,
+        best_score=winner.fitness,
+        evaluation_games=sum(item["games"] for item in skill_evaluations),
+    )
     return summary
 
 
@@ -216,6 +365,10 @@ def train_deck(_deck, settings: PlayerTrainerSettings | None = None):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Train a specific deck by ID")
     parser.add_argument("deck_id", type=str, help="The ID of the deck to train")
+    parser.add_argument(
+        "--opponent-deck",
+        help="Deck ID used by the random controller during checkpoint evaluation",
+    )
     parser.add_argument(
         "--generations",
         type=int,
@@ -228,6 +381,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     train_deck(
         DBUtil().load_deck(args.deck_id),
+        DBUtil().load_deck(args.opponent_deck or args.deck_id),
         PlayerTrainerSettings(
             generations=args.generations,
             workers=args.workers,

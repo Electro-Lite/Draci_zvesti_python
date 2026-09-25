@@ -24,6 +24,7 @@ from neat_ai.deck_evaluator import (
     EvaluatorSettings,
     train_deck,
 )
+from neat_ai.training_telemetry import emit_training_event
 
 
 DEFAULT_SEEDS = (
@@ -200,6 +201,7 @@ def eval_genomes(
         species_count: int,
         metadata: dict,
 ):
+    generation_started_at = time()
     population_size = len(genomes)
     metadata["observed_populations"].append(
         {
@@ -232,6 +234,16 @@ def eval_genomes(
     )
     if not matches_to_play:
         raise RuntimeError("Builder generation has no legal matchups")
+    emit_training_event(
+        "phase_progress",
+        phase="deck_evolution",
+        training_id=training_row.id,
+        generation=generation,
+        total_generations=settings.outer_generations,
+        completed=0,
+        total=len(matches_to_play),
+        phase_progress=max(0.0, (generation - 1) / settings.outer_generations),
+    )
 
     progress_path = os.environ.get("TRAINING_PROGRESS_PATH", "training_progress.txt")
     with open(progress_path, "a") as progress_file:
@@ -314,6 +326,29 @@ def eval_genomes(
                 f"{completed_matches}/{len(scheduled_matches)} | "
                 f"time: {ctime(time())}"
             )
+            generation_progress = completed_matches / len(scheduled_matches)
+            phase_progress = (
+                (generation - 1) + generation_progress
+            ) / settings.outer_generations
+            generation_elapsed = time() - generation_started_at
+            remaining_this_generation = (
+                generation_elapsed * (1.0 - generation_progress) / generation_progress
+                if generation_progress >= 0.05
+                else 0.0
+            )
+            remaining_generations = max(0, settings.outer_generations - generation)
+            eta_seconds = remaining_this_generation + generation_elapsed * remaining_generations
+            emit_training_event(
+                "phase_progress",
+                phase="deck_evolution",
+                training_id=training_row.id,
+                generation=generation,
+                total_generations=settings.outer_generations,
+                completed=completed_matches,
+                total=len(scheduled_matches),
+                phase_progress=phase_progress,
+                eta_seconds=eta_seconds,
+            )
 
     expected_opponents = min(settings.max_matches_per_genome, population_size - 1)
     if (population_size * expected_opponents) % 2:
@@ -334,6 +369,15 @@ def eval_genomes(
 
     training_row.metadata = json.dumps(metadata, sort_keys=True)
     logger.save_training(training_row)
+    emit_training_event(
+        "generation_completed",
+        phase="deck_evolution",
+        training_id=training_row.id,
+        generation=generation,
+        total_generations=settings.outer_generations,
+        phase_progress=generation / settings.outer_generations,
+        best_score=max(genome.fitness for _, genome in genomes),
+    )
 
 
 def train_deck_builder(settings: BuilderSettings):
@@ -377,6 +421,15 @@ def train_deck_builder(settings: BuilderSettings):
         )
     )
     print(f"training id: {training_row.id} | seed: {settings.seed}")
+    emit_training_event(
+        "run_started",
+        phase="deck_evolution",
+        training_id=training_row.id,
+        generation=0,
+        total_generations=settings.outer_generations,
+        phase_progress=0.0,
+        seed=settings.seed,
+    )
 
     checkpoint_dir = artifact_root / "checkpoints" / "deck_builder_trainer"
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
@@ -412,6 +465,13 @@ def train_deck_builder(settings: BuilderSettings):
         training_row.end_date = str(datetime.datetime.now())
         training_row.metadata = json.dumps(metadata, sort_keys=True)
         logger.save_training(training_row)
+        emit_training_event(
+            "run_failed",
+            phase="failed",
+            training_id=training_row.id,
+            error=f"{type(error).__name__}: {error}",
+            elapsed_seconds=time() - started_at,
+        )
         raise
 
     training_row.end_date = str(datetime.datetime.now())
@@ -430,6 +490,17 @@ def train_deck_builder(settings: BuilderSettings):
     print(f"best fitness: {winner.fitness}")
     print(f"training time: {elapsed_hours:.2f} hours")
     print(f"winner: {winner_path}")
+    emit_training_event(
+        "run_completed",
+        phase="completed",
+        training_id=training_row.id,
+        generation=generation,
+        total_generations=settings.outer_generations,
+        phase_progress=1.0,
+        elapsed_seconds=time() - started_at,
+        best_score=winner.fitness,
+        artifact_path=str(winner_path),
+    )
     return winner
 
 

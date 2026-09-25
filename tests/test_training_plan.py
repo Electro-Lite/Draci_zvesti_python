@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import neat
 
@@ -16,7 +17,7 @@ from choice_strategies.choice_strategy_ai_neat import (
 )
 from core.board import Board
 from core.game_info import GAME_INFO_INPUT_COUNT, GameInfo
-from core.game_loop import GameResult, _shuffle_deck, run
+from core.game_loop import GameResult, _shuffle_deck, battle_dragon, run
 from core.player import Player
 from display_strategies.display_strategy_none import DisplayStrategyNone
 from neat_ai.ai_training_logger import (
@@ -73,6 +74,44 @@ class FirstLegalStrategy(PlayerChoiceStrategy):
 
 
 class TrainingPlanTests(unittest.TestCase):
+    def test_zero_damage_battle_resolves_as_dragon_defense(self):
+        owner = object()
+        card = SimpleNamespace(hp=2, dmg=0, owner=owner)
+        dragon = SimpleNamespace(
+            hp=3,
+            dmg=0,
+            slain_by=None,
+            ability=SimpleNamespace(is_active=False),
+            restore=Mock(),
+        )
+
+        class BattleBoard:
+            def __init__(self):
+                self.game_state = None
+                self.positions = [card, None, None, None, None, None]
+                self.dragons = [dragon]
+                self.dragon = None
+
+            def recalculate(self, *_args, **_kwargs):
+                return None
+
+            def remove_card(self, removed):
+                self.positions[self.positions.index(removed)] = None
+
+        display = SimpleNamespace(
+            dragon=None,
+            display_dragon=lambda: None,
+            display_board=lambda: None,
+            display_dragon_vs_card=lambda: None,
+            display_battle_result=lambda: None,
+        )
+        board = BattleBoard()
+
+        self.assertIsNone(battle_dragon(board, display))
+        self.assertIsNone(board.positions[0])
+        self.assertEqual(board.dragons, [dragon])
+        dragon.restore.assert_called_once_with()
+
     def test_neat_configs_parse(self):
         for config_path in (PROJECT_ROOT / "neat_ai" / "configs").glob(
                 "neat_config_*.txt"
@@ -177,6 +216,7 @@ class TrainingPlanTests(unittest.TestCase):
             ability=SimpleNamespace(
                 is_active=True,
                 target_owner=AbilityTarget.ENEMY,
+                requires_target=True,
             )
         )
         player.hand = SimpleNamespace(cards=[selected_card])
