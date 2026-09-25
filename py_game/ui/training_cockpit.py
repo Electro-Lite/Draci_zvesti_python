@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import datetime as dt
+import re
+import secrets
 from dataclasses import dataclass, field
 
 from neat_ai.training_plan import matchup_checkpoints
@@ -60,42 +63,52 @@ class TrainingDraft:
     evaluation_games: str = "100"
     preset_index: int | None = 1
     auto_run_label: bool = True
+    run_stamp: str = field(
+        default_factory=lambda: dt.datetime.now().strftime("%y%m%d-%H")
+    )
+    run_id: str = field(default_factory=lambda: secrets.token_hex(2).upper())
 
 
-def _compact_name(value: str, maximum: int) -> str:
-    name = " ".join(str(value).split()) or "select deck"
-    if len(name) <= maximum:
-        return name
-    if maximum <= 3:
-        return name[:maximum]
-    return f"{name[: maximum - 3].rstrip()}..."
+def _run_name_segment(value: str, fallback: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9.-]+", "-", str(value).strip()).strip("-")
+    return cleaned or fallback
+
+
+def _bounded_segment(value: str, maximum: int) -> str:
+    if len(value) <= maximum:
+        return value
+    return value[:maximum].rstrip("-.")
 
 
 def default_run_label(kind: TrainingKind, draft: TrainingDraft) -> str:
-    """Return a concise mission, subject, and training-depth label."""
+    """Return mission_preset_YYMMDD-HH_[decks]_run-id within 64 characters."""
+    preset = (
+        ("quick", "balanced", "deep")[draft.preset_index]
+        if draft.preset_index in range(3)
+        else "custom"
+    )
     if kind == TrainingKind.PLAYER_DECK:
-        prefix = "Counters for "
-        suffix = (
-            f" - {draft.outer_generations} counter gen, "
-            f"{draft.evaluator_generations} controller gen"
-        )
-        deck = _compact_name(draft.deck_id, max(4, 64 - len(prefix) - len(suffix)))
+        prefix = f"counter_{preset}_{draft.run_stamp}_"
+        suffix = f"_{draft.run_id}"
+        deck = _run_name_segment(draft.deck_id, "no-deck")
+        deck = _bounded_segment(deck, 64 - len(prefix) - len(suffix))
         return f"{prefix}{deck}{suffix}"
     if kind == TrainingKind.MATCHUP_EVALUATION:
-        prefix = "Matchup "
-        suffix = f" - {draft.evaluator_generations} controller gen"
-        available = max(9, 64 - len(prefix) - len(suffix))
-        first_width = max(4, (available - len(" vs ")) // 2)
-        second_width = max(4, available - len(" vs ") - first_width)
-        first = _compact_name(draft.deck_id, first_width)
-        second = _compact_name(draft.opponent_deck_id, second_width)
-        return f"{prefix}{first} vs {second}{suffix}"
-    seed_count = len([part for part in draft.seeds.split(",") if part.strip()])
-    seed_word = "seed" if seed_count == 1 else "seeds"
-    return (
-        f"Deck evolution - {seed_count} {seed_word} - "
-        f"{draft.outer_generations} outer, {draft.evaluator_generations} inner"
-    )[:64]
+        prefix = f"matchup_{preset}_{draft.run_stamp}_"
+        suffix = f"_{draft.run_id}"
+        available = 64 - len(prefix) - len(suffix) - len("-vs-")
+        first_width = max(1, available // 2)
+        second_width = max(1, available - first_width)
+        first = _bounded_segment(
+            _run_name_segment(draft.deck_id, "no-deck"),
+            first_width,
+        )
+        second = _bounded_segment(
+            _run_name_segment(draft.opponent_deck_id, "no-deck"),
+            second_width,
+        )
+        return f"{prefix}{first}-vs-{second}{suffix}"
+    return f"deck-builder_{preset}_{draft.run_stamp}_{draft.run_id}"
 
 
 @dataclass(frozen=True)

@@ -79,7 +79,7 @@ class TrainingMenu(Menu):
             "Stress-test one deck against opponents that keep adapting",
             (
                 ("Training type", "Choose counter-deck training, a two-deck matchup, or general deck evolution."),
-                ("Run label", "Use a short unique name so artifacts and comparisons stay recognizable."),
+                ("Run label", "Defaults to mission_preset_YYMMDD-HH_deck_run-ID and remains editable."),
                 ("Deck under test", "Your selected deck stays fixed while a population evolves decks designed to counter it."),
                 ("Counter generations", "How many generations of counter-deck candidates survive, mutate, and improve."),
                 ("Controller generations", "Both sides keep the same evolving controller populations across every counter generation; progress is not reset between opponents."),
@@ -829,9 +829,18 @@ class TrainingMenu(Menu):
             value = (value or "No decks available") + ("  v" if self.deck_ids else "")
         if editing:
             value += " |"
+        value_size = max(13, self.game.layout.font_normal - 3)
+        if key == "run_label":
+            available_width = max(1, rect.width - 20)
+            while (
+                value_size > 8
+                and pg.font.Font(self.game.font_name, value_size).size(value)[0]
+                > available_width
+            ):
+                value_size -= 1
         self.game.draw_text_left(
             value or " ",
-            max(13, self.game.layout.font_normal - 3),
+            value_size,
             rect.x + 10,
             rect.y + rect.height // 2,
             self.game.palette.text if value else self.game.palette.muted,

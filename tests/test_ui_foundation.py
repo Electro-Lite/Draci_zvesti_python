@@ -17,7 +17,11 @@ from py_game.network.session import NetworkEvent
 from py_game.theme import PALETTE
 from py_game.ui.layout import LayoutMetrics, RectSpec
 from py_game.ui.training_dashboard import training_dashboard_layout
-from py_game.ui.training_cockpit import TrainingCockpitState, training_cockpit_layout
+from py_game.ui.training_cockpit import (
+    TrainingCockpitState,
+    default_run_label,
+    training_cockpit_layout,
+)
 from py_game.ui.widgets import Button, DragController, TextInput
 from py_game.training_service import TrainingKind
 from utils.database_utils import DBUtil
@@ -97,32 +101,41 @@ class LayoutTests(unittest.TestCase):
 
 
 class TrainingCockpitStateTests(unittest.TestCase):
+    @staticmethod
+    def _fixed_run_tokens(state):
+        for kind, draft in state.drafts.items():
+            draft.run_stamp = "260925-14"
+            draft.run_id = "AB12"
+            draft.run_label = default_run_label(kind, draft)
+
     def test_default_run_names_describe_each_mission(self):
         state = TrainingCockpitState(("Blue", "Queen"))
+        self._fixed_run_tokens(state)
         self.assertEqual(
             state.value("run_label"),
-            "Counters for Blue - 5 counter gen, 40 controller gen",
+            "counter_balanced_260925-14_Blue_AB12",
         )
 
         state.switch(TrainingKind.MATCHUP_EVALUATION)
         self.assertEqual(
             state.value("run_label"),
-            "Matchup Blue vs Queen - 40 controller gen",
+            "matchup_balanced_260925-14_Blue-vs-Queen_AB12",
         )
 
         state.switch(TrainingKind.DECK_BUILDER)
         self.assertEqual(
             state.value("run_label"),
-            "Deck evolution - 1 seed - 1 outer, 50 inner",
+            "deck-builder_balanced_260925-14_AB12",
         )
 
     def test_automatic_run_name_tracks_configuration_until_user_renames_it(self):
         state = TrainingCockpitState(("Blue", "Queen"))
+        self._fixed_run_tokens(state)
         state.set_value("deck_id", "Queen")
         state.apply_preset(0)
         self.assertEqual(
             state.value("run_label"),
-            "Counters for Queen - 1 counter gen, 10 controller gen",
+            "counter_quick_260925-14_Queen_AB12",
         )
 
         state.set_value("run_label", "queen-counter-baseline")
@@ -135,8 +148,8 @@ class TrainingCockpitStateTests(unittest.TestCase):
         state.switch(TrainingKind.MATCHUP_EVALUATION)
 
         self.assertLessEqual(len(state.value("run_label")), 64)
-        self.assertIn("Matchup", state.value("run_label"))
-        self.assertIn(" vs ", state.value("run_label"))
+        self.assertTrue(state.value("run_label").startswith("matchup_balanced_"))
+        self.assertIn("-vs-", state.value("run_label"))
 
     def test_mission_drafts_survive_switching_and_preset_edits_become_custom(self):
         state = TrainingCockpitState(("Blue", "Queen"))
