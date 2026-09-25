@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 
 import pygame as pg
 
+from neat_ai.training_plan import evaluation_checkpoints
 from py_game.menu.base_menu import Menu
 from py_game.training_service import (
     TrainingKind,
@@ -23,6 +24,12 @@ from py_game.training_service import (
 from utils.database_utils import DBUtil
 from py_game.ui.layout import RectSpec
 from py_game.ui.training_dashboard import training_dashboard_layout
+from py_game.ui.training_cockpit import (
+    BUILDER_FIELDS,
+    PLAYER_FIELDS,
+    TrainingCockpitState,
+    training_cockpit_layout,
+)
 from py_game.ui.training_setup import (
     presets_for,
     training_workload,
@@ -114,20 +121,20 @@ class TrainingMenu(Menu):
         self.service = getattr(game, "training_service", None) or TrainingService()
         self.view = "setup"
         self.selected = 0
-        self.kind_index = list(TrainingKind).index(TrainingKind.PLAYER_DECK)
         self.deck_ids = DBUtil().get_all_deck_ids()
-        self.deck_index = 0
-        self.opponent_deck_index = 1 if len(self.deck_ids) > 1 else 0
-        self.generation_index = 2
-        self.worker_index = len(self.WORKERS) - 1
-        self.match_index = len(self.MATCH_COUNTS) - 1
-        self.holdout_index = len(self.HOLDOUT_COUNTS) - 1
-        self.evaluation_index = 1
-        self.seed_index = 0
-        self.outer_generations = 1
-        self.preset_index = 1
-        self.advanced_settings = False
-        self.run_label = "pygame"
+        self.cockpit = TrainingCockpitState(self.deck_ids)
+        self.setup_focus_key = "mission_player"
+        self.setup_scroll = 0
+        self.setup_layout = None
+        self.setup_edit_key = None
+        self.setup_edit_original = ""
+        self.setup_edit_original_preset = None
+        self.setup_picker_key = None
+        self.setup_picker_index = 0
+        self.setup_review_open = False
+        self.setup_review_request = None
+        self.setup_review_selected = 0
+        self.setup_starting = False
         self.message = ""
         self.message_color = self.game.WHITE
         self.jobs = []
@@ -174,11 +181,10 @@ class TrainingMenu(Menu):
         self.about_buttons = []
         self._dashboard_last_refresh = -1000
         self._refresh_runs(force=True)
-        self._apply_preset()
 
     @property
     def kind(self):
-        return list(TrainingKind)[self.kind_index]
+        return self.cockpit.kind
 
     @staticmethod
     def _mission_label(kind):
@@ -189,140 +195,56 @@ class TrainingMenu(Menu):
         return "AI training"
 
     def _generation_options(self):
-        if self.kind == TrainingKind.PLAYER_DECK:
-            return self.PLAYER_GENERATIONS
-        return self.BUILDER_GENERATIONS
+        return self.PLAYER_GENERATIONS if self.kind == TrainingKind.PLAYER_DECK else self.BUILDER_GENERATIONS
 
     def _generation(self):
-        values = self._generation_options()
-        return values[self.generation_index % len(values)]
+        try:
+            return int(self.cockpit.value("evaluator_generations"))
+        except ValueError:
+            return 0
 
     def _preset_options(self):
         return presets_for(self.kind)
 
     def _preset_label(self):
-        options = self._preset_options()
-        return options[self.preset_index].label if self.preset_index < len(options) else "Custom"
+        return self.cockpit.preset_label
 
     def _preset_summary(self):
         if self.kind == TrainingKind.PLAYER_DECK:
             return (
                 f"{self._generation()} gen · "
-                f"{self.EVALUATION_GAMES[self.evaluation_index]}/checkpoint"
+                f"{self.cockpit.value('evaluation_games')}/checkpoint"
             )
-        return f"{self.outer_generations} outer · {self._generation()} inner gen"
+        return f"{self.cockpit.value('outer_generations')} outer · {self._generation()} inner gen"
 
-    def _apply_preset(self):
-        options = self._preset_options()
-        if self.preset_index >= len(options):
-            return
-        preset = options[self.preset_index]
-        generations = self._generation_options()
-        self.generation_index = generations.index(preset.generations)
-        self.worker_index = self.WORKERS.index(preset.workers)
-        self.evaluation_index = self.EVALUATION_GAMES.index(preset.evaluation_games)
-        self.outer_generations = preset.outer_generations
-        self.match_index = self.MATCH_COUNTS.index(preset.matches_per_genome)
-        self.holdout_index = self.HOLDOUT_COUNTS.index(preset.holdout_seed_pairs)
-        self.seed_index = preset.seed_set_index
+    def _apply_preset(self, index=None):
+        if index is None:
+            index = self.cockpit.draft.preset_index
+        self.cockpit.apply_preset(index)
 
     def _mark_custom_preset(self):
-        self.preset_index = len(self._preset_options())
+        self.cockpit.apply_preset(None)
 
     def _request(self):
-        deck_id = (
-            self.deck_ids[self.deck_index % len(self.deck_ids)]
-            if self.deck_ids
-            else None
-        )
-        opponent_deck_id = (
-            self.deck_ids[self.opponent_deck_index % len(self.deck_ids)]
-            if self.deck_ids
-            else None
-        )
-        return TrainingRequest(
-            kind=self.kind,
-            run_label=self.run_label,
-            deck_id=deck_id,
-            opponent_deck_id=opponent_deck_id,
-            seeds=self.SEED_SETS[self.seed_index],
-            outer_generations=self.outer_generations,
-            matches_per_genome=self.MATCH_COUNTS[self.match_index],
-            evaluator_generations=self._generation(),
-            workers=self.WORKERS[self.worker_index],
-            holdout_seed_pairs=self.HOLDOUT_COUNTS[self.holdout_index],
-            evaluation_games=self.EVALUATION_GAMES[self.evaluation_index],
-        )
+        validation = self.cockpit.validate()
+        if validation.request is None:
+            first = next(iter(validation.errors.values()), "Training request is incomplete")
+            raise ValueError(first)
+        return validation.request
 
     def _setup_rows(self):
-        deck = (
-            self.deck_ids[self.deck_index % len(self.deck_ids)]
-            if self.deck_ids
-            else "No player decks"
-        )
-        opponent_deck = (
-            self.deck_ids[self.opponent_deck_index % len(self.deck_ids)]
-            if self.deck_ids
-            else "No opponent decks"
-        )
-        common = [
-            ("Back", "action"),
-            ("Run library", "action"),
+        """Compatibility summary for non-interactive callers and older tooling."""
+        validation = self.cockpit.validate()
+        rows = [
+            ("Back", "back"),
+            ("Run library", "runs"),
             ("Training guide & recommended use", "about"),
-            (f"Mission: {self._mission_label(self.kind)}", "kind"),
-            (f"Intensity: {self._preset_label()} · {self._preset_summary()}", "preset"),
-            (f"Run label: {self.run_label}", "label"),
+            (f"Mission: {self._mission_label(self.kind)}", "mission"),
+            (f"Preset: {self._preset_label()}", "preset"),
         ]
-        if self.kind == TrainingKind.PLAYER_DECK:
-            common.extend(
-                [
-                    (f"Player deck: {deck}", "deck"),
-                    (f"Opponent deck: {opponent_deck}", "opponent_deck"),
-                ]
-            )
-            if self.advanced_settings or self._preset_label() == "Custom":
-                common.extend(
-                    [
-                        (f"Generations: {self._generation()}", "generations"),
-                        (
-                            f"Games per maturity checkpoint: {self.EVALUATION_GAMES[self.evaluation_index]}",
-                            "evaluation",
-                        ),
-                        (f"Workers: {self.WORKERS[self.worker_index]}", "workers"),
-                    ]
-                )
-        else:
-            seed_label = ", ".join(str(seed) for seed in self.SEED_SETS[self.seed_index])
-            if self.advanced_settings or self._preset_label() == "Custom":
-                common.extend(
-                    [
-                        (f"Outer generations: {self.outer_generations}", "outer"),
-                        (f"Inner generations: {self._generation()}", "generations"),
-                        (f"Seeds: {seed_label}", "seeds"),
-                        (
-                            f"Matches per candidate: {self.MATCH_COUNTS[self.match_index]}",
-                            "matches",
-                        ),
-                        (f"Evaluator workers: {self.WORKERS[self.worker_index]}", "workers"),
-                        (
-                            f"Holdout seed pairs: {self.HOLDOUT_COUNTS[self.holdout_index]}",
-                            "holdout",
-                        ),
-                    ]
-                )
-        common.append(
-            (
-                f"Advanced settings: {'Shown' if self.advanced_settings else 'Hidden'}",
-                "advanced",
-            )
-        )
-        launch_label = (
-            "Starting training…"
-            if self._launch_thread is not None and self._launch_thread.is_alive()
-            else "Review and launch"
-        )
-        common.append((launch_label, "launch"))
-        return common
+        rows.extend((f"{key}: {self.cockpit.value(key)}", key) for key in self.cockpit.field_keys)
+        rows.append(("Review and launch", "launch" if validation.valid else "invalid"))
+        return rows
 
     def _run_rows(self):
         return [
@@ -504,75 +426,749 @@ class TrainingMenu(Menu):
         return (index + direction) % count if count else 0
 
     def _edit_setup_value(self, key, direction):
-        if key not in ("kind", "preset", "advanced"):
-            self._mark_custom_preset()
-        if key == "kind":
-            self.kind_index = self._cycle(
-                self.kind_index,
-                len(TrainingKind),
-                direction,
+        aliases = {
+            "deck": "deck_id",
+            "opponent_deck": "opponent_deck_id",
+            "generations": "evaluator_generations",
+            "evaluation": "evaluation_games",
+            "outer": "outer_generations",
+            "matches": "matches_per_genome",
+            "holdout": "holdout_seed_pairs",
+        }
+        key = aliases.get(key, key)
+        if key in {"deck_id", "opponent_deck_id"}:
+            self.cockpit.cycle_deck(key, direction)
+        elif key in self.cockpit.field_keys and key != "run_label":
+            self.cockpit.step_integer(key, direction)
+
+    def _setup_field_label(self, key):
+        if key == "workers":
+            return "Workers" if self.kind == TrainingKind.PLAYER_DECK else "Evaluator workers"
+        return {
+            "run_label": "Run label",
+            "deck_id": "Player deck",
+            "opponent_deck_id": "Opponent deck",
+            "seeds": "Seed set",
+            "outer_generations": "Outer generations",
+            "evaluator_generations": "Generations",
+            "matches_per_genome": "Matches / candidate",
+            "workers": "Evaluator workers",
+            "holdout_seed_pairs": "Holdout seed pairs",
+            "evaluation_games": "Games / checkpoint",
+        }.get(key, key.replace("_", " ").title())
+
+    def _setup_focus_order(self):
+        fields = list(self.cockpit.field_keys)
+        return [
+            "mission_player",
+            "mission_builder",
+            "preset_0",
+            "preset_1",
+            "preset_2",
+            "preset_3",
+            *fields,
+            "nav_mission",
+            "nav_configuration",
+            "nav_evidence",
+            "nav_preflight",
+            "about",
+            "runs",
+            "back",
+            "launch",
+        ]
+
+    def _current_setup_layout(self):
+        self.setup_layout = training_cockpit_layout(
+            self.game.layout,
+            self.kind,
+            scroll=self.setup_scroll,
+        )
+        self.setup_scroll = min(self.setup_scroll, self.setup_layout.max_scroll)
+        return self.setup_layout
+
+    def _setup_control_visible(self, rect):
+        layout = self.setup_layout
+        if layout.mode == "wide" or rect == layout.controls.get("launch"):
+            return True
+        return rect.bottom > layout.viewport.y and rect.y < layout.viewport.bottom
+
+    def _ensure_setup_focus_visible(self):
+        layout = self._current_setup_layout()
+        if layout.mode == "wide":
+            return
+        rect = layout.controls.get(self.setup_focus_key)
+        if rect is None or self.setup_focus_key == "launch":
+            return
+        if rect.y < layout.viewport.y + 4:
+            self.setup_scroll = max(0, self.setup_scroll - (layout.viewport.y + 4 - rect.y))
+        elif rect.bottom > layout.viewport.bottom - 4:
+            self.setup_scroll = min(
+                layout.max_scroll,
+                self.setup_scroll + rect.bottom - (layout.viewport.bottom - 4),
             )
-            self.preset_index = min(self.preset_index, len(self._preset_options()))
-            self._apply_preset()
-        elif key == "preset":
-            self.preset_index = self._cycle(
-                self.preset_index,
-                len(self._preset_options()) + 1,
-                direction,
+
+    def _move_setup_focus(self, direction):
+        order = [key for key in self._setup_focus_order() if key in self.setup_layout.controls]
+        try:
+            index = order.index(self.setup_focus_key)
+        except ValueError:
+            index = 0
+        self.setup_focus_key = order[(index + direction) % len(order)]
+        self._ensure_setup_focus_visible()
+
+    def _begin_setup_edit(self, key):
+        self.setup_edit_key = key
+        self.setup_edit_original = self.cockpit.value(key)
+        self.setup_edit_original_preset = self.cockpit.draft.preset_index
+        self.setup_focus_key = key
+
+    def _finish_setup_edit(self, *, cancel=False, move=0):
+        key = self.setup_edit_key
+        if key is None:
+            return True
+        if cancel:
+            self.cockpit.set_value(key, self.setup_edit_original, user_edit=False)
+            self.cockpit.draft.preset_index = self.setup_edit_original_preset
+        elif key in self.cockpit.validate().errors:
+            self.message = self.cockpit.validate().errors[key]
+            self.message_color = self.game.palette.danger
+            return False
+        self.setup_edit_key = None
+        self.setup_edit_original = ""
+        self.setup_edit_original_preset = None
+        if move:
+            self._move_setup_focus(move)
+        return True
+
+    def _open_setup_picker(self, key):
+        if not self.deck_ids:
+            self.message = "Create a deck before configuring player training"
+            self.message_color = self.game.palette.danger
+            return
+        self.setup_picker_key = key
+        try:
+            self.setup_picker_index = self.deck_ids.index(self.cockpit.value(key))
+        except ValueError:
+            self.setup_picker_index = 0
+
+    def _activate_setup_control(self, key):
+        self.setup_focus_key = key
+        if key == "mission_player":
+            self.cockpit.switch(TrainingKind.PLAYER_DECK)
+            self.setup_scroll = 0
+        elif key == "mission_builder":
+            self.cockpit.switch(TrainingKind.DECK_BUILDER)
+            self.setup_scroll = 0
+        elif key.startswith("preset_"):
+            index = int(key.rsplit("_", 1)[1])
+            self.cockpit.apply_preset(index if index < 3 else None)
+        elif key in {"deck_id", "opponent_deck_id"}:
+            self._open_setup_picker(key)
+        elif key in self.cockpit.field_keys:
+            self._begin_setup_edit(key)
+        elif key.startswith("nav_"):
+            section = key.removeprefix("nav_")
+            if self.setup_layout.mode == "compact":
+                self.setup_scroll = min(
+                    self.setup_layout.max_scroll,
+                    self.setup_layout.section_scroll.get(section, 0),
+                )
+            focus = {
+                "mission": "mission_player",
+                "configuration": "run_label",
+                "evidence": (
+                    "evaluation_games"
+                    if self.kind == TrainingKind.PLAYER_DECK
+                    else "matches_per_genome"
+                ),
+                "preflight": "launch",
+            }.get(section)
+            if focus:
+                self.setup_focus_key = focus
+                self._ensure_setup_focus_visible()
+        elif key == "about":
+            self.view = "about"
+            self.about_page = 0
+        elif key == "runs":
+            self.view = "runs"
+            self.selected = 0
+            self.run_page = 0
+            self.run_selected = 0
+            self.run_search.focused = False
+            self._refresh_runs(force=True)
+        elif key == "back":
+            self._return()
+        elif key == "launch":
+            self._launch()
+
+    def _handle_setup_editor(self):
+        key = self.setup_edit_key
+        for event in self.game.events:
+            if event.type != pg.KEYDOWN:
+                continue
+            if event.key == pg.K_ESCAPE:
+                self.game.BACK_KEY = False
+                self._finish_setup_edit(cancel=True)
+                return True
+            if event.key in (pg.K_RETURN, pg.K_KP_ENTER):
+                self.game.START_KEY = False
+                self._finish_setup_edit()
+                return True
+            if event.key == pg.K_TAB:
+                direction = -1 if event.mod & pg.KMOD_SHIFT else 1
+                if self._finish_setup_edit(move=direction):
+                    self.game.START_KEY = False
+                return True
+            value = self.cockpit.value(key)
+            if event.key == pg.K_BACKSPACE:
+                self.game.BACK_KEY = False
+                self.cockpit.set_value(key, value[:-1])
+                return True
+            if event.unicode and event.unicode.isprintable() and len(value) < 160:
+                self.cockpit.set_value(key, value + event.unicode)
+                self.game.START_KEY = False
+                return True
+        if self.game.mouse_clicked:
+            rect = self.setup_layout.controls.get(key)
+            if rect is None or not rect.contains(self.game.mouse_position):
+                self._finish_setup_edit()
+            return True
+        return True
+
+    def _picker_panel(self):
+        panel = self.game.layout.centered_panel(0.62, 0.72, max_width=760)
+        row_height = max(38, min(48, self.game.layout.target_height))
+        visible_count = max(1, min(8, (panel.height - 110) // (row_height + 4)))
+        start = max(0, min(self.setup_picker_index - visible_count // 2, len(self.deck_ids) - visible_count))
+        rows = []
+        for offset, deck_id in enumerate(self.deck_ids[start : start + visible_count]):
+            rows.append(
+                (
+                    start + offset,
+                    deck_id,
+                    RectSpec(
+                        panel.x + self.game.layout.gap,
+                        panel.y + 62 + offset * (row_height + 4),
+                        panel.width - self.game.layout.gap * 2,
+                        row_height,
+                    ),
+                )
             )
-            self._apply_preset()
-        elif key == "advanced":
-            self.advanced_settings = not self.advanced_settings
-        elif key == "deck":
-            self.deck_index = self._cycle(
-                self.deck_index,
-                len(self.deck_ids),
-                direction,
+        return panel, rows
+
+    def _handle_setup_picker(self):
+        if self.game.BACK_KEY:
+            self.setup_picker_key = None
+            self.game.BACK_KEY = False
+            return
+        if self.game.UP_KEY:
+            self.setup_picker_index = max(0, self.setup_picker_index - 1)
+        elif self.game.DOWN_KEY:
+            self.setup_picker_index = min(len(self.deck_ids) - 1, self.setup_picker_index + 1)
+        if self.game.START_KEY:
+            self.cockpit.set_value(
+                self.setup_picker_key,
+                self.deck_ids[self.setup_picker_index],
+                user_edit=False,
             )
-        elif key == "opponent_deck":
-            self.opponent_deck_index = self._cycle(
-                self.opponent_deck_index,
-                len(self.deck_ids),
-                direction,
+            self.setup_picker_key = None
+            self.game.START_KEY = False
+            return
+        if self.game.mouse_clicked:
+            _panel, rows = self._picker_panel()
+            for index, deck_id, rect in rows:
+                if rect.contains(self.game.mouse_position):
+                    self.setup_picker_index = index
+                    self.cockpit.set_value(self.setup_picker_key, deck_id, user_edit=False)
+                    self.setup_picker_key = None
+                    return
+
+    def _review_buttons(self):
+        panel = self.game.layout.centered_panel(0.78, 0.84, max_width=980)
+        gap = self.game.layout.gap
+        height = max(42, min(54, self.game.layout.target_height))
+        width = (panel.width - gap * 3) // 2
+        y = panel.bottom - gap - height
+        return panel, (
+            RectSpec(panel.x + gap, y, width, height),
+            RectSpec(panel.right - gap - width, y, width, height),
+        )
+
+    def _handle_setup_review(self):
+        if self.game.BACK_KEY:
+            if not self.setup_starting:
+                self.setup_review_open = False
+                self.setup_review_request = None
+            self.game.BACK_KEY = False
+            return
+        if self.setup_starting:
+            return
+        if self.game.LEFT_KEY or self.game.RIGHT_KEY:
+            self.setup_review_selected = 1 - self.setup_review_selected
+        if self.game.mouse_clicked:
+            _panel, buttons = self._review_buttons()
+            if buttons[0].contains(self.game.mouse_position):
+                self.setup_review_open = False
+                self.setup_review_request = None
+                return
+            if buttons[1].contains(self.game.mouse_position):
+                self.setup_review_selected = 1
+                self._start_training(self.setup_review_request)
+                return
+        if self.game.START_KEY:
+            if self.setup_review_selected == 0:
+                self.setup_review_open = False
+                self.setup_review_request = None
+            else:
+                self._start_training(self.setup_review_request)
+            self.game.START_KEY = False
+
+    def _check_setup_input(self):
+        self._current_setup_layout()
+        if self.setup_review_open:
+            self._handle_setup_review()
+            return
+        if self.setup_picker_key is not None:
+            self._handle_setup_picker()
+            return
+        if self.setup_edit_key is not None:
+            self._handle_setup_editor()
+            return
+        if self.game.mouse_wheel and self.setup_layout.mode == "compact":
+            self.setup_scroll = max(
+                0,
+                min(
+                    self.setup_layout.max_scroll,
+                    self.setup_scroll - self.game.mouse_wheel * 64,
+                ),
             )
-        elif key == "generations":
-            self.generation_index = self._cycle(
-                self.generation_index,
-                len(self._generation_options()),
-                direction,
+            self._current_setup_layout()
+        for event in self.game.events:
+            if event.type == pg.KEYDOWN and event.key == pg.K_TAB:
+                self._move_setup_focus(-1 if event.mod & pg.KMOD_SHIFT else 1)
+                return
+        if self.game.BACK_KEY:
+            self._return()
+            return
+        if self.game.UP_KEY:
+            self._move_setup_focus(-1)
+        elif self.game.DOWN_KEY:
+            self._move_setup_focus(1)
+        elif self.game.LEFT_KEY or self.game.RIGHT_KEY:
+            direction = 1 if self.game.RIGHT_KEY else -1
+            if self.setup_focus_key in {"deck_id", "opponent_deck_id"}:
+                self.cockpit.cycle_deck(self.setup_focus_key, direction)
+            elif self.setup_focus_key in self.cockpit.field_keys and self.setup_focus_key != "run_label":
+                self.cockpit.step_integer(self.setup_focus_key, direction)
+            else:
+                self._move_setup_focus(direction)
+        if self.game.mouse_clicked:
+            for key, rect in self.setup_layout.controls.items():
+                if self._setup_control_visible(rect) and rect.contains(self.game.mouse_position):
+                    self._activate_setup_control(key)
+                    return
+        if self.game.START_KEY:
+            self._activate_setup_control(self.setup_focus_key)
+
+    def _draw_cockpit_panel(self, rect, *, accent=None):
+        pg_rect = pg.Rect(rect.x, rect.y, rect.width, rect.height)
+        pg.draw.rect(self.game.display, self.game.palette.panel, pg_rect, border_radius=12)
+        pg.draw.rect(self.game.display, self.game.palette.border, pg_rect, 1, border_radius=12)
+        if accent:
+            pg.draw.rect(
+                self.game.display,
+                accent,
+                pg.Rect(rect.x, rect.y, 5, rect.height),
+                border_radius=3,
             )
-        elif key == "workers":
-            self.worker_index = self._cycle(
-                self.worker_index,
-                len(self.WORKERS),
-                direction,
+
+    def _draw_setup_button(self, key, label, *, selected=False, enabled=True, compact=False):
+        rect = self.setup_layout.controls.get(key)
+        if rect is None or not self._setup_control_visible(rect):
+            return
+        button = Button(
+            key,
+            label,
+            rect,
+            enabled=enabled,
+            selected=selected or key == self.setup_focus_key,
+            hovered=rect.contains(self.game.mouse_position),
+        )
+        size = max(11, self.game.layout.font_small - (2 if compact else 0))
+        button.draw(self.game.display, pg.font.Font(self.game.font_name, size), self.game.palette)
+
+    def _draw_setup_field(self, key, validation):
+        rect = self.setup_layout.controls.get(key)
+        if rect is None or not self._setup_control_visible(rect):
+            return
+        error = validation.errors.get(key)
+        focused = key == self.setup_focus_key
+        editing = key == self.setup_edit_key
+        pg_rect = pg.Rect(rect.x, rect.y, rect.width, rect.height)
+        fill = self.game.palette.hover if focused else self.game.palette.panel_alt
+        border = self.game.palette.danger if error else self.game.palette.accent if focused else self.game.palette.border
+        pg.draw.rect(self.game.display, fill, pg_rect, border_radius=7)
+        pg.draw.rect(self.game.display, border, pg_rect, 2, border_radius=7)
+        self.game.draw_text_left(
+            self._setup_field_label(key).upper(),
+            max(10, self.game.layout.font_small - 4),
+            rect.x,
+            rect.y - 7,
+            self.game.palette.danger if error else self.game.palette.muted,
+            rect.width,
+        )
+        value = self.cockpit.value(key)
+        if key in {"deck_id", "opponent_deck_id"}:
+            value = (value or "No decks available") + ("  v" if self.deck_ids else "")
+        if editing:
+            value += " |"
+        self.game.draw_text_left(
+            value or " ",
+            max(13, self.game.layout.font_normal - 3),
+            rect.x + 10,
+            rect.y + rect.height // 2,
+            self.game.palette.text if value else self.game.palette.muted,
+            rect.width - 20,
+        )
+        if error:
+            self.game.draw_text_left(
+                error,
+                max(10, self.game.layout.font_small - 5),
+                rect.x,
+                rect.bottom + 7,
+                self.game.palette.danger,
+                rect.width,
             )
-        elif key == "evaluation":
-            self.evaluation_index = self._cycle(
-                self.evaluation_index,
-                len(self.EVALUATION_GAMES),
-                direction,
+
+    def _summary_rows(self, request):
+        if self.kind == TrainingKind.PLAYER_DECK:
+            return (
+                ("MISSION", "Specific deck player"),
+                ("PRESET", self.cockpit.preset_label),
+                ("DECK", request.deck_id if request else self.cockpit.value("deck_id")),
+                ("OPPONENT", request.opponent_deck_id if request else self.cockpit.value("opponent_deck_id")),
+                ("GENERATIONS", str(request.evaluator_generations) if request else self.cockpit.value("evaluator_generations")),
+                ("EVALUATION", f"{request.evaluation_games} games/checkpoint" if request else f"{self.cockpit.value('evaluation_games')} games/checkpoint"),
             )
-        elif key == "seeds":
-            self.seed_index = self._cycle(
-                self.seed_index,
-                len(self.SEED_SETS),
-                direction,
+        seeds = request.seeds if request else ()
+        return (
+            ("MISSION", "Deck builder experiment"),
+            ("PRESET", self.cockpit.preset_label),
+            ("SEEDS", f"{len(seeds)} independent runs" if seeds else "Pending / invalid"),
+            ("EVOLUTION", f"{request.outer_generations} outer / {request.evaluator_generations} inner" if request else "Pending / invalid"),
+            ("RIVALS", f"{request.matches_per_genome} per candidate" if request else self.cockpit.value("matches_per_genome")),
+            ("HOLDOUT", f"{request.holdout_seed_pairs} seed pairs" if request else self.cockpit.value("holdout_seed_pairs")),
+        )
+
+    def _draw_cockpit_header(self, layout):
+        self.game.draw_text_left(
+            "DRACI ZVESTI / AI TRAINING",
+            max(11, self.game.layout.font_small - 2),
+            layout.header.x,
+            layout.header.y + 12,
+            self.game.palette.accent,
+            layout.header.width,
+        )
+        title = "Training cockpit"
+        self.game.draw_text_left(
+            title,
+            self.game.layout.font_large,
+            layout.header.x,
+            layout.header.y + 43,
+            self.game.palette.text,
+            layout.header.width,
+        )
+        if self.game.DISPLAY_W >= 900:
+            self.game.draw_text_left(
+                "Configure, verify, and launch reproducible AI experiments",
+                self.game.layout.font_small,
+                layout.header.x,
+                layout.header.y
+                + 43
+                + self.game.layout.font_large // 2
+                + self.game.layout.font_small,
+                self.game.palette.muted,
+                layout.header.width,
             )
-        elif key == "outer":
-            self.outer_generations = 10 if self.outer_generations == 1 else 1
-        elif key == "matches":
-            self.match_index = self._cycle(
-                self.match_index,
-                len(self.MATCH_COUNTS),
-                direction,
+
+    def _draw_cockpit_rail(self, layout):
+        rail = layout.panels["rail"]
+        self._draw_cockpit_panel(rail, accent=(109, 169, 223))
+        self.game.draw_text_left(
+            "Mission & navigation" if layout.mode == "wide" else "Mission",
+            max(13, self.game.layout.font_small),
+            rail.x + self.game.layout.gap,
+            rail.y + 20,
+            self.game.palette.text,
+            rail.width - self.game.layout.gap * 2,
+        )
+        self._draw_setup_button(
+            "mission_player",
+            "Train a deck controller",
+            selected=self.kind == TrainingKind.PLAYER_DECK,
+            compact=layout.mode == "compact",
+        )
+        self._draw_setup_button(
+            "mission_builder",
+            "Evolve and study decks",
+            selected=self.kind == TrainingKind.DECK_BUILDER,
+            compact=layout.mode == "compact",
+        )
+        nav_labels = {
+            "nav_mission": "01  Mission",
+            "nav_configuration": "02  Configuration",
+            "nav_evidence": "03  Evidence",
+            "nav_preflight": "04  Preflight",
+        }
+        for key, label in nav_labels.items():
+            self._draw_setup_button(key, label, compact=True)
+        if layout.mode == "wide":
+            self._draw_setup_button("about", "Training guide >", compact=True)
+            self._draw_setup_button("back", "< Back to menu", compact=True)
+            self._draw_setup_button("runs", "Open run library >", compact=True)
+
+    def _draw_cockpit_config(self, layout, validation):
+        panel = layout.panels["config"]
+        self._draw_cockpit_panel(panel, accent=self.game.palette.accent)
+        x = panel.x + self.game.layout.gap + 8
+        self.game.draw_text_left(
+            "Configure controller" if self.kind == TrainingKind.PLAYER_DECK else "Configure deck evolution",
+            max(15, self.game.layout.font_normal - 1),
+            x,
+            panel.y + 21,
+            self.game.palette.text,
+            panel.width - self.game.layout.gap * 2,
+        )
+        if layout.mode == "wide":
+            self.game.draw_text_left(
+                "Presets fill fields; every value remains directly editable",
+                max(10, self.game.layout.font_small - 3),
+                x,
+                panel.y + 43,
+                self.game.palette.muted,
+                panel.width - self.game.layout.gap * 2,
             )
-        elif key == "holdout":
-            self.holdout_index = self._cycle(
-                self.holdout_index,
-                len(self.HOLDOUT_COUNTS),
-                direction,
+        labels = ["Quick check", "Balanced", "Deep study", "Custom"]
+        active = self.cockpit.draft.preset_index
+        for index, label in enumerate(labels):
+            self._draw_setup_button(
+                f"preset_{index}",
+                label,
+                selected=(active == index or (index == 3 and active is None)),
+                compact=True,
             )
+        for key in self.cockpit.field_keys:
+            self._draw_setup_field(key, validation)
+
+    def _draw_read_only_field(self, key, label, value, *, helper=""):
+        rect = self.setup_layout.controls.get(key)
+        if rect is None or not self._setup_control_visible(rect):
+            return
+        pg_rect = pg.Rect(rect.x, rect.y, rect.width, rect.height)
+        pg.draw.rect(self.game.display, self.game.palette.panel_alt, pg_rect, border_radius=7)
+        pg.draw.rect(self.game.display, self.game.palette.border, pg_rect, 1, border_radius=7)
+        self.game.draw_text_left(label.upper(), max(10, self.game.layout.font_small - 4), rect.x, rect.y - 7, self.game.palette.muted, rect.width)
+        self.game.draw_text_left(str(value), max(13, self.game.layout.font_normal - 3), rect.x + 10, rect.y + rect.height // 2, self.game.palette.text, rect.width - 20)
+        if helper:
+            self.game.draw_text_left(helper, max(10, self.game.layout.font_small - 5), rect.x, rect.bottom + 7, (109, 169, 223), rect.width)
+
+    def _draw_cockpit_evidence(self, layout, validation):
+        panel = layout.panels["evidence"]
+        self._draw_cockpit_panel(panel, accent=self.game.palette.success)
+        x = panel.x + self.game.layout.gap + 8
+        title = "Evaluation & validation" if self.kind == TrainingKind.PLAYER_DECK else "Workload & preflight"
+        self.game.draw_text_left(title, max(15, self.game.layout.font_normal - 1), x, panel.y + 22, self.game.palette.text, panel.width - 24)
+        workload = training_workload(validation.request) if validation.request else None
+        if self.kind == TrainingKind.PLAYER_DECK:
+            if layout.mode == "wide":
+                self._draw_setup_field("evaluation_games", validation)
+            checkpoints = " · ".join(map(str, self.cockpit.checkpoints())) or "Pending"
+            self._draw_read_only_field("checkpoint_display", "Checkpoints", checkpoints, helper="Derived from generations")
+            deck_status = "2 decks selected" if self.deck_ids and not {"deck_id", "opponent_deck_id"} & validation.errors.keys() else "Deck selection incomplete"
+            self._draw_read_only_field("deck_status", "Deck selection", deck_status, helper="Both IDs must exist")
+            if workload:
+                y = panel.bottom - max(42, self.game.layout.target_height)
+                self.game.draw_text_left(workload.headline, max(12, self.game.layout.font_small - 1), x, y, self.game.palette.accent, panel.width - 30)
+        else:
+            if workload:
+                self.game.draw_text_left(workload.headline, max(15, self.game.layout.font_normal - 1), x, panel.y + 65, self.game.palette.accent, panel.width - 30)
+                for index, detail in enumerate(workload.details[:3]):
+                    self.game.draw_text_left(detail, max(10, self.game.layout.font_small - 3), x, panel.y + 94 + index * 22, self.game.palette.muted, panel.width - 30)
+            else:
+                self.game.draw_text_left("Correct the highlighted settings to calculate workload", self.game.layout.font_small, x, panel.y + 68, self.game.palette.danger, panel.width - 30)
+        ready = validation.valid and self.setup_edit_key is None
+        status = (
+            "Ready for review"
+            if ready
+            else "Finish editing to review"
+            if validation.valid
+            else f"Fix {len(validation.errors)} setting(s)"
+        )
+        color = self.game.palette.success if ready else self.game.palette.danger
+        self.game.draw_text_left(status, max(11, self.game.layout.font_small - 2), x, panel.bottom - 18, color, panel.width - 30)
+
+    def _draw_cockpit_summary(self, layout, validation):
+        panel = layout.panels["summary"]
+        self._draw_cockpit_panel(panel, accent=self.game.palette.accent)
+        x = panel.x + self.game.layout.gap + 8
+        self.game.draw_text_left("Run summary", max(15, self.game.layout.font_normal - 1), x, panel.y + 22, self.game.palette.text, panel.width - 24)
+        self.game.draw_text_left("Always visible before committing", max(10, self.game.layout.font_small - 3), x, panel.y + 43, self.game.palette.muted, panel.width - 24)
+        y = panel.y + 72
+        row_gap = 47 if layout.mode == "wide" else 40
+        for label, value in self._summary_rows(validation.request):
+            self.game.draw_text_left(label, max(9, self.game.layout.font_small - 5), x, y, self.game.palette.muted, panel.width - 24)
+            self.game.draw_text_left(str(value or "Pending"), max(12, self.game.layout.font_normal - 3), x, y + 18, self.game.palette.text, panel.width - 24)
+            y += row_gap
+        ready = validation.valid and self.setup_edit_key is None
+        status_text = (
+            "READY TO REVIEW"
+            if ready
+            else "FINISH EDITING"
+            if validation.valid
+            else f"FIX {len(validation.errors)} SETTINGS"
+        )
+        status_color = self.game.palette.success if ready else self.game.palette.danger
+        status_y = min(panel.bottom - 84, y + 4)
+        self.game.draw_text_left(status_text, max(11, self.game.layout.font_small - 2), x, status_y, status_color, panel.width - 24)
+        if validation.errors:
+            self.game.draw_text_left(next(iter(validation.errors.values())), max(9, self.game.layout.font_small - 5), x, status_y + 20, self.game.palette.muted, panel.width - 24)
+
+    def _draw_cockpit_actions(self, layout, validation):
+        if layout.mode == "compact":
+            panel = layout.panels.get("actions")
+            if panel and panel.bottom > layout.viewport.y and panel.y < layout.viewport.bottom:
+                self._draw_cockpit_panel(panel)
+                self._draw_setup_button("about", "Guide", compact=True)
+                self._draw_setup_button("runs", "Runs", compact=True)
+                self._draw_setup_button("back", "Back", compact=True)
+        launch_enabled = validation.valid and self.setup_edit_key is None and not self.setup_starting
+        label = "Starting training…" if self.setup_starting else "Review & launch >"
+        self._draw_setup_button("launch", label, selected=False, enabled=launch_enabled)
+
+    def _draw_setup_scrollbar(self, layout):
+        if layout.mode != "compact" or not layout.max_scroll:
+            return
+        track = pg.Rect(layout.viewport.right - 4, layout.viewport.y, 3, layout.viewport.height)
+        pg.draw.rect(self.game.display, self.game.palette.disabled, track, border_radius=2)
+        content_height = layout.viewport.height + layout.max_scroll
+        thumb_height = max(24, layout.viewport.height * layout.viewport.height // content_height)
+        travel = layout.viewport.height - thumb_height
+        thumb_y = layout.viewport.y + travel * self.setup_scroll // layout.max_scroll
+        pg.draw.rect(
+            self.game.display,
+            self.game.palette.accent,
+            pg.Rect(track.x, thumb_y, track.width, thumb_height),
+            border_radius=2,
+        )
+
+    def draw_training_cockpit(self):
+        self.draw_background()
+        layout = self._current_setup_layout()
+        validation = self.cockpit.validate()
+        self._draw_cockpit_header(layout)
+        if layout.mode == "compact":
+            self.game.display.set_clip(pg.Rect(layout.viewport.x, layout.viewport.y, layout.viewport.width, layout.viewport.height))
+        self._draw_cockpit_rail(layout)
+        self._draw_cockpit_config(layout, validation)
+        self._draw_cockpit_evidence(layout, validation)
+        self._draw_cockpit_summary(layout, validation)
+        if layout.mode == "compact":
+            self._draw_cockpit_actions(layout, validation)
+            self.game.display.set_clip(None)
+            self._draw_setup_scrollbar(layout)
+            launch_enabled = validation.valid and self.setup_edit_key is None and not self.setup_starting
+            label = "Starting training…" if self.setup_starting else "Review & launch >"
+            self._draw_setup_button("launch", label, selected=False, enabled=launch_enabled)
+        else:
+            self._draw_cockpit_actions(layout, validation)
+        if self.message:
+            self.game.draw_text_left(
+                self.message,
+                max(10, self.game.layout.font_small - 3),
+                layout.header.x,
+                layout.header.bottom - 2,
+                self.message_color,
+                layout.header.width,
+            )
+        if self.setup_picker_key is not None:
+            self._draw_setup_picker()
+        if self.setup_review_open:
+            self._draw_setup_review()
+
+    def _draw_setup_picker(self):
+        shade = pg.Surface((self.game.DISPLAY_W, self.game.DISPLAY_H), pg.SRCALPHA)
+        shade.fill((0, 0, 0, 175))
+        self.game.display.blit(shade, (0, 0))
+        panel, rows = self._picker_panel()
+        self._draw_cockpit_panel(panel, accent=self.game.palette.accent)
+        self.game.draw_text_left("Select deck", self.game.layout.font_normal, panel.x + self.game.layout.gap, panel.y + 27, self.game.palette.text, panel.width - self.game.layout.gap * 2)
+        font = pg.font.Font(self.game.font_name, max(12, self.game.layout.font_small))
+        for index, deck_id, rect in rows:
+            Button(
+                str(index),
+                deck_id,
+                rect,
+                selected=index == self.setup_picker_index,
+                hovered=rect.contains(self.game.mouse_position),
+            ).draw(self.game.display, font, self.game.palette)
+
+    @staticmethod
+    def _review_rows(request):
+        if request.kind == TrainingKind.PLAYER_DECK:
+            checkpoints = ", ".join(map(str, evaluation_checkpoints(request.evaluator_generations)))
+            return (
+                ("Player deck", request.deck_id),
+                ("Opponent deck", request.opponent_deck_id),
+                ("Generations", request.evaluator_generations),
+                ("Workers", request.workers),
+                ("Games / checkpoint", request.evaluation_games),
+                ("Checkpoints", checkpoints),
+            )
+        return (
+            ("Seed set", ", ".join(map(str, request.seeds))),
+            ("Generations", f"{request.outer_generations} outer · {request.evaluator_generations} inner"),
+            ("Matches / candidate", request.matches_per_genome),
+            ("Evaluator workers", request.workers),
+            ("Holdout seed pairs", request.holdout_seed_pairs),
+            ("Engine", "20 target decks · 2 fixed outer workers"),
+        )
+
+    def _draw_setup_review(self):
+        request = self.setup_review_request
+        if request is None:
+            return
+        shade = pg.Surface((self.game.DISPLAY_W, self.game.DISPLAY_H), pg.SRCALPHA)
+        shade.fill((0, 0, 0, 190))
+        self.game.display.blit(shade, (0, 0))
+        panel, button_rects = self._review_buttons()
+        self._draw_cockpit_panel(panel, accent=self.game.palette.accent)
+        gap = self.game.layout.gap
+        x = panel.x + gap * 2
+        width = panel.width - gap * 4
+        self.game.draw_text_left("Review training request", self.game.layout.font_large, x, panel.y + gap * 2, self.game.palette.text, width)
+        self.game.draw_text_left(f"{request.kind.value} · {request.run_label}", self.game.layout.font_small, x, panel.y + gap * 2 + self.game.layout.font_large, self.game.palette.muted, width)
+        y = panel.y + gap * 3 + self.game.layout.font_large + self.game.layout.font_small
+        available_bottom = button_rects[0].y - gap * 2
+        rows = self._review_rows(request)
+        row_height = max(25, min(36, (available_bottom - y - 76) // max(1, len(rows))))
+        for label, value in rows:
+            self.game.draw_text_left(str(label), max(11, self.game.layout.font_small - 2), x, y, self.game.palette.muted, width // 2)
+            self.game.draw_text_left(str(value), max(11, self.game.layout.font_small - 2), x + width // 2, y, self.game.palette.text, width // 2)
+            y += row_height
+        workload = training_workload(request)
+        self.game.draw_text_left(workload.headline, max(13, self.game.layout.font_normal - 2), x, y + 10, self.game.palette.accent, width)
+        self.game.draw_text_left("Workload is not wall-clock time. Starting creates one training job and opens Runs.", max(10, self.game.layout.font_small - 3), x, y + 40, self.game.palette.muted, width)
+        labels = ("Back to settings", "Starting…" if self.setup_starting else "Start training")
+        font = pg.font.Font(self.game.font_name, max(12, self.game.layout.font_normal - 2))
+        for index, (label, rect) in enumerate(zip(labels, button_rects)):
+            Button(
+                str(index),
+                label,
+                rect,
+                enabled=not self.setup_starting,
+                selected=index == self.setup_review_selected,
+                hovered=rect.contains(self.game.mouse_position),
+            ).draw(self.game.display, font, self.game.palette)
 
     def _refresh_runs(self, force=False):
         while True:
@@ -651,51 +1247,57 @@ class TrainingMenu(Menu):
             self.message = "Training launch is already in progress"
             self.message_color = (235, 190, 90)
             return
-        request = self._request()
+        validation = self.cockpit.validate()
+        if validation.request is None:
+            self.message = next(iter(validation.errors.values()), "Fix the highlighted settings")
+            self.message_color = (235, 105, 105)
+            return
+        self.setup_review_request = validation.request
+        self.setup_review_open = True
+        self.setup_review_selected = 0
+
+    def _start_training(self, request):
+        if self._launch_thread is not None and self._launch_thread.is_alive():
+            self.message = "Training launch is already in progress"
+            self.message_color = self.game.palette.accent
+            return
         try:
             request.validate()
         except ValueError as error:
+            self.setup_review_open = False
             self.message = str(error)
-            self.message_color = (235, 105, 105)
-            return
-        workload = training_workload(request)
-        lines = [
-            self._mission_label(request.kind),
-            f"Label: {request.run_label}",
-            (
-                f"Deck: {request.deck_id}"
-                if request.kind == TrainingKind.PLAYER_DECK
-                else f"Seeds: {', '.join(map(str, request.seeds))}"
-            ),
-            *(
-                [f"Opponent: {request.opponent_deck_id}"]
-                if request.kind == TrainingKind.PLAYER_DECK
-                else []
-            ),
-            f"Generations: {request.evaluator_generations}",
-            f"Workers: {request.workers}",
-            workload.headline,
-            *workload.details[:2],
-        ]
-        if not self._confirm_dialog("Launch training?", lines):
+            self.message_color = self.game.palette.danger
             return
         self.message = "Starting training…"
         self.message_color = self.game.palette.muted
-        try:
-            self._launch_results.put(("ok", self.service.start(request)))
-        except (ValueError, RuntimeError, OSError) as error:
-            self._launch_results.put(("error", str(error)))
-        self._consume_launch_result()
+        self.setup_starting = True
+
+        def launch():
+            try:
+                self._launch_results.put(("ok", self.service.start(request)))
+            except (ValueError, RuntimeError, OSError) as error:
+                self._launch_results.put(("error", str(error)))
+
+        self._launch_thread = threading.Thread(
+            target=launch,
+            name="training-launch",
+            daemon=True,
+        )
+        self._launch_thread.start()
 
     def _consume_launch_result(self):
         try:
             status, value = self._launch_results.get_nowait()
         except queue.Empty:
             return
+        self.setup_starting = False
         if status == "error":
+            self.setup_review_open = False
             self.message = value
             self.message_color = (235, 105, 105)
             return
+        self.setup_review_open = False
+        self.setup_review_request = None
         self.message = f"Started {value.job_id}"
         self.message_color = (105, 210, 150)
         self.view = "runs"
@@ -765,29 +1367,36 @@ class TrainingMenu(Menu):
 
     def _activate_setup(self, key):
         if key == "action":
-            if self.selected == 0:
-                self._return()
-            else:
-                self.view = "runs"
-                self.selected = 0
-                self.run_page = 0
-                self.run_selected = 0
-                self.run_search.focused = False
-                self._refresh_runs(force=True)
+            self._activate_setup_control("back" if self.selected == 0 else "runs")
         elif key == "label":
-            label = self._text_dialog("Run label", self.run_label)
-            if label is not None and label.strip():
-                self.run_label = label.strip()
-        elif key == "about":
-            self.view = "about"
-            self.about_page = 0
+            self._activate_setup_control("run_label")
+        elif key == "kind":
+            target = (
+                TrainingKind.DECK_BUILDER
+                if self.kind == TrainingKind.PLAYER_DECK
+                else TrainingKind.PLAYER_DECK
+            )
+            self._activate_setup_control(
+                "mission_builder" if target == TrainingKind.DECK_BUILDER else "mission_player"
+            )
+        elif key == "preset":
+            current = self.cockpit.draft.preset_index
+            self.cockpit.apply_preset(0 if current is None else (current + 1) % 3)
         elif key == "workload":
-            workload = training_workload(self._request())
-            self.show_lines("Planned workload", (workload.headline, *workload.details))
-        elif key == "launch":
-            self._launch()
+            workload = self.cockpit.workload()
+            if workload:
+                self.show_lines("Planned workload", (workload.headline, *workload.details))
         else:
-            self._edit_setup_value(key, 1)
+            aliases = {
+                "deck": "deck_id",
+                "opponent_deck": "opponent_deck_id",
+                "generations": "evaluator_generations",
+                "evaluation": "evaluation_games",
+                "outer": "outer_generations",
+                "matches": "matches_per_genome",
+                "holdout": "holdout_seed_pairs",
+            }
+            self._activate_setup_control(aliases.get(key, key))
 
     def _activate_run(self, value):
         if value in {"back", "setup"}:
@@ -1098,6 +1707,9 @@ class TrainingMenu(Menu):
             self._draw_run_filter_dialog()
 
     def check_input(self):
+        if self.view == "setup":
+            self._check_setup_input()
+            return
         if self.view == "about":
             self._check_about_input()
             return
@@ -1166,30 +1778,12 @@ class TrainingMenu(Menu):
                 self.draw_training_runs()
                 self.blit_screen()
                 continue
-            rows = self._rows()
-            self.selected = min(self.selected, len(rows) - 1)
-            if self.game.mouse_wheel:
-                self.selected = (self.selected - self.game.mouse_wheel) % len(rows)
-            page_size = max(5, min(11, (self.game.DISPLAY_H - 175) // self.game.layout.target_height))
-            offset = max(0, min(self.selected - page_size + 1, len(rows) - page_size))
-            self._visible_offset = offset
-            visible_labels = [label for label, _ in rows[offset : offset + page_size]]
-            self.build_menu_buttons(
-                visible_labels,
-                self.selected - offset,
-                top_ratio=0.22,
-                bottom_ratio=0.87,
-                width_ratio=0.76,
-            )
             self.check_input()
             if not self.run_display:
                 break
-            self.draw_background()
-            title = "AI Training" if self.view == "setup" else "Training Runs"
-            subtitle = "Configure a reproducible run" if self.view == "setup" else "Active and completed experiments"
-            self.draw_title(title, subtitle)
-            self.draw_buttons()
-            self.draw_message(self.message, self.message_color)
+            if self.view != "setup":
+                continue
+            self.draw_training_cockpit()
             self.blit_screen()
 
     def _check_about_input(self):

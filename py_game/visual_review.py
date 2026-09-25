@@ -34,7 +34,7 @@ from py_game.training_service import (
 )
 
 
-REVIEW_SIZES = ((800, 600), (1024, 768), (1280, 720), (1920, 1080))
+REVIEW_SIZES = ((640, 480), (800, 600), (1024, 768), (1280, 720), (1600, 900), (1920, 1080))
 
 
 def _save(game: Game, output: Path, name: str, size: tuple[int, int]) -> None:
@@ -203,19 +203,39 @@ def _editor(game, output, size):
 def _training(game, output, size):
     menu = TrainingMenu(game)
     menu.refresh_layout()
-    rows = menu._rows()
-    page_size = min(11, len(rows))
-    menu.build_menu_buttons(
-        [label for label, _ in rows[:page_size]],
-        0,
-        top_ratio=0.22,
-        bottom_ratio=0.87,
-        width_ratio=0.76,
-    )
-    menu.draw_background()
-    menu.draw_title("AI Training", "Configure a reproducible run")
-    menu.draw_buttons()
-    _save(game, output, "training", size)
+    menu.draw_training_cockpit()
+    _save(game, output, "training-cockpit-player", size)
+    if size == (640, 480):
+        menu.setup_scroll = menu._current_setup_layout().max_scroll
+        menu.draw_training_cockpit()
+        _save(game, output, "training-cockpit-player-bottom", size)
+
+
+def _training_builder(game, output, size):
+    menu = TrainingMenu(game)
+    menu.refresh_layout()
+    menu.cockpit.switch(TrainingKind.DECK_BUILDER)
+    menu.cockpit.set_value("run_label", "replicated-study")
+    menu.cockpit.set_value("seeds", "400009, 450001, 500009, 550007")
+    menu.cockpit.set_value("workers", "12")
+    menu.draw_training_cockpit()
+    _save(game, output, "training-cockpit-builder", size)
+    if size == (640, 480):
+        menu.setup_scroll = menu._current_setup_layout().max_scroll
+        menu.draw_training_cockpit()
+        _save(game, output, "training-cockpit-builder-bottom", size)
+
+
+def _training_review(game, output, size):
+    menu = TrainingMenu(game)
+    menu.refresh_layout()
+    menu.cockpit.switch(TrainingKind.DECK_BUILDER)
+    menu.cockpit.set_value("run_label", "replicated-study")
+    menu.cockpit.set_value("seeds", "400009, 450001, 500009, 550007")
+    menu.cockpit.set_value("workers", "12")
+    menu._launch()
+    menu.draw_training_cockpit()
+    _save(game, output, "training-cockpit-review", size)
 
 
 def _training_runs_menu(game):
@@ -666,6 +686,8 @@ def generate(output: Path, sizes=REVIEW_SIZES) -> list[Path]:
         _decks,
         _editor,
         _training,
+        _training_builder,
+        _training_review,
         _training_runs,
         _training_runs_filter,
         _training_dashboard,

@@ -17,7 +17,9 @@ from py_game.network.session import NetworkEvent
 from py_game.theme import PALETTE
 from py_game.ui.layout import LayoutMetrics, RectSpec
 from py_game.ui.training_dashboard import training_dashboard_layout
+from py_game.ui.training_cockpit import TrainingCockpitState, training_cockpit_layout
 from py_game.ui.widgets import Button, DragController, TextInput
+from py_game.training_service import TrainingKind
 from utils.database_utils import DBUtil
 
 
@@ -67,6 +69,92 @@ class LayoutTests(unittest.TestCase):
             for key in ("hero", "trail", "systems", "footer"):
                 self.assertGreater(layout[key].width, 0)
                 self.assertGreater(layout[key].height, 0)
+
+    def test_training_cockpit_uses_wide_columns_and_compact_scrolling(self):
+        for size in ((1280, 720), (1600, 900)):
+            layout = training_cockpit_layout(
+                LayoutMetrics.from_size(*size),
+                TrainingKind.PLAYER_DECK,
+            )
+            self.assertEqual(layout.mode, "wide")
+            self.assertLessEqual(layout.panels["rail"].right, layout.panels["config"].x)
+            self.assertLessEqual(layout.panels["config"].right, layout.panels["summary"].x)
+            self.assertLessEqual(layout.controls["launch"].bottom, layout.panels["summary"].bottom)
+
+        compact = training_cockpit_layout(
+            LayoutMetrics.from_size(640, 480),
+            TrainingKind.DECK_BUILDER,
+        )
+        self.assertEqual(compact.mode, "compact")
+        self.assertGreater(compact.max_scroll, 0)
+        self.assertGreaterEqual(compact.controls["launch"].y, compact.viewport.bottom)
+        scrolled = training_cockpit_layout(
+            LayoutMetrics.from_size(640, 480),
+            TrainingKind.DECK_BUILDER,
+            scroll=compact.max_scroll,
+        )
+        self.assertLess(scrolled.panels["summary"].y, compact.panels["summary"].y)
+
+
+class TrainingCockpitStateTests(unittest.TestCase):
+    def test_mission_drafts_survive_switching_and_preset_edits_become_custom(self):
+        state = TrainingCockpitState(("Blue", "Queen"))
+        state.set_value("run_label", "controller-study")
+        state.set_value("workers", "17")
+        self.assertEqual(state.preset_label, "Custom")
+
+        state.switch(TrainingKind.DECK_BUILDER)
+        state.set_value("run_label", "builder-study")
+        state.set_value("seeds", "400009, 450001, 400009")
+        state.switch(TrainingKind.PLAYER_DECK)
+
+        self.assertEqual(state.value("run_label"), "controller-study")
+        self.assertEqual(state.value("workers"), "17")
+        state.switch(TrainingKind.DECK_BUILDER)
+        self.assertEqual(state.value("run_label"), "builder-study")
+        self.assertEqual(state.validate().request.seeds, (400009, 450001, 400009))
+
+    def test_direct_values_map_exactly_to_player_request(self):
+        state = TrainingCockpitState(("Blue", "Queen"))
+        values = {
+            "run_label": "exact-player",
+            "deck_id": "Queen",
+            "opponent_deck_id": "Blue",
+            "evaluator_generations": "9999",
+            "workers": "127",
+            "evaluation_games": "99999",
+        }
+        for key, value in values.items():
+            state.set_value(key, value)
+
+        validation = state.validate()
+
+        self.assertTrue(validation.valid)
+        self.assertEqual(validation.request.run_label, "exact-player")
+        self.assertEqual(validation.request.deck_id, "Queen")
+        self.assertEqual(validation.request.opponent_deck_id, "Blue")
+        self.assertEqual(validation.request.evaluator_generations, 9999)
+        self.assertEqual(validation.request.workers, 127)
+        self.assertEqual(validation.request.evaluation_games, 99999)
+
+    def test_builder_validation_keeps_bad_text_visible_and_rejects_odd_matches(self):
+        state = TrainingCockpitState(("Blue",))
+        state.switch(TrainingKind.DECK_BUILDER)
+        state.set_value("seeds", "10, nope, 30")
+        state.set_value("matches_per_genome", "3")
+
+        validation = state.validate()
+
+        self.assertEqual(state.value("seeds"), "10, nope, 30")
+        self.assertIn("seeds", validation.errors)
+        self.assertIn("matches_per_genome", validation.errors)
+        self.assertIsNone(validation.request)
+
+    def test_empty_deck_database_disables_player_request(self):
+        validation = TrainingCockpitState(()).validate()
+        self.assertFalse(validation.valid)
+        self.assertIn("deck_id", validation.errors)
+        self.assertIn("opponent_deck_id", validation.errors)
 
 
 class WidgetTests(unittest.TestCase):

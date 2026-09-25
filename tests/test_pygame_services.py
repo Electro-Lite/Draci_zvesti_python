@@ -1,6 +1,7 @@
 import unittest
 import datetime as dt
 import json
+import queue
 import threading
 import time
 import tempfile
@@ -8,6 +9,8 @@ import sqlite3
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import ANY, Mock, patch
+
+import pygame as pg
 
 from cards.ability.ability_target import AbilityTarget
 from cards.power import Power
@@ -20,6 +23,7 @@ from choice_strategies.choice_strategy_ai_random import ChoiceStrategyAIRandom
 from py_game.deck_advisor import DeckAdvisor
 from py_game.game import Game
 from py_game.menu.training_menu import TrainingMenu
+from py_game.theme import PALETTE
 from py_game.match_setup import (
     ControllerKind,
     ControllerSpec,
@@ -43,6 +47,7 @@ from py_game.ui.training_setup import (
     training_workload,
     wilson_interval,
 )
+from py_game.ui.training_cockpit import TrainingCockpitState
 from py_game.ui.training_runs import (
     RunFilters,
     combined_runs,
@@ -96,6 +101,97 @@ class PygameServiceTests(unittest.TestCase):
         self.assertEqual(balanced.label, "Balanced")
         self.assertIn("4,500 simulated games", workload.headline)
         self.assertTrue(any("300 evaluation games total" in line for line in workload.details))
+
+    @staticmethod
+    def _cockpit_menu(service):
+        menu = TrainingMenu.__new__(TrainingMenu)
+        menu.cockpit = TrainingCockpitState(("Blue", "Queen"))
+        menu.service = service
+        menu.game = SimpleNamespace(
+            palette=PALETTE,
+            events=[],
+            BACK_KEY=False,
+            START_KEY=False,
+            mouse_clicked=False,
+        )
+        menu._launch_thread = None
+        menu._launch_results = queue.Queue()
+        menu.setup_review_open = False
+        menu.setup_review_request = None
+        menu.setup_review_selected = 0
+        menu.setup_starting = False
+        menu.setup_edit_original_preset = None
+        menu.message = ""
+        menu.message_color = PALETTE.text
+        return menu
+
+    def test_cockpit_requires_review_before_service_start(self):
+        service = SimpleNamespace(start=Mock())
+        menu = self._cockpit_menu(service)
+
+        menu._launch()
+
+        self.assertTrue(menu.setup_review_open)
+        self.assertEqual(menu.setup_review_request.deck_id, "Blue")
+        service.start.assert_not_called()
+
+    def test_cockpit_starts_exact_reviewed_request_only_once(self):
+        entered = threading.Event()
+        release = threading.Event()
+
+        def start(request):
+            entered.set()
+            release.wait(1)
+            return SimpleNamespace(job_id="one-job")
+
+        service = SimpleNamespace(start=Mock(side_effect=start))
+        menu = self._cockpit_menu(service)
+        request = menu.cockpit.validate().request
+
+        menu._start_training(request)
+        self.assertTrue(entered.wait(0.5))
+        menu._start_training(request)
+        release.set()
+        menu._launch_thread.join(1)
+
+        service.start.assert_called_once_with(request)
+        self.assertIn("already", menu.message)
+
+    def test_cockpit_launch_failure_keeps_draft(self):
+        menu = self._cockpit_menu(SimpleNamespace(start=Mock()))
+        menu.cockpit.set_value("run_label", "keep-this-draft")
+        menu.setup_review_open = True
+        menu.setup_starting = True
+        menu._launch_results.put(("error", "trainer unavailable"))
+
+        menu._consume_launch_result()
+
+        self.assertEqual(menu.cockpit.value("run_label"), "keep-this-draft")
+        self.assertFalse(menu.setup_review_open)
+        self.assertEqual(menu.message, "trainer unavailable")
+
+    def test_cockpit_editor_keeps_invalid_text_and_escape_restores_value(self):
+        menu = self._cockpit_menu(SimpleNamespace(start=Mock()))
+        menu.setup_edit_key = "workers"
+        menu.setup_edit_original = "8"
+        menu.cockpit.set_value("workers", "invalid")
+        menu.game.events = [
+            SimpleNamespace(type=pg.KEYDOWN, key=pg.K_RETURN, unicode="", mod=0)
+        ]
+
+        menu._handle_setup_editor()
+
+        self.assertEqual(menu.setup_edit_key, "workers")
+        self.assertEqual(menu.cockpit.value("workers"), "invalid")
+        self.assertIn("integer", menu.message)
+
+        menu.game.events = [
+            SimpleNamespace(type=pg.KEYDOWN, key=pg.K_ESCAPE, unicode="", mod=0)
+        ]
+        menu._handle_setup_editor()
+
+        self.assertIsNone(menu.setup_edit_key)
+        self.assertEqual(menu.cockpit.value("workers"), "8")
 
     def test_wilson_interval_is_bounded_and_reflects_sample_size(self):
         small = wilson_interval(6, 10)
