@@ -9,27 +9,28 @@
 <rect x="42" y="151" width="286" height="675" rx="14" fill="#18212b" stroke="#45586a" stroke-width="1"/>
 <rect x="42" y="151" width="5" height="675" rx="2" fill="#6da9df"/>
 <text x="65" y="183" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Mission &amp; navigation</text>
-<text x="65" y="207" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Fast route between setup and runs</text>
+<text x="65" y="207" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Section shortcuts, not a wizard</text>
 <rect x="60" y="223" width="250" height="47" rx="9" fill="#202c38" stroke="#ecb14b" stroke-width="1"/>
 <text x="185.0" y="251.75" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">Train a deck controller</text>
 <rect x="60" y="281" width="250" height="47" rx="9" fill="#202c38" stroke="#a8b6c5" stroke-width="1"/>
 <text x="185.0" y="309.75" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">Evolve and study decks</text>
 <path d="M60 352 L310 352" stroke="#45586a" stroke-width="1"/>
-<rect x="59" y="363" width="251" height="43" rx="8" fill="#202c38" stroke="#ecb14b" stroke-width="1"/>
-<text x="76" y="390" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start" letter-spacing="0">01</text>
-<text x="116" y="390" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="start" letter-spacing="0">Mission</text>
-<rect x="59" y="417" width="251" height="43" rx="8" fill="#18212b" stroke="#45586a" stroke-width="1"/>
-<text x="76" y="444" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start" letter-spacing="0">02</text>
-<text x="116" y="444" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="start" letter-spacing="0">Subjects</text>
+<rect x="59" y="363" width="251" height="43" rx="8" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<text x="76" y="390" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start" letter-spacing="0">01</text>
+<text x="116" y="390" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="start" letter-spacing="0">Mission</text>
+<rect x="59" y="417" width="251" height="43" rx="8" fill="#202c38" stroke="#ecb14b" stroke-width="1"/>
+<text x="76" y="444" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start" letter-spacing="0">02</text>
+<text x="116" y="444" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="start" letter-spacing="0">Configuration</text>
 <rect x="59" y="471" width="251" height="43" rx="8" fill="#18212b" stroke="#45586a" stroke-width="1"/>
 <text x="76" y="498" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start" letter-spacing="0">03</text>
-<text x="116" y="498" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="start" letter-spacing="0">Training</text>
+<text x="116" y="498" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="start" letter-spacing="0">Evidence</text>
 <rect x="59" y="525" width="251" height="43" rx="8" fill="#18212b" stroke="#45586a" stroke-width="1"/>
 <text x="76" y="552" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start" letter-spacing="0">04</text>
-<text x="116" y="552" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="start" letter-spacing="0">Evaluation</text>
-<rect x="59" y="579" width="251" height="43" rx="8" fill="#18212b" stroke="#45586a" stroke-width="1"/>
-<text x="76" y="606" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start" letter-spacing="0">05</text>
-<text x="116" y="606" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="start" letter-spacing="0">Review &amp; launch</text>
+<text x="116" y="552" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="start" letter-spacing="0">Preflight</text>
+<rect x="60" y="605" width="250" height="40" rx="9" fill="#202c38" stroke="#a8b6c5" stroke-width="1"/>
+<text x="185.0" y="630.25" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">Training guide  →</text>
+<rect x="60" y="656" width="250" height="40" rx="9" fill="#202c38" stroke="#a8b6c5" stroke-width="1"/>
+<text x="185.0" y="681.25" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">←  Back to menu</text>
 <rect x="60" y="743" width="250" height="47" rx="9" fill="#202c38" stroke="#6da9df" stroke-width="1"/>
 <text x="185.0" y="771.75" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">Open run library  →</text>
 <rect x="348" y="151" width="802" height="334" rx="14" fill="#18212b" stroke="#45586a" stroke-width="1"/>

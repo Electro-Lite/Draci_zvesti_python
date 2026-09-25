@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+<rect width="1600" height="900" fill="#0d1219"/>
+<rect x="0" y="0" width="1600" height="7" rx="0" fill="#ecb14b"/>
+<text x="42" y="38" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700" text-anchor="start" letter-spacing="2">DRACI ZVESTI  /  AI TRAINING</text>
+<text x="42" y="88" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="38" font-weight="700" text-anchor="start" letter-spacing="0">Training cockpit / launch review</text>
+<text x="43" y="119" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="400" text-anchor="start" letter-spacing="0">Focused confirmation before a trainer process starts</text>
+<rect x="1414" y="39" width="142" height="34" rx="9" fill="#392d1e" stroke="#ecb14b" stroke-width="1"/>
+<text x="1485.0" y="60.55" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">CONCEPT 01C</text>
+<rect x="42" y="151" width="1516" height="675" rx="14" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<text x="72" y="198" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="22" font-weight="700" text-anchor="start" letter-spacing="0">Setup remains unchanged behind this review</text>
+<rect x="42" y="151" width="1516" height="675" rx="14" fill="#0a0e14"/>
+<rect x="314" y="191" width="972" height="594" rx="16" fill="#18212b" stroke="#ecb14b" stroke-width="2"/>
+<text x="346" y="243" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="31" font-weight="700" text-anchor="start" letter-spacing="0">Review training request</text>
+<text x="346" y="274" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="400" text-anchor="start" letter-spacing="0">Deck builder experiment  ·  replicated-study</text>
+<path d="M346 295 L1254 295" stroke="#45586a" stroke-width="1"/>
+<text x="346" y="328" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="1">CONFIGURATION</text>
+<text x="346" y="362" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="400" text-anchor="start" letter-spacing="0">Seed set</text>
+<text x="1239" y="362" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="end" letter-spacing="0">400009, 450001, 500009, 550007</text>
+<path d="M346 374 L1254 374" stroke="#45586a" stroke-width="1"/>
+<text x="346" y="399" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="400" text-anchor="start" letter-spacing="0">Generations</text>
+<text x="1239" y="399" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="end" letter-spacing="0">1 outer · 50 inner</text>
+<path d="M346 411 L1254 411" stroke="#45586a" stroke-width="1"/>
+<text x="346" y="436" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="400" text-anchor="start" letter-spacing="0">Matches / candidate</text>
+<text x="1239" y="436" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="end" letter-spacing="0">12</text>
+<path d="M346 448 L1254 448" stroke="#45586a" stroke-width="1"/>
+<text x="346" y="473" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="400" text-anchor="start" letter-spacing="0">Evaluator workers</text>
+<text x="1239" y="473" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="end" letter-spacing="0">12</text>
+<path d="M346 485 L1254 485" stroke="#45586a" stroke-width="1"/>
+<text x="346" y="510" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="400" text-anchor="start" letter-spacing="0">Holdout seed pairs</text>
+<text x="1239" y="510" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="end" letter-spacing="0">20</text>
+<path d="M346 522 L1254 522" stroke="#45586a" stroke-width="1"/>
+<rect x="346" y="548" width="908" height="85" rx="8" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="365" y="580" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="700" text-anchor="start" letter-spacing="0">480 outer matchups plus nested controller training</text>
+<text x="365" y="610" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">This workload is not an ETA. Starting creates a training job and opens Runs.</text>
+<rect x="346" y="682" width="218" height="59" rx="9" fill="#202c38" stroke="#a8b6c5" stroke-width="1"/>
+<text x="455.0" y="716.75" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">Back to settings</text>
+<rect x="936" y="682" width="318" height="59" rx="9" fill="#47351d" stroke="#ecb14b" stroke-width="1"/>
+<text x="1095.0" y="718.15" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="700" text-anchor="middle" letter-spacing="0">Start training</text>
+<path d="M42 854 L1558 854" stroke="#45586a" stroke-width="1"/>
+<text x="43" y="878" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">Validation errors return focus to their fields; cancellation keeps the draft</text>
+<text x="1557" y="878" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="end" letter-spacing="0">01C  ·  REVIEW</text>
+</svg>

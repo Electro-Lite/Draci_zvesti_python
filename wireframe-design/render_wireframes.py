@@ -78,14 +78,16 @@ class Board:
 
 def cockpit():
     b = Board("Training cockpit", "Everything important visible at once · player controller example", "01")
-    b.panel(42, 151, 286, 675, "Mission & navigation", "Fast route between setup and runs", BLUE)
+    b.panel(42, 151, 286, 675, "Mission & navigation", "Section shortcuts, not a wizard", BLUE)
     b.pill(60, 223, 250, 47, "Train a deck controller", GOLD)
     b.pill(60, 281, 250, 47, "Evolve and study decks", MUTED)
     b.line(60, 352, 310, 352)
-    for yy, num, name, active in [(390,"01","Mission",True),(444,"02","Subjects",False),(498,"03","Training",False),(552,"04","Evaluation",False),(606,"05","Review & launch",False)]:
+    for yy, num, name, active in [(390,"01","Mission",False),(444,"02","Configuration",True),(498,"03","Evidence",False),(552,"04","Preflight",False)]:
         b.rect(59, yy-27, 251, 43, PANEL2 if active else PANEL, 8, GOLD if active else LINE)
         b.text(76, yy, num, 14, GOLD if active else MUTED, 700)
         b.text(116, yy, name, 17, TEXT if active else MUTED, 600)
+    b.pill(60, 605, 250, 40, "Training guide  →", MUTED)
+    b.pill(60, 656, 250, 40, "←  Back to menu", MUTED)
     b.pill(60, 743, 250, 47, "Open run library  →", BLUE)
 
     b.panel(348, 151, 802, 334, "Configure controller", "Preset fills fields; each field remains directly editable")

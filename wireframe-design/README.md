@@ -1,5 +1,7 @@
 # AI training menu concepts
 
+**Selected direction:** Concept 01, Training cockpit. The implementation-ready package is [COCKPIT_SPEC.md](COCKPIT_SPEC.md) plus [HANDOFF_PROMPT.md](HANDOFF_PROMPT.md). The player, deck-builder, and launch-review artboards are [01](01-training-cockpit.svg), [01B](01b-cockpit-deck-builder.svg), and [01C](01c-cockpit-launch-review.svg). The older 02 and 03 remain as exploration only.
+
 Three static 1600×900 wireframes explore a full-screen training setup. Open the PNGs for quick review or the SVGs for sharp zooming. [`layout-map.drawio`](layout-map.drawio) is an editable, three-page section map for diagrams.net; it describes the major regions rather than every small control.
 
 | Concept | Image | Main idea | Trade-off |
@@ -14,9 +16,9 @@ The existing `TrainingMenu` presents setup as a vertical row list, with advanced
 
 The visual language follows `py_game/theme.py`: dark background and panels, amber selection, green success, blue informational accents. The current app defaults to 1280×720 and supports resized or full-screen display. These 1600×900 boards are design targets rather than a claim that the current menu already uses the layout.
 
-## Suggested direction
+## Original exploration note
 
-Use the **Workbench** as the main full-screen setup for research runs and borrow the Cockpit's persistent summary. Offer Guided mode as an optional path for new users. The builder screen particularly benefits from keeping seed choice, nested training, holdouts, and workload visible together.
+The initial exploration recommended the Workbench for research runs. The selected direction is now the Cockpit, with a dedicated builder state that keeps seed choice, nested training, holdouts, and workload visible together.
 
 The wireframes propose direct field editing, a visible preflight summary, and more flexible seed entry. The current menu cycles through fixed options and seed sets, so implementing those interactions would require new UI work. The builder trainer also has an outer-worker setting that the current Pygame request fixes at 2; it is deliberately absent from the mock controls until the request model can expose it. The preflight text illustrates validation state; it does not claim to measure machine capacity.
 

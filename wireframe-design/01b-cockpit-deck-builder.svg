@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+<rect width="1600" height="900" fill="#0d1219"/>
+<rect x="0" y="0" width="1600" height="7" rx="0" fill="#ecb14b"/>
+<text x="42" y="38" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700" text-anchor="start" letter-spacing="2">DRACI ZVESTI  /  AI TRAINING</text>
+<text x="42" y="88" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="38" font-weight="700" text-anchor="start" letter-spacing="0">Training cockpit / deck builder</text>
+<text x="43" y="119" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="400" text-anchor="start" letter-spacing="0">Same shell, mission-specific fields and workload</text>
+<rect x="1414" y="39" width="142" height="34" rx="9" fill="#392d1e" stroke="#ecb14b" stroke-width="1"/>
+<text x="1485.0" y="60.55" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">CONCEPT 01B</text>
+<rect x="42" y="151" width="286" height="675" rx="14" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="42" y="151" width="5" height="675" rx="2" fill="#6da9df"/>
+<text x="65" y="183" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Mission &amp; navigation</text>
+<text x="65" y="207" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Section shortcuts, not a wizard</text>
+<rect x="60" y="223" width="250" height="47" rx="9" fill="#202c38" stroke="#a8b6c5" stroke-width="1"/>
+<text x="185.0" y="251.75" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">Train a deck controller</text>
+<rect x="60" y="281" width="250" height="47" rx="9" fill="#202c38" stroke="#ecb14b" stroke-width="1"/>
+<text x="185.0" y="309.75" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">Evolve and study decks</text>
+<path d="M60 352 L310 352" stroke="#45586a" stroke-width="1"/>
+<rect x="59" y="363" width="251" height="43" rx="8" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<text x="76" y="390" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start" letter-spacing="0">01</text>
+<text x="116" y="390" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="start" letter-spacing="0">Mission</text>
+<rect x="59" y="417" width="251" height="43" rx="8" fill="#202c38" stroke="#ecb14b" stroke-width="1"/>
+<text x="76" y="444" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start" letter-spacing="0">02</text>
+<text x="116" y="444" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="start" letter-spacing="0">Configuration</text>
+<rect x="59" y="471" width="251" height="43" rx="8" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<text x="76" y="498" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start" letter-spacing="0">03</text>
+<text x="116" y="498" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="start" letter-spacing="0">Evidence</text>
+<rect x="59" y="525" width="251" height="43" rx="8" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<text x="76" y="552" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start" letter-spacing="0">04</text>
+<text x="116" y="552" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="start" letter-spacing="0">Preflight</text>
+<rect x="60" y="605" width="250" height="40" rx="9" fill="#202c38" stroke="#a8b6c5" stroke-width="1"/>
+<text x="185.0" y="630.25" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">Training guide  →</text>
+<rect x="60" y="656" width="250" height="40" rx="9" fill="#202c38" stroke="#a8b6c5" stroke-width="1"/>
+<text x="185.0" y="681.25" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">←  Back to menu</text>
+<rect x="60" y="743" width="250" height="47" rx="9" fill="#202c38" stroke="#6da9df" stroke-width="1"/>
+<text x="185.0" y="771.75" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">Open run library  →</text>
+<rect x="348" y="151" width="802" height="420" rx="14" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="348" y="151" width="5" height="420" rx="2" fill="#ecb14b"/>
+<text x="371" y="183" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Configure deck evolution</text>
+<text x="371" y="207" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">All request values visible; any edit switches preset to Custom</text>
+<rect x="368" y="223" width="165" height="40" rx="9" fill="#202c38" stroke="#a8b6c5" stroke-width="1"/>
+<text x="450.5" y="248.25" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">Quick check</text>
+<rect x="545" y="223" width="165" height="40" rx="9" fill="#202c38" stroke="#a8b6c5" stroke-width="1"/>
+<text x="627.5" y="248.25" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">Balanced</text>
+<rect x="722" y="223" width="165" height="40" rx="9" fill="#202c38" stroke="#a8b6c5" stroke-width="1"/>
+<text x="804.5" y="248.25" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">Deep study</text>
+<rect x="899" y="223" width="165" height="40" rx="9" fill="#202c38" stroke="#ecb14b" stroke-width="1"/>
+<text x="981.5" y="248.25" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">Custom</text>
+<text x="369" y="300" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="1">RUN LABEL</text>
+<rect x="369" y="313" width="350" height="39" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="381" y="340" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="start" letter-spacing="0">replicated-study</text>
+<text x="742" y="300" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="1">SEED SET</text>
+<rect x="742" y="313" width="384" height="39" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="754" y="340" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="start" letter-spacing="0">4 seeds  ▾</text>
+<text x="742" y="369" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="start" letter-spacing="0">400009 · 450001 · 500009 · 550007</text>
+<text x="369" y="389" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="1">OUTER GENERATIONS</text>
+<rect x="369" y="402" width="235" height="39" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="381" y="429" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="start" letter-spacing="0">1  ▾</text>
+<text x="369" y="458" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="start" letter-spacing="0">Deck evolution cycles</text>
+<text x="626" y="389" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="1">INNER GENERATIONS</text>
+<rect x="626" y="402" width="235" height="39" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="638" y="429" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="start" letter-spacing="0">50  ▾</text>
+<text x="626" y="458" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="start" letter-spacing="0">Controller learning</text>
+<text x="883" y="389" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="1">MATCHES / CANDIDATE</text>
+<rect x="883" y="402" width="243" height="39" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="895" y="429" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="start" letter-spacing="0">12  ▾</text>
+<text x="883" y="458" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="start" letter-spacing="0">Must be even</text>
+<text x="369" y="478" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="1">EVALUATOR WORKERS</text>
+<rect x="369" y="491" width="350" height="39" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="381" y="518" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="start" letter-spacing="0">12  ▾</text>
+<text x="742" y="478" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="1">HOLDOUT SEED PAIRS</text>
+<rect x="742" y="491" width="384" height="39" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="754" y="518" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="start" letter-spacing="0">20  ▾</text>
+<text x="742" y="547" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="start" letter-spacing="0">40 paired games per matchup</text>
+<rect x="348" y="587" width="802" height="239" rx="14" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="348" y="587" width="5" height="239" rx="2" fill="#5bc684"/>
+<text x="371" y="619" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Workload &amp; preflight</text>
+<text x="371" y="643" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Computed as settings change; no fabricated ETA</text>
+<rect x="369" y="655" width="363" height="133" rx="8" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="386" y="686" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="22" font-weight="700" text-anchor="start" letter-spacing="0">480 outer matchups</text>
+<text x="386" y="718" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">plus nested controller training</text>
+<text x="386" y="753" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">4 seeds × 1 outer × 20 × 12 ÷ 2</text>
+<rect x="746" y="655" width="380" height="133" rx="8" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="763" y="685" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="700" text-anchor="start" letter-spacing="0">Preflight</text>
+<text x="763" y="714" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">✓  Seeds valid   ✓  Even match count</text>
+<text x="763" y="745" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Engine: 20 target decks · 2 outer workers</text>
+<text x="763" y="768" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="start" letter-spacing="0">These are fixed by the current trainer</text>
+<rect x="1170" y="151" width="388" height="675" rx="14" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="1170" y="151" width="5" height="675" rx="2" fill="#ecb14b"/>
+<text x="1193" y="183" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Run summary</text>
+<text x="1193" y="207" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Always visible before committing</text>
+<text x="1194" y="235" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="1">MISSION</text>
+<text x="1194" y="260" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="600" text-anchor="start" letter-spacing="0">Deck builder experiment</text>
+<path d="M1194 275 L1534 275" stroke="#45586a" stroke-width="1"/>
+<text x="1194" y="298" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="1">PRESET</text>
+<text x="1194" y="323" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="600" text-anchor="start" letter-spacing="0">Custom</text>
+<path d="M1194 338 L1534 338" stroke="#45586a" stroke-width="1"/>
+<text x="1194" y="361" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="1">SEEDS</text>
+<text x="1194" y="386" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="600" text-anchor="start" letter-spacing="0">4 independent runs</text>
+<path d="M1194 401 L1534 401" stroke="#45586a" stroke-width="1"/>
+<text x="1194" y="424" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="1">EVOLUTION</text>
+<text x="1194" y="449" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="600" text-anchor="start" letter-spacing="0">1 outer / 50 inner</text>
+<path d="M1194 464 L1534 464" stroke="#45586a" stroke-width="1"/>
+<text x="1194" y="487" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="1">RIVALS</text>
+<text x="1194" y="512" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="600" text-anchor="start" letter-spacing="0">12 per candidate</text>
+<path d="M1194 527 L1534 527" stroke="#45586a" stroke-width="1"/>
+<text x="1194" y="550" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="1">HOLDOUT</text>
+<text x="1194" y="575" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="600" text-anchor="start" letter-spacing="0">20 seed pairs</text>
+<path d="M1194 590 L1534 590" stroke="#45586a" stroke-width="1"/>
+<rect x="1194" y="640" width="340" height="70" rx="9" fill="#2b352f" stroke="#5bc684" stroke-width="1"/>
+<text x="1212" y="670" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700" text-anchor="start" letter-spacing="0">READY TO REVIEW</text>
+<text x="1212" y="693" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Workload is not a duration estimate</text>
+<rect x="1194" y="734" width="340" height="55" rx="9" fill="#47351d" stroke="#ecb14b" stroke-width="1"/>
+<text x="1364.0" y="767.8" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="700" text-anchor="middle" letter-spacing="0">Review &amp; launch  →</text>
+<path d="M42 854 L1558 854" stroke="#45586a" stroke-width="1"/>
+<text x="43" y="878" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">Builder mode replaces deck selectors with seeds and nested controls</text>
+<text x="1557" y="878" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="end" letter-spacing="0">01B  ·  BUILDER</text>
+</svg>
