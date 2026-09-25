@@ -138,6 +138,7 @@ class PygameServiceTests(unittest.TestCase):
         menu.setup_review_selected = 0
         menu.setup_starting = False
         menu.setup_edit_original_preset = None
+        menu.setup_edit_original_auto_label = False
         menu.message = ""
         menu.message_color = PALETTE.text
         return menu

@@ -48,7 +48,7 @@ PRESET_FIELDS = {
 
 @dataclass
 class TrainingDraft:
-    run_label: str = "pygame"
+    run_label: str = ""
     deck_id: str = ""
     opponent_deck_id: str = ""
     seeds: str = "104729"
@@ -59,6 +59,43 @@ class TrainingDraft:
     holdout_seed_pairs: str = "20"
     evaluation_games: str = "100"
     preset_index: int | None = 1
+    auto_run_label: bool = True
+
+
+def _compact_name(value: str, maximum: int) -> str:
+    name = " ".join(str(value).split()) or "select deck"
+    if len(name) <= maximum:
+        return name
+    if maximum <= 3:
+        return name[:maximum]
+    return f"{name[: maximum - 3].rstrip()}..."
+
+
+def default_run_label(kind: TrainingKind, draft: TrainingDraft) -> str:
+    """Return a concise mission, subject, and training-depth label."""
+    if kind == TrainingKind.PLAYER_DECK:
+        prefix = "Counters for "
+        suffix = (
+            f" - {draft.outer_generations} counter gen, "
+            f"{draft.evaluator_generations} controller gen"
+        )
+        deck = _compact_name(draft.deck_id, max(4, 64 - len(prefix) - len(suffix)))
+        return f"{prefix}{deck}{suffix}"
+    if kind == TrainingKind.MATCHUP_EVALUATION:
+        prefix = "Matchup "
+        suffix = f" - {draft.evaluator_generations} controller gen"
+        available = max(9, 64 - len(prefix) - len(suffix))
+        first_width = max(4, (available - len(" vs ")) // 2)
+        second_width = max(4, available - len(" vs ") - first_width)
+        first = _compact_name(draft.deck_id, first_width)
+        second = _compact_name(draft.opponent_deck_id, second_width)
+        return f"{prefix}{first} vs {second}{suffix}"
+    seed_count = len([part for part in draft.seeds.split(",") if part.strip()])
+    seed_word = "seed" if seed_count == 1 else "seeds"
+    return (
+        f"Deck evolution - {seed_count} {seed_word} - "
+        f"{draft.outer_generations} outer, {draft.evaluator_generations} inner"
+    )[:64]
 
 
 @dataclass(frozen=True)
@@ -92,6 +129,8 @@ class TrainingCockpitState:
                 evaluator_generations="50",
             ),
         }
+        for kind, draft in self.drafts.items():
+            draft.run_label = default_run_label(kind, draft)
         self.kind = TrainingKind.PLAYER_DECK
 
     @property
@@ -122,8 +161,14 @@ class TrainingCockpitState:
         if key not in self.field_keys:
             raise KeyError(key)
         setattr(self.draft, key, str(value))
+        if key == "run_label":
+            if user_edit:
+                self.draft.auto_run_label = False
+            return
         if user_edit and key in PRESET_FIELDS:
             self.draft.preset_index = None
+        if self.draft.auto_run_label:
+            self.draft.run_label = default_run_label(self.kind, self.draft)
 
     def apply_preset(self, index: int | None) -> None:
         if index is None:
@@ -144,6 +189,8 @@ class TrainingCockpitState:
             )
             self.draft.seeds = ", ".join(map(str, seed_sets[preset.seed_set_index]))
         self.draft.preset_index = index
+        if self.draft.auto_run_label:
+            self.draft.run_label = default_run_label(self.kind, self.draft)
 
     def cycle_deck(self, key: str, direction: int = 1) -> None:
         if key not in {"deck_id", "opponent_deck_id"} or not self.deck_ids:

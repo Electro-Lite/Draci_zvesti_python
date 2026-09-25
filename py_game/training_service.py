@@ -28,7 +28,7 @@ class TrainingKind(Enum):
 @dataclass
 class TrainingRequest:
     kind: TrainingKind = TrainingKind.PLAYER_DECK
-    run_label: str = "pygame"
+    run_label: str = "training-run"
     deck_id: str | None = None
     opponent_deck_id: str | None = None
     seeds: tuple[int, ...] = (104729,)
@@ -230,7 +230,7 @@ def select_diverse_matchups(
 
 def _safe_label(label: str) -> str:
     cleaned = re.sub(r"[^A-Za-z0-9_.-]+", "-", label.strip()).strip("-")
-    return cleaned or "pygame"
+    return cleaned or "training-run"
 
 
 def build_command(request: TrainingRequest) -> list[str]:

@@ -138,6 +138,7 @@ class TrainingMenu(Menu):
         self.setup_edit_key = None
         self.setup_edit_original = ""
         self.setup_edit_original_preset = None
+        self.setup_edit_original_auto_label = False
         self.setup_picker_key = None
         self.setup_picker_index = 0
         self.setup_review_open = False
@@ -540,6 +541,7 @@ class TrainingMenu(Menu):
         self.setup_edit_key = key
         self.setup_edit_original = self.cockpit.value(key)
         self.setup_edit_original_preset = self.cockpit.draft.preset_index
+        self.setup_edit_original_auto_label = self.cockpit.draft.auto_run_label
         self.setup_focus_key = key
 
     def _finish_setup_edit(self, *, cancel=False, move=0):
@@ -549,6 +551,7 @@ class TrainingMenu(Menu):
         if cancel:
             self.cockpit.set_value(key, self.setup_edit_original, user_edit=False)
             self.cockpit.draft.preset_index = self.setup_edit_original_preset
+            self.cockpit.draft.auto_run_label = self.setup_edit_original_auto_label
         elif key in self.cockpit.validate().errors:
             self.message = self.cockpit.validate().errors[key]
             self.message_color = self.game.palette.danger
@@ -556,6 +559,7 @@ class TrainingMenu(Menu):
         self.setup_edit_key = None
         self.setup_edit_original = ""
         self.setup_edit_original_preset = None
+        self.setup_edit_original_auto_label = False
         if move:
             self._move_setup_focus(move)
         return True

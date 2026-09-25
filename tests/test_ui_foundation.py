@@ -97,6 +97,47 @@ class LayoutTests(unittest.TestCase):
 
 
 class TrainingCockpitStateTests(unittest.TestCase):
+    def test_default_run_names_describe_each_mission(self):
+        state = TrainingCockpitState(("Blue", "Queen"))
+        self.assertEqual(
+            state.value("run_label"),
+            "Counters for Blue - 5 counter gen, 40 controller gen",
+        )
+
+        state.switch(TrainingKind.MATCHUP_EVALUATION)
+        self.assertEqual(
+            state.value("run_label"),
+            "Matchup Blue vs Queen - 40 controller gen",
+        )
+
+        state.switch(TrainingKind.DECK_BUILDER)
+        self.assertEqual(
+            state.value("run_label"),
+            "Deck evolution - 1 seed - 1 outer, 50 inner",
+        )
+
+    def test_automatic_run_name_tracks_configuration_until_user_renames_it(self):
+        state = TrainingCockpitState(("Blue", "Queen"))
+        state.set_value("deck_id", "Queen")
+        state.apply_preset(0)
+        self.assertEqual(
+            state.value("run_label"),
+            "Counters for Queen - 1 counter gen, 10 controller gen",
+        )
+
+        state.set_value("run_label", "queen-counter-baseline")
+        state.set_value("outer_generations", "9")
+        self.assertEqual(state.value("run_label"), "queen-counter-baseline")
+
+    def test_default_run_name_is_bounded_for_long_deck_ids(self):
+        deck = "A very long deck identifier that would otherwise overflow the field"
+        state = TrainingCockpitState((deck, f"Second {deck}"))
+        state.switch(TrainingKind.MATCHUP_EVALUATION)
+
+        self.assertLessEqual(len(state.value("run_label")), 64)
+        self.assertIn("Matchup", state.value("run_label"))
+        self.assertIn(" vs ", state.value("run_label"))
+
     def test_mission_drafts_survive_switching_and_preset_edits_become_custom(self):
         state = TrainingCockpitState(("Blue", "Queen"))
         state.set_value("run_label", "controller-study")
