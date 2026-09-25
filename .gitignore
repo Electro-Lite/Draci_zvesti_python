@@ -19,6 +19,8 @@ build/
 *.db
 .analysis_cache/
 .ui_training/
+.ui_settings.json
+.ui_screenshots/
 
 neat_ai/checkpoints/*
 neat_ai/neat_ai/*
