@@ -6,6 +6,7 @@ import os
 import random
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
+from typing import Callable
 
 import neat
 
@@ -324,6 +325,7 @@ def _evaluate_holdout(
     controller_generation_1: int,
     phase: str,
     controller_generation_2: int | None = None,
+    outcome_callback: Callable[[str], None] | None = None,
 ) -> tuple[float, float]:
     if controller_generation_2 is None:
         controller_generation_2 = controller_generation_1
@@ -353,6 +355,20 @@ def _evaluate_holdout(
             fit1, fit2, result, seat_swap = future.result()
             deck1_scores.append(fit1)
             deck2_scores.append(fit2)
+            if outcome_callback is not None:
+                deck1_game_score = (
+                    result.player_2_score if seat_swap else result.player_1_score
+                )
+                deck2_game_score = (
+                    result.player_1_score if seat_swap else result.player_2_score
+                )
+                outcome_callback(
+                    "win"
+                    if deck1_game_score > deck2_game_score
+                    else "loss"
+                    if deck1_game_score < deck2_game_score
+                    else "draw"
+                )
             if match_guid:
                 logged_games.append(
                     _pc_match_row(
@@ -380,10 +396,11 @@ def _evaluate_holdout(
 
 
 def train_deck(
-        deck1,
-        deck2,
-        match_dbt_guid: str = None,
-        settings: EvaluatorSettings = None,
+    deck1,
+    deck2,
+    match_dbt_guid: str = None,
+    settings: EvaluatorSettings = None,
+    checkpoint_callback: Callable[[int, dict], None] | None = None,
 ) -> list[float]:
     settings = settings or EvaluatorSettings()
     local_dir = os.path.dirname(__file__)
@@ -451,7 +468,13 @@ def train_deck(
                 "Missing controller checkpoint at inner generation "
                 f"{checkpoint_generation}"
             )
-        _evaluate_holdout(
+        checkpoint_outcomes = {"wins": 0, "draws": 0, "losses": 0}
+
+        def capture_checkpoint(outcome):
+            key = {"win": "wins", "draw": "draws", "loss": "losses"}[outcome]
+            checkpoint_outcomes[key] += 1
+
+        checkpoint_scores = _evaluate_holdout(
             controllers[0],
             controllers[1],
             config,
@@ -465,7 +488,19 @@ def train_deck(
                 if checkpoint_generation == settings.early_holdout_generation
                 else "holdout_checkpoint"
             ),
+            outcome_callback=capture_checkpoint,
         )
+        if checkpoint_callback is not None:
+            checkpoint_callback(
+                checkpoint_generation,
+                {**checkpoint_outcomes, "scores": checkpoint_scores},
+            )
+
+    final_outcomes = {"wins": 0, "draws": 0, "losses": 0}
+
+    def capture_final(outcome):
+        key = {"win": "wins", "draw": "draws", "loss": "losses"}[outcome]
+        final_outcomes[key] += 1
 
     score1, score2 = _evaluate_holdout(
         winner1,
@@ -477,7 +512,13 @@ def train_deck(
         settings,
         controller_generation_1=settings.generations,
         phase="holdout",
+        outcome_callback=capture_final,
     )
+    if checkpoint_callback is not None:
+        checkpoint_callback(
+            settings.generations,
+            {**final_outcomes, "scores": (score1, score2)},
+        )
 
     reference_generation = settings.crossplay_reference_generation
     if reference_generation is not None:

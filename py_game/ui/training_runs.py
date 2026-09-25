@@ -17,7 +17,12 @@ from py_game.training_service import (
 RunItem = TrainingJob | TrainingRunSummary
 SORT_FIELDS = ("Date", "Name", "Status", "Mission")
 STATUS_FILTERS = ("All statuses", "Running", "Completed", "Needs attention")
-MISSION_FILTERS = ("All missions", "Controller training", "Deck evolution")
+MISSION_FILTERS = (
+    "All missions",
+    "Counter-deck training",
+    "Matchup evaluation",
+    "General deck evolution",
+)
 ORIGIN_FILTERS = ("All origins", "UI-launched runs", "Database history")
 STARTED_FILTERS = ("Any time", "Last 24 hours", "Last 7 days", "Last 30 days")
 GENERATION_FILTERS = (
@@ -77,9 +82,11 @@ def run_kind(item: RunItem) -> str:
 
 def run_mission(item: RunItem) -> str:
     return (
-        "Controller training"
+        "Counter-deck training"
         if run_kind(item) == TrainingKind.PLAYER_DECK.value
-        else "Deck evolution"
+        else "Matchup evaluation"
+        if run_kind(item) == TrainingKind.MATCHUP_EVALUATION.value
+        else "General deck evolution"
         if run_kind(item) == TrainingKind.DECK_BUILDER.value
         else "AI training"
     )
@@ -95,7 +102,9 @@ def run_generations(item: RunItem) -> int:
     request = item.request or {}
     key = (
         "outer_generations"
-        if run_kind(item) == TrainingKind.DECK_BUILDER.value
+        if run_kind(item)
+        in {TrainingKind.DECK_BUILDER.value, TrainingKind.PLAYER_DECK.value}
+        and request.get("outer_generations") is not None
         else "evaluator_generations"
     )
     return int(request.get(key, 0) or 0)

@@ -43,6 +43,7 @@ from py_game.training_service import (
     shared_card_count,
 )
 from py_game.ui.training_setup import (
+    MATCHUP_PRESETS,
     PLAYER_PRESETS,
     training_workload,
     wilson_interval,
@@ -69,20 +70,22 @@ class PygameServiceTests(unittest.TestCase):
             {
                 "Training type",
                 "Run label",
-                "Player deck",
-                "Opponent deck",
-                "Generations",
+                "Deck under test",
+                "Deck A and Deck B",
+                "Counter generations",
+                "Controller generations",
                 "Workers",
-                "Evaluation games",
+                "Games per counter",
+                "Games per checkpoint",
                 "Seeds",
                 "Outer generations",
                 "Inner generations",
-                "Matches per builder",
+                "Rival decks per candidate",
                 "Evaluator workers",
                 "Holdout seed pairs",
             }.issubset(headings)
         )
-        self.assertIn("Balanced player run", headings)
+        self.assertIn("Balanced counter lab", headings)
         self.assertIn("Arena sections", headings)
 
     def test_training_presets_and_workload_expose_real_checkpoint_cost(self):
@@ -92,6 +95,7 @@ class PygameServiceTests(unittest.TestCase):
             deck_id="Killer Queen_1",
             opponent_deck_id="Iron Choir_1",
             evaluator_generations=balanced.generations,
+            outer_generations=balanced.outer_generations,
             workers=balanced.workers,
             evaluation_games=balanced.evaluation_games,
         )
@@ -99,8 +103,21 @@ class PygameServiceTests(unittest.TestCase):
         workload = training_workload(request)
 
         self.assertEqual(balanced.label, "Balanced")
-        self.assertIn("4,500 simulated games", workload.headline)
-        self.assertTrue(any("300 evaluation games total" in line for line in workload.details))
+        self.assertIn("13,000 simulated games", workload.headline)
+        self.assertTrue(any("persistent controller generations" in line for line in workload.details))
+
+        matchup = MATCHUP_PRESETS[1]
+        matchup_workload = training_workload(
+            TrainingRequest(
+                kind=TrainingKind.MATCHUP_EVALUATION,
+                deck_id="Killer Queen_1",
+                opponent_deck_id="Iron Choir_1",
+                evaluator_generations=matchup.generations,
+                workers=matchup.workers,
+                evaluation_games=matchup.evaluation_games,
+            )
+        )
+        self.assertIn("9,400 simulated games", matchup_workload.headline)
 
     @staticmethod
     def _cockpit_menu(service):
@@ -254,7 +271,7 @@ class PygameServiceTests(unittest.TestCase):
             search="run 05",
             sort_field="Name",
             descending=False,
-            filters=RunFilters("Needs attention", "Controller training"),
+            filters=RunFilters("Needs attention", "Counter-deck training"),
         )
         second_page, page, page_count = paginate_runs(runs, 1)
 
@@ -265,7 +282,7 @@ class PygameServiceTests(unittest.TestCase):
     def test_run_library_searches_names_only_and_supports_extended_filters(self):
         runs = [self._run_summary(index) for index in range(1, 24)]
         filters = RunFilters(
-            mission="Deck evolution",
+            mission="General deck evolution",
             origin="Database history",
             started="Last 7 days",
             generations="25+ generations",
@@ -545,11 +562,11 @@ class PygameServiceTests(unittest.TestCase):
         self.assertTrue(strategy.get_choice_use_ability())
         self.assertEqual(strategy.get_choice_ability_target(), 1)
 
-    def test_player_training_command_contains_ui_configuration(self):
+    def test_counter_training_command_contains_ui_configuration(self):
         request = TrainingRequest(
             kind=TrainingKind.PLAYER_DECK,
             deck_id="Starter Blue_1",
-            opponent_deck_id="Killer Queen_1",
+            outer_generations=6,
             evaluator_generations=35,
             workers=8,
             evaluation_games=20,
@@ -558,10 +575,27 @@ class PygameServiceTests(unittest.TestCase):
         command = build_command(request)
 
         self.assertIn("neat_ai.player_trainer", command)
-        self.assertEqual(command[command.index("--generations") + 1], "35")
+        self.assertEqual(command[command.index("--counter-generations") + 1], "6")
+        self.assertEqual(command[command.index("--controller-generations") + 1], "35")
         self.assertEqual(command[command.index("--workers") + 1], "8")
         self.assertEqual(command[command.index("--evaluation-games") + 1], "20")
-        self.assertEqual(command[command.index("--opponent-deck") + 1], "Killer Queen_1")
+
+    def test_matchup_training_command_contains_both_decks(self):
+        request = TrainingRequest(
+            kind=TrainingKind.MATCHUP_EVALUATION,
+            deck_id="Starter Blue_1",
+            opponent_deck_id="Killer Queen_1",
+            evaluator_generations=40,
+            workers=8,
+            evaluation_games=100,
+        )
+
+        command = build_command(request)
+
+        self.assertIn("neat_ai.matchup_trainer", command)
+        self.assertIn("Starter Blue_1", command)
+        self.assertIn("Killer Queen_1", command)
+        self.assertEqual(command[command.index("--generations") + 1], "40")
 
     def test_player_training_uses_low_mid_high_checkpoint_schedule(self):
         self.assertEqual(evaluation_checkpoints(10), (10,))
@@ -968,8 +1002,8 @@ class PygameServiceTests(unittest.TestCase):
             log = root / "training.log"
             log.write_text("generation: 1 | top_fitness: 44.0\n")
             job = TrainingJob(
-                job_id="player-job",
-                request={"kind": TrainingKind.PLAYER_DECK.value},
+                job_id="matchup-job",
+                request={"kind": TrainingKind.MATCHUP_EVALUATION.value},
                 command=["trainer"],
                 created_at="now",
                 status="completed",

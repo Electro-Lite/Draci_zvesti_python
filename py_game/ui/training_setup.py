@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from neat_ai.training_plan import evaluation_checkpoints
+from neat_ai.training_plan import matchup_checkpoints
 from py_game.training_service import TrainingKind, TrainingRequest
 
 
@@ -22,6 +22,12 @@ class TrainingPreset:
 
 
 PLAYER_PRESETS = (
+    TrainingPreset("quick", "Quick check", 10, 4, 20, outer_generations=1),
+    TrainingPreset("balanced", "Balanced", 40, 8, 40, outer_generations=5),
+    TrainingPreset("deep", "Deep study", 65, 12, 100, outer_generations=10),
+)
+
+MATCHUP_PRESETS = (
     TrainingPreset("quick", "Quick check", 10, 4, 20),
     TrainingPreset("balanced", "Balanced", 40, 8, 100),
     TrainingPreset("deep", "Deep study", 65, 12, 300),
@@ -41,22 +47,41 @@ class TrainingWorkload:
 
 
 def presets_for(kind: TrainingKind) -> tuple[TrainingPreset, ...]:
-    return PLAYER_PRESETS if kind == TrainingKind.PLAYER_DECK else BUILDER_PRESETS
+    if kind == TrainingKind.PLAYER_DECK:
+        return PLAYER_PRESETS
+    if kind == TrainingKind.MATCHUP_EVALUATION:
+        return MATCHUP_PRESETS
+    return BUILDER_PRESETS
 
 
 def training_workload(request: TrainingRequest) -> TrainingWorkload:
     """Describe scheduled work without pretending to predict wall-clock cost."""
     if request.kind == TrainingKind.PLAYER_DECK:
-        checkpoints = evaluation_checkpoints(request.evaluator_generations)
+        controller_games = request.evaluator_generations * (15 * 15)
+        candidate_games = (
+            request.outer_generations * 20 * request.evaluation_games
+        )
+        total_games = controller_games + candidate_games
+        return TrainingWorkload(
+            headline=f"About {total_games:,} simulated games",
+            details=(
+                f"{request.outer_generations} persistent counter-deck generations · 20 candidates each",
+                f"{request.evaluator_generations} persistent controller generations · about {controller_games:,} learning games",
+                f"{request.evaluation_games} validation games per candidate · {candidate_games:,} counter tests",
+                "Workload is not an ETA; controllers keep evolving across every counter generation.",
+            ),
+        )
+
+    if request.kind == TrainingKind.MATCHUP_EVALUATION:
+        checkpoints = matchup_checkpoints(request.evaluator_generations)
         checkpoint_games = len(checkpoints) * request.evaluation_games
-        # The player trainer currently uses an all-vs-all population of 15.
-        training_games = request.evaluator_generations * (15 * 14 // 2)
+        training_games = request.evaluator_generations * (15 * 15)
         total_games = training_games + checkpoint_games
         return TrainingWorkload(
             headline=f"About {total_games:,} simulated games",
             details=(
-                f"{request.evaluator_generations} controller generations · {training_games:,} training games",
-                f"{len(checkpoints)} maturity checkpoints · {checkpoint_games:,} evaluation games total",
+                f"Two controller populations coevolve for {request.evaluator_generations} generations · about {training_games:,} learning games",
+                f"{len(checkpoints)} win-rate checkpoints · {checkpoint_games:,} seat-balanced evaluation games",
                 f"{request.workers} workers · checkpoints at generations {', '.join(map(str, checkpoints))}",
                 "Duration depends on CPU speed and game length; this is workload, not an ETA.",
             ),
@@ -74,7 +99,7 @@ def training_workload(request: TrainingRequest) -> TrainingWorkload:
         details=(
             f"{len(request.seeds)} seed run(s) · {request.outer_generations} outer generations",
             f"{request.evaluator_generations} inner generations per candidate evaluation",
-            f"{request.matches_per_genome} rivals per candidate · {request.holdout_seed_pairs} holdout pairs",
+            f"Each candidate faces up to {request.matches_per_genome} rival decks · {request.holdout_seed_pairs} holdout pairs",
             "Deck evolution is substantially more expensive than player-controller training.",
         ),
     )

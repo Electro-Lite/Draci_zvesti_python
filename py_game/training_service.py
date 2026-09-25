@@ -21,7 +21,8 @@ JOB_ROOT = PROJECT_ROOT / ".ui_training"
 
 class TrainingKind(Enum):
     DECK_BUILDER = "Deck builder experiment"
-    PLAYER_DECK = "Specific deck player"
+    PLAYER_DECK = "Counter-deck training"
+    MATCHUP_EVALUATION = "Deck matchup evaluation"
 
 
 @dataclass
@@ -50,8 +51,26 @@ class TrainingRequest:
             or not 1 <= self.evaluator_generations <= 10_000
         ):
             raise ValueError("Generations must be between 1 and 10000")
-        if self.kind == TrainingKind.PLAYER_DECK and not self.deck_id:
-            raise ValueError("Select the player deck to analyze")
+        if self.kind in {TrainingKind.PLAYER_DECK, TrainingKind.MATCHUP_EVALUATION}:
+            if not self.deck_id:
+                raise ValueError("Select the deck to analyze")
+            if self.kind == TrainingKind.MATCHUP_EVALUATION and not self.opponent_deck_id:
+                raise ValueError("Select the second matchup deck")
+            if (
+                not isinstance(self.evaluation_games, int)
+                or not 2 <= self.evaluation_games <= 100_000
+            ):
+                raise ValueError("Evaluation games must be between 2 and 100000")
+            if self.evaluation_games % 2:
+                raise ValueError("Evaluation games must be even for seat balance")
+            if (
+                self.kind == TrainingKind.MATCHUP_EVALUATION
+                and self.evaluator_generations < 2
+            ):
+                raise ValueError("Matchup generations must be between 2 and 10000")
+        if self.kind == TrainingKind.PLAYER_DECK:
+            if not isinstance(self.outer_generations, int) or not 1 <= self.outer_generations <= 1_000:
+                raise ValueError("Counter generations must be between 1 and 1000")
         if self.kind == TrainingKind.DECK_BUILDER:
             if not self.seeds:
                 raise ValueError("At least one seed is required")
@@ -72,11 +91,8 @@ class TrainingRequest:
                 or not 1 <= self.holdout_seed_pairs <= 10_000
             ):
                 raise ValueError("Holdout seed pairs must be between 1 and 10000")
-        elif (
-            not isinstance(self.evaluation_games, int)
-            or not 1 <= self.evaluation_games <= 100_000
-        ):
-            raise ValueError("Evaluation games must be between 1 and 100000")
+        elif self.kind not in {TrainingKind.PLAYER_DECK, TrainingKind.MATCHUP_EVALUATION}:
+            raise ValueError("Unknown training mission")
 
 
 @dataclass
@@ -157,6 +173,9 @@ class TrainingInsights:
     distinct_decks: int = 0
     eligible_matchups: int = 0
     elapsed_seconds: float | None = None
+    top_counter_name: str = ""
+    top_counter_win_rate: float | None = None
+    opponent_count: int = 0
     conclusions: tuple[str, ...] = ()
 
 
@@ -238,14 +257,30 @@ def build_command(request: TrainingRequest) -> list[str]:
             "--holdout-seed-pairs",
             str(request.holdout_seed_pairs),
         ]
+    if request.kind == TrainingKind.MATCHUP_EVALUATION:
+        return [
+            sys.executable,
+            "-m",
+            "neat_ai.matchup_trainer",
+            str(request.deck_id),
+            str(request.opponent_deck_id),
+            "--generations",
+            str(request.evaluator_generations),
+            "--workers",
+            str(request.workers),
+            "--evaluation-games",
+            str(request.evaluation_games),
+            "--run-label",
+            request.run_label,
+        ]
     return [
         sys.executable,
         "-m",
         "neat_ai.player_trainer",
         str(request.deck_id),
-        "--opponent-deck",
-        str(request.opponent_deck_id or request.deck_id),
-        "--generations",
+        "--counter-generations",
+        str(request.outer_generations),
+        "--controller-generations",
         str(request.evaluator_generations),
         "--workers",
         str(request.workers),
@@ -458,15 +493,17 @@ class TrainingService:
     def job_telemetry(self, job: TrainingJob) -> TrainingTelemetry:
         request = job.request or {}
         kind = request.get("kind")
-        total_generations = int(
-            request.get(
-                "outer_generations"
-                if kind == TrainingKind.DECK_BUILDER.value
-                else "evaluator_generations",
-                0,
-            )
-            or 0
+        generation_key = (
+            "outer_generations"
+            if kind
+            in {
+                TrainingKind.DECK_BUILDER.value,
+                TrainingKind.PLAYER_DECK.value,
+            }
+            and request.get("outer_generations") is not None
+            else "evaluator_generations"
         )
+        total_generations = int(request.get(generation_key, 0) or 0)
         generation = 0
         round_completed = 0
         round_total = 0
@@ -924,6 +961,8 @@ class TrainingService:
             summary = json.loads(Path(job.summary_path).read_text())
         except (OSError, TypeError, ValueError, json.JSONDecodeError):
             summary = {}
+        is_counter = kind == TrainingKind.PLAYER_DECK.value
+        is_matchup = kind == TrainingKind.MATCHUP_EVALUATION.value
         evaluation = summary.get("evaluation") or {}
         wins = int(evaluation.get("ai_wins", 0) or 0)
         draws = int(evaluation.get("draws", 0) or 0)
@@ -940,6 +979,15 @@ class TrainingService:
         )
         telemetry = self.job_telemetry(job)
         generation_scores = tuple(
+            (
+                generation,
+                row_wins / max(1, row_wins + row_draws + row_losses) * 100,
+                row_wins / max(1, row_wins + row_draws + row_losses) * 100,
+                row_wins / max(1, row_wins + row_draws + row_losses) * 100,
+                row_wins + row_draws + row_losses,
+            )
+            for generation, row_wins, row_draws, row_losses in skill_evaluations
+        ) or tuple(
             (generation, score, score, score, 1)
             for generation, score in telemetry.fitness_history
         )
@@ -963,12 +1011,11 @@ class TrainingService:
                     conclusions.append(f"Last trainer message: {tail[-1][:180]}")
         games = wins + draws + losses
         if games:
+            subject = "The selected deck" if is_counter else "Deck A"
             conclusions.append(
-                f"The trained controller won {wins / games * 100:.1f}% of {games} evaluation games."
+                f"{subject} won {wins / games * 100:.1f}% of {games} final evaluation games."
             )
-            conclusions.append(
-                f"Evaluation produced {wins} wins, {draws} draws, and {losses} losses."
-            )
+            conclusions.append(f"The final result was {wins} wins, {draws} draws, and {losses} losses.")
         if len(skill_evaluations) > 1:
             first = skill_evaluations[0]
             last = skill_evaluations[-1]
@@ -976,22 +1023,43 @@ class TrainingService:
             last_total = sum(last[1:])
             if first_total and last_total:
                 conclusions.append(
-                    f"Controller-maturity win rate changed from {first[1] / first_total * 100:.1f}% at generation {first[0]} "
+                    f"Win rate changed from {first[1] / first_total * 100:.1f}% at generation {first[0]} "
                     f"to {last[1] / last_total * 100:.1f}% at generation {last[0]}."
                 )
         if telemetry.best_score is not None:
             conclusions.append(
                 f"The strongest recorded controller fitness was {telemetry.best_score:.1f}."
             )
-        opponent_name = str(
-            summary.get("opponent_deck_name")
-            or summary.get("opponent_deck_id")
-            or (job.request or {}).get("opponent_deck_id")
-            or "random opponent"
+        final_counters = summary.get("counter_matchups") or ()
+        top_counter = summary.get("top_counter") or {}
+        top_counter_name = str(
+            top_counter.get("deck_name") or top_counter.get("deck_id") or ""
         )
-        conclusions.append(
-            f"Checkpoint trials use the selected deck against random play with {opponent_name}."
+        top_counter_rate = (
+            float(top_counter["counter_win_rate"])
+            if top_counter.get("counter_win_rate") is not None
+            else None
         )
+        if is_counter:
+            opponent_name = f"{len(final_counters)} evolved counter decks"
+            if top_counter_name and top_counter_rate is not None:
+                conclusions.append(
+                    f"Top counter {top_counter_name} won {top_counter_rate * 100:.1f}% against the selected deck."
+                )
+            conclusions.append(
+                "Controller populations persisted while the counter-deck population evolved."
+            )
+        else:
+            opponent_name = str(
+                summary.get("opponent_deck_name")
+                or summary.get("opponent_deck_id")
+                or (job.request or {}).get("opponent_deck_id")
+                or "Deck B"
+            )
+            if is_matchup:
+                conclusions.append(
+                    f"Checkpoint trials compare Deck A directly with {opponent_name} using seat-balanced games."
+                )
         return TrainingInsights(
             run_kind=kind or TrainingKind.PLAYER_DECK.value,
             subject=str(summary.get("deck_name") or summary.get("deck_id") or "Selected deck"),
@@ -1008,6 +1076,9 @@ class TrainingService:
                 if summary.get("elapsed_seconds") is not None
                 else None
             ),
+            top_counter_name=top_counter_name,
+            top_counter_win_rate=top_counter_rate,
+            opponent_count=len(final_counters),
             conclusions=tuple(conclusions),
         )
 

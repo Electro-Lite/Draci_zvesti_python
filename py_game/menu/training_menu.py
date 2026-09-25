@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 import pygame as pg
 
-from neat_ai.training_plan import evaluation_checkpoints
+from neat_ai.training_plan import matchup_checkpoints
 from py_game.menu.base_menu import Menu
 from py_game.training_service import (
     TrainingKind,
@@ -25,8 +25,6 @@ from utils.database_utils import DBUtil
 from py_game.ui.layout import RectSpec
 from py_game.ui.training_dashboard import training_dashboard_layout
 from py_game.ui.training_cockpit import (
-    BUILDER_FIELDS,
-    PLAYER_FIELDS,
     TrainingCockpitState,
     training_cockpit_layout,
 )
@@ -77,26 +75,37 @@ class TrainingMenu(Menu):
     ]
     ABOUT_PAGES = (
         (
-            "Player trainer settings",
-            "Train a controller for one known deck",
+            "Counter-deck lab",
+            "Stress-test one deck against opponents that keep adapting",
             (
-                ("Training type", "Choose a specific-deck controller or a deck-builder experiment."),
+                ("Training type", "Choose counter-deck training, a two-deck matchup, or general deck evolution."),
                 ("Run label", "Use a short unique name so artifacts and comparisons stay recognizable."),
-                ("Player deck", "The exact deck the controller learns; validate the deck before a long run."),
-                ("Opponent deck", "The rival deck used by the random controller in checkpoint evaluation games."),
-                ("Generations", "10, 25, and 40 expose early-, developing-, and mature-controller checkpoints."),
-                ("Workers", "Parallel match processes; 4 is gentle, 8 balanced, 12 for a capable machine."),
-                ("Evaluation games", "Games per skill checkpoint versus the selected opponent; 100 is recommended."),
+                ("Deck under test", "Your selected deck stays fixed while a population evolves decks designed to counter it."),
+                ("Counter generations", "How many generations of counter-deck candidates survive, mutate, and improve."),
+                ("Controller generations", "Both sides keep the same evolving controller populations across every counter generation; progress is not reset between opponents."),
+                ("Games per counter", "Validation games played against each candidate counter deck. More games stabilize win rates but increase work linearly."),
+                ("Results", "Overall deck win rate aggregates the final counter population; Top counter is the opponent deck with the highest win rate against your deck."),
             ),
         ),
         (
-            "Deck builder settings",
-            "Evolve decks and the controllers that evaluate them",
+            "Matchup evaluation",
+            "Coevolve players for two fixed decks",
+            (
+                ("Deck A and Deck B", "The two fixed decks whose controllers learn directly against each other."),
+                ("Controller generations", "Both player populations evolve together; checkpoint results show how the matchup changes as play improves."),
+                ("Games per checkpoint", "Seat-balanced holdout games used to calculate each generation checkpoint's win rate."),
+                ("What it answers", "Use this when you want a direct deck-vs-deck win-rate curve rather than new deck construction."),
+                ("Workers", "Parallel match processes; 4 is gentle, 8 balanced, and 12 suits a capable machine."),
+            ),
+        ),
+        (
+            "General deck evolution",
+            "Evolve a broad population without one fixed target deck",
             (
                 ("Seeds", "One seed iterates quickly; four seeds give stronger, more reproducible evidence."),
                 ("Outer generations", "Deck evolution cycles; use 1 while tuning and 10 for a final study."),
                 ("Inner generations", "Controller training per candidate deck; 50 is the recommended balance."),
-                ("Matches per builder", "Rival decks sampled per candidate; 12 is the robust default."),
+                ("Rival decks per candidate", "How many other evolved decks each candidate faces in an outer generation. More rivals reduce schedule luck but cost more; the value must be even so seats stay balanced."),
                 ("Evaluator workers", "Parallel inner matches; choose 8 normally or 12 with ample CPU and RAM."),
                 ("Holdout seed pairs", "Unseen checks against overfitting; keep 20 for reported results."),
             ),
@@ -106,8 +115,8 @@ class TrainingMenu(Menu):
             "Choose the cost and confidence level you actually need",
             (
                 ("Quick smoke test", "10 player generations, 4 workers, 20 evaluation games; verify the pipeline."),
-                ("Balanced player run", "40 generations, 8 workers, 100 games per checkpoint; best everyday preset."),
-                ("Final player run", "65 generations, 12 workers, 300 evaluation games; reserve for final evidence."),
+                ("Balanced counter lab", "5 counter generations, 40 persistent controller generations, and 40 games per candidate."),
+                ("Balanced matchup", "40 generations, 8 workers, and 100 seat-balanced games per checkpoint."),
                 ("Deck-builder rehearsal", "1 outer generation, 50 inner, 12 matches, one seed; catch setup issues."),
                 ("Final deck study", "10 outer, 65 inner, 12 matches, four seeds, 20 holdouts; expect a long run."),
                 ("Arena sections", "Overview shows live operation; Learning, Evaluation, and Conclusions explain results."),
@@ -123,7 +132,7 @@ class TrainingMenu(Menu):
         self.selected = 0
         self.deck_ids = DBUtil().get_all_deck_ids()
         self.cockpit = TrainingCockpitState(self.deck_ids)
-        self.setup_focus_key = "mission_player"
+        self.setup_focus_key = "mission_counter"
         self.setup_scroll = 0
         self.setup_layout = None
         self.setup_edit_key = None
@@ -189,13 +198,15 @@ class TrainingMenu(Menu):
     @staticmethod
     def _mission_label(kind):
         if kind == TrainingKind.PLAYER_DECK or kind == TrainingKind.PLAYER_DECK.value:
-            return "Train a deck controller"
+            return "Train counters against a deck"
+        if kind == TrainingKind.MATCHUP_EVALUATION or kind == TrainingKind.MATCHUP_EVALUATION.value:
+            return "Evaluate a two-deck matchup"
         if kind == TrainingKind.DECK_BUILDER or kind == TrainingKind.DECK_BUILDER.value:
             return "Evolve and study decks"
         return "AI training"
 
     def _generation_options(self):
-        return self.PLAYER_GENERATIONS if self.kind == TrainingKind.PLAYER_DECK else self.BUILDER_GENERATIONS
+        return self.BUILDER_GENERATIONS if self.kind == TrainingKind.DECK_BUILDER else self.PLAYER_GENERATIONS
 
     def _generation(self):
         try:
@@ -212,9 +223,11 @@ class TrainingMenu(Menu):
     def _preset_summary(self):
         if self.kind == TrainingKind.PLAYER_DECK:
             return (
-                f"{self._generation()} gen · "
-                f"{self.cockpit.value('evaluation_games')}/checkpoint"
+                f"{self.cockpit.value('outer_generations')} counter · "
+                f"{self._generation()} controller gen"
             )
+        if self.kind == TrainingKind.MATCHUP_EVALUATION:
+            return f"{self._generation()} gen · {self.cockpit.value('evaluation_games')}/checkpoint"
         return f"{self.cockpit.value('outer_generations')} outer · {self._generation()} inner gen"
 
     def _apply_preset(self, index=None):
@@ -443,7 +456,17 @@ class TrainingMenu(Menu):
 
     def _setup_field_label(self, key):
         if key == "workers":
-            return "Workers" if self.kind == TrainingKind.PLAYER_DECK else "Evaluator workers"
+            return "Evaluator workers" if self.kind == TrainingKind.DECK_BUILDER else "Workers"
+        if key == "outer_generations" and self.kind == TrainingKind.PLAYER_DECK:
+            return "Counter generations"
+        if key == "evaluator_generations" and self.kind != TrainingKind.DECK_BUILDER:
+            return "Controller generations"
+        if key == "evaluation_games" and self.kind == TrainingKind.PLAYER_DECK:
+            return "Games / counter deck"
+        if key == "deck_id":
+            return "Deck under test" if self.kind == TrainingKind.PLAYER_DECK else "Deck A"
+        if key == "opponent_deck_id":
+            return "Deck B"
         return {
             "run_label": "Run label",
             "deck_id": "Player deck",
@@ -451,7 +474,7 @@ class TrainingMenu(Menu):
             "seeds": "Seed set",
             "outer_generations": "Outer generations",
             "evaluator_generations": "Generations",
-            "matches_per_genome": "Matches / candidate",
+            "matches_per_genome": "Rival decks / candidate",
             "workers": "Evaluator workers",
             "holdout_seed_pairs": "Holdout seed pairs",
             "evaluation_games": "Games / checkpoint",
@@ -460,17 +483,14 @@ class TrainingMenu(Menu):
     def _setup_focus_order(self):
         fields = list(self.cockpit.field_keys)
         return [
-            "mission_player",
+            "mission_counter",
+            "mission_matchup",
             "mission_builder",
             "preset_0",
             "preset_1",
             "preset_2",
             "preset_3",
             *fields,
-            "nav_mission",
-            "nav_configuration",
-            "nav_evidence",
-            "nav_preflight",
             "about",
             "runs",
             "back",
@@ -553,8 +573,11 @@ class TrainingMenu(Menu):
 
     def _activate_setup_control(self, key):
         self.setup_focus_key = key
-        if key == "mission_player":
+        if key == "mission_counter":
             self.cockpit.switch(TrainingKind.PLAYER_DECK)
+            self.setup_scroll = 0
+        elif key == "mission_matchup":
+            self.cockpit.switch(TrainingKind.MATCHUP_EVALUATION)
             self.setup_scroll = 0
         elif key == "mission_builder":
             self.cockpit.switch(TrainingKind.DECK_BUILDER)
@@ -566,26 +589,6 @@ class TrainingMenu(Menu):
             self._open_setup_picker(key)
         elif key in self.cockpit.field_keys:
             self._begin_setup_edit(key)
-        elif key.startswith("nav_"):
-            section = key.removeprefix("nav_")
-            if self.setup_layout.mode == "compact":
-                self.setup_scroll = min(
-                    self.setup_layout.max_scroll,
-                    self.setup_layout.section_scroll.get(section, 0),
-                )
-            focus = {
-                "mission": "mission_player",
-                "configuration": "run_label",
-                "evidence": (
-                    "evaluation_games"
-                    if self.kind == TrainingKind.PLAYER_DECK
-                    else "matches_per_genome"
-                ),
-                "preflight": "launch",
-            }.get(section)
-            if focus:
-                self.setup_focus_key = focus
-                self._ensure_setup_focus_visible()
         elif key == "about":
             self.view = "about"
             self.about_page = 0
@@ -843,12 +846,21 @@ class TrainingMenu(Menu):
     def _summary_rows(self, request):
         if self.kind == TrainingKind.PLAYER_DECK:
             return (
-                ("MISSION", "Specific deck player"),
+                ("MISSION", "Counter-deck training"),
                 ("PRESET", self.cockpit.preset_label),
-                ("DECK", request.deck_id if request else self.cockpit.value("deck_id")),
-                ("OPPONENT", request.opponent_deck_id if request else self.cockpit.value("opponent_deck_id")),
-                ("GENERATIONS", str(request.evaluator_generations) if request else self.cockpit.value("evaluator_generations")),
-                ("EVALUATION", f"{request.evaluation_games} games/checkpoint" if request else f"{self.cockpit.value('evaluation_games')} games/checkpoint"),
+                ("DECK UNDER TEST", request.deck_id if request else self.cockpit.value("deck_id")),
+                ("COUNTER EVOLUTION", f"{request.outer_generations} generations" if request else self.cockpit.value("outer_generations")),
+                ("CONTROLLER LEARNING", f"{request.evaluator_generations} persistent generations" if request else self.cockpit.value("evaluator_generations")),
+                ("VALIDATION", f"{request.evaluation_games} games/counter" if request else f"{self.cockpit.value('evaluation_games')} games/counter"),
+            )
+        if self.kind == TrainingKind.MATCHUP_EVALUATION:
+            return (
+                ("MISSION", "Two-deck matchup"),
+                ("PRESET", self.cockpit.preset_label),
+                ("DECK A", request.deck_id if request else self.cockpit.value("deck_id")),
+                ("DECK B", request.opponent_deck_id if request else self.cockpit.value("opponent_deck_id")),
+                ("CONTROLLER LEARNING", str(request.evaluator_generations) if request else self.cockpit.value("evaluator_generations")),
+                ("CHECKPOINT", f"{request.evaluation_games} seat-balanced games" if request else self.cockpit.value("evaluation_games")),
             )
         seeds = request.seeds if request else ()
         return (
@@ -856,7 +868,7 @@ class TrainingMenu(Menu):
             ("PRESET", self.cockpit.preset_label),
             ("SEEDS", f"{len(seeds)} independent runs" if seeds else "Pending / invalid"),
             ("EVOLUTION", f"{request.outer_generations} outer / {request.evaluator_generations} inner" if request else "Pending / invalid"),
-            ("RIVALS", f"{request.matches_per_genome} per candidate" if request else self.cockpit.value("matches_per_genome")),
+            ("RIVAL DECKS", f"{request.matches_per_genome} per candidate" if request else self.cockpit.value("matches_per_genome")),
             ("HOLDOUT", f"{request.holdout_seed_pairs} seed pairs" if request else self.cockpit.value("holdout_seed_pairs")),
         )
 
@@ -869,7 +881,7 @@ class TrainingMenu(Menu):
             self.game.palette.accent,
             layout.header.width,
         )
-        title = "Training cockpit"
+        title = "Training workbench"
         self.game.draw_text_left(
             title,
             self.game.layout.font_large,
@@ -880,7 +892,7 @@ class TrainingMenu(Menu):
         )
         if self.game.DISPLAY_W >= 900:
             self.game.draw_text_left(
-                "Configure, verify, and launch reproducible AI experiments",
+                "Build counter-decks, evaluate matchups, and evolve new decks",
                 self.game.layout.font_small,
                 layout.header.x,
                 layout.header.y
@@ -895,7 +907,7 @@ class TrainingMenu(Menu):
         rail = layout.panels["rail"]
         self._draw_cockpit_panel(rail, accent=(109, 169, 223))
         self.game.draw_text_left(
-            "Mission & navigation" if layout.mode == "wide" else "Mission",
+            "Choose a mission" if layout.mode == "wide" else "Mission",
             max(13, self.game.layout.font_small),
             rail.x + self.game.layout.gap,
             rail.y + 20,
@@ -903,25 +915,23 @@ class TrainingMenu(Menu):
             rail.width - self.game.layout.gap * 2,
         )
         self._draw_setup_button(
-            "mission_player",
-            "Train a deck controller",
+            "mission_counter",
+            "Train counters for my deck",
             selected=self.kind == TrainingKind.PLAYER_DECK,
             compact=layout.mode == "compact",
         )
         self._draw_setup_button(
+            "mission_matchup",
+            "Evaluate a matchup",
+            selected=self.kind == TrainingKind.MATCHUP_EVALUATION,
+            compact=layout.mode == "compact",
+        )
+        self._draw_setup_button(
             "mission_builder",
-            "Evolve and study decks",
+            "Evolve general deck pool",
             selected=self.kind == TrainingKind.DECK_BUILDER,
             compact=layout.mode == "compact",
         )
-        nav_labels = {
-            "nav_mission": "01  Mission",
-            "nav_configuration": "02  Configuration",
-            "nav_evidence": "03  Evidence",
-            "nav_preflight": "04  Preflight",
-        }
-        for key, label in nav_labels.items():
-            self._draw_setup_button(key, label, compact=True)
         if layout.mode == "wide":
             self._draw_setup_button("about", "Training guide >", compact=True)
             self._draw_setup_button("back", "< Back to menu", compact=True)
@@ -931,8 +941,13 @@ class TrainingMenu(Menu):
         panel = layout.panels["config"]
         self._draw_cockpit_panel(panel, accent=self.game.palette.accent)
         x = panel.x + self.game.layout.gap + 8
+        config_title = {
+            TrainingKind.PLAYER_DECK: "Configure counter-deck training",
+            TrainingKind.MATCHUP_EVALUATION: "Configure matchup evaluation",
+            TrainingKind.DECK_BUILDER: "Configure general deck evolution",
+        }[self.kind]
         self.game.draw_text_left(
-            "Configure controller" if self.kind == TrainingKind.PLAYER_DECK else "Configure deck evolution",
+            config_title,
             max(15, self.game.layout.font_normal - 1),
             x,
             panel.y + 21,
@@ -976,16 +991,40 @@ class TrainingMenu(Menu):
         panel = layout.panels["evidence"]
         self._draw_cockpit_panel(panel, accent=self.game.palette.success)
         x = panel.x + self.game.layout.gap + 8
-        title = "Evaluation & validation" if self.kind == TrainingKind.PLAYER_DECK else "Workload & preflight"
+        title = (
+            "Persistent learning & validation"
+            if self.kind == TrainingKind.PLAYER_DECK
+            else "Matchup checkpoints"
+            if self.kind == TrainingKind.MATCHUP_EVALUATION
+            else "Workload & preflight"
+        )
         self.game.draw_text_left(title, max(15, self.game.layout.font_normal - 1), x, panel.y + 22, self.game.palette.text, panel.width - 24)
         workload = training_workload(validation.request) if validation.request else None
         if self.kind == TrainingKind.PLAYER_DECK:
             if layout.mode == "wide":
                 self._draw_setup_field("evaluation_games", validation)
+            self._draw_read_only_field(
+                "persistence_display",
+                "Controller memory",
+                "Persists across all counters",
+                helper="Learning does not reset between deck candidates",
+            )
+            self._draw_read_only_field(
+                "counter_pool",
+                "Counter population",
+                "20 evolving decks",
+                helper="Best final opponent is reported as Top counter",
+            )
+            if workload:
+                y = panel.bottom - max(42, self.game.layout.target_height)
+                self.game.draw_text_left(workload.headline, max(12, self.game.layout.font_small - 1), x, y, self.game.palette.accent, panel.width - 30)
+        elif self.kind == TrainingKind.MATCHUP_EVALUATION:
+            if layout.mode == "wide":
+                self._draw_setup_field("evaluation_games", validation)
             checkpoints = " · ".join(map(str, self.cockpit.checkpoints())) or "Pending"
-            self._draw_read_only_field("checkpoint_display", "Checkpoints", checkpoints, helper="Derived from generations")
-            deck_status = "2 decks selected" if self.deck_ids and not {"deck_id", "opponent_deck_id"} & validation.errors.keys() else "Deck selection incomplete"
-            self._draw_read_only_field("deck_status", "Deck selection", deck_status, helper="Both IDs must exist")
+            self._draw_read_only_field("checkpoint_display", "Win-rate checkpoints", checkpoints, helper="Both controllers evolve directly against each other")
+            deck_status = "2 fixed decks selected" if self.deck_ids and not {"deck_id", "opponent_deck_id"} & validation.errors.keys() else "Deck selection incomplete"
+            self._draw_read_only_field("deck_status", "Matchup", deck_status, helper="Seats are balanced in every checkpoint")
             if workload:
                 y = panel.bottom - max(42, self.game.layout.target_height)
                 self.game.draw_text_left(workload.headline, max(12, self.game.layout.font_small - 1), x, y, self.game.palette.accent, panel.width - 30)
@@ -1115,11 +1154,22 @@ class TrainingMenu(Menu):
     @staticmethod
     def _review_rows(request):
         if request.kind == TrainingKind.PLAYER_DECK:
-            checkpoints = ", ".join(map(str, evaluation_checkpoints(request.evaluator_generations)))
             return (
-                ("Player deck", request.deck_id),
-                ("Opponent deck", request.opponent_deck_id),
-                ("Generations", request.evaluator_generations),
+                ("Deck under test", request.deck_id),
+                ("Counter generations", request.outer_generations),
+                ("Persistent controller generations", request.evaluator_generations),
+                ("Workers", request.workers),
+                ("Games / counter deck", request.evaluation_games),
+                ("Counter population", "20 candidates per generation"),
+            )
+        if request.kind == TrainingKind.MATCHUP_EVALUATION:
+            checkpoints = ", ".join(
+                map(str, matchup_checkpoints(request.evaluator_generations))
+            )
+            return (
+                ("Deck A", request.deck_id),
+                ("Deck B", request.opponent_deck_id),
+                ("Controller generations", request.evaluator_generations),
                 ("Workers", request.workers),
                 ("Games / checkpoint", request.evaluation_games),
                 ("Checkpoints", checkpoints),
@@ -1127,7 +1177,7 @@ class TrainingMenu(Menu):
         return (
             ("Seed set", ", ".join(map(str, request.seeds))),
             ("Generations", f"{request.outer_generations} outer · {request.evaluator_generations} inner"),
-            ("Matches / candidate", request.matches_per_genome),
+            ("Rival decks / candidate", request.matches_per_genome),
             ("Evaluator workers", request.workers),
             ("Holdout seed pairs", request.holdout_seed_pairs),
             ("Engine", "20 target decks · 2 fixed outer workers"),
@@ -1371,13 +1421,18 @@ class TrainingMenu(Menu):
         elif key == "label":
             self._activate_setup_control("run_label")
         elif key == "kind":
-            target = (
-                TrainingKind.DECK_BUILDER
-                if self.kind == TrainingKind.PLAYER_DECK
-                else TrainingKind.PLAYER_DECK
+            kinds = (
+                TrainingKind.PLAYER_DECK,
+                TrainingKind.MATCHUP_EVALUATION,
+                TrainingKind.DECK_BUILDER,
             )
+            target = kinds[(kinds.index(self.kind) + 1) % len(kinds)]
             self._activate_setup_control(
-                "mission_builder" if target == TrainingKind.DECK_BUILDER else "mission_player"
+                {
+                    TrainingKind.PLAYER_DECK: "mission_counter",
+                    TrainingKind.MATCHUP_EVALUATION: "mission_matchup",
+                    TrainingKind.DECK_BUILDER: "mission_builder",
+                }[target]
             )
         elif key == "preset":
             current = self.cockpit.draft.preset_index
@@ -1951,7 +2006,10 @@ class TrainingMenu(Menu):
         return str((getattr(item, "request", None) or {}).get("kind", ""))
 
     def _dashboard_pages(self, insights=None):
-        if self._dashboard_kind(insights) == TrainingKind.PLAYER_DECK.value:
+        if self._dashboard_kind(insights) in {
+            TrainingKind.PLAYER_DECK.value,
+            TrainingKind.MATCHUP_EVALUATION.value,
+        }:
             return self.PLAYER_DASHBOARD_PAGES
         return self.BUILDER_DASHBOARD_PAGES
 
@@ -2033,6 +2091,9 @@ class TrainingMenu(Menu):
         return {
             "controller_training": "Training controller",
             "checkpoint_evaluation": "Evaluating controller maturity",
+            "counter_controller_training": "Training persistent controllers",
+            "counter_evolution": "Evolving counter decks",
+            "matchup_evaluation": "Evaluating deck matchup",
             "deck_evolution": "Evolving candidate decks",
             "training": "Training",
             "completed": "Run complete",
@@ -2138,12 +2199,18 @@ class TrainingMenu(Menu):
             self._draw_empty_insights(content)
             return
         metrics = self.game.layout
-        is_player = insights.run_kind == TrainingKind.PLAYER_DECK.value
+        is_counter = insights.run_kind == TrainingKind.PLAYER_DECK.value
+        is_matchup = insights.run_kind == TrainingKind.MATCHUP_EVALUATION.value
+        is_evaluation = is_counter or is_matchup
         chart_spec, facts_spec = metrics.columns(content, (0.68, 0.32))
         chart_panel = self._draw_dashboard_panel(chart_spec, accent=self.game.palette.accent)
         facts_panel = self._draw_dashboard_panel(facts_spec)
         self.game.draw_text_left(
-            "CONTROLLER LEARNING CURVE" if is_player else "POPULATION FITNESS BAND",
+            "COUNTER PRESSURE CURVE"
+            if is_counter
+            else "MATCHUP WIN-RATE CURVE"
+            if is_matchup
+            else "POPULATION FITNESS BAND",
             metrics.font_normal,
             chart_panel.x + metrics.margin,
             chart_panel.y + metrics.margin,
@@ -2191,8 +2258,8 @@ class TrainingMenu(Menu):
                 ]
 
             series = (
-                ((3, self.game.palette.success, "Best controller"),)
-                if is_player
+                ((3, self.game.palette.success, "Deck A win rate" if is_matchup else "Selected deck win rate"),)
+                if is_evaluation
                 else (
                     (1, self.game.palette.danger, "Worst"),
                     (2, self.game.palette.muted, "Average"),
@@ -2260,10 +2327,13 @@ class TrainingMenu(Menu):
         if evaluation_total:
             facts = (
                 ("Generations completed", str(generation_count or "—")),
-                ("Final champion", f"{final[3]:.1f}" if final else "—"),
+                (
+                    "Final deck win rate" if is_evaluation else "Final champion",
+                    f"{final[3]:.1f}%" if final and is_evaluation else f"{final[3]:.1f}" if final else "—",
+                ),
                 ("Final checkpoint games", str(evaluation_total)),
                 ("All checkpoint trials", str(insights.total_evaluation_games or evaluation_total)),
-                ("AI win rate", f"{insights.evaluation[0] / evaluation_total * 100:.1f}%"),
+                ("Deck A win rate" if is_matchup else "Deck win rate", f"{insights.evaluation[0] / evaluation_total * 100:.1f}%"),
             )
         else:
             facts = (
@@ -2326,6 +2396,8 @@ class TrainingMenu(Menu):
             self._draw_empty_insights(content)
             return
         metrics = self.game.layout
+        is_counter = insights.run_kind == TrainingKind.PLAYER_DECK.value
+        is_matchup = insights.run_kind == TrainingKind.MATCHUP_EVALUATION.value
         hero_spec, outcomes_spec = metrics.columns(content, (0.40, 0.60))
         hero = self._draw_dashboard_panel(hero_spec, accent=self.game.palette.accent)
         outcomes = self._draw_dashboard_panel(outcomes_spec)
@@ -2334,7 +2406,7 @@ class TrainingMenu(Menu):
         win_rate = wins / total if total else 0.0
 
         self.game.draw_text_left(
-            "FINAL MATURITY CHECKPOINT",
+            "FINAL COUNTER POPULATION" if is_counter else "FINAL MATCHUP CHECKPOINT",
             metrics.font_normal,
             hero.x + metrics.margin,
             hero.y + metrics.margin,
@@ -2403,7 +2475,13 @@ class TrainingMenu(Menu):
         )
 
         self.game.draw_text_left(
-            "SKILL CHECKPOINTS" if insights.skill_evaluations else "OUTCOME MIX",
+            (
+                "COUNTER GENERATIONS"
+                if is_counter
+                else "CONTROLLER CHECKPOINTS"
+                if insights.skill_evaluations
+                else "OUTCOME MIX"
+            ),
             metrics.font_normal,
             outcomes.x + metrics.margin,
             outcomes.y + metrics.margin,
@@ -2425,9 +2503,13 @@ class TrainingMenu(Menu):
                 y = top + index * row_height
                 row_total = row_wins + row_draws + row_losses
                 rate = row_wins / row_total if row_total else 0.0
-                gate = gate_names.get(generation, "FINAL")
+                gate = (
+                    f"COUNTER {generation}"
+                    if is_counter
+                    else gate_names.get(generation, "FINAL")
+                )
                 checkpoint_label = (
-                    f"{gate} · GEN {generation}"
+                    f"{gate}" if is_counter else f"{gate} · GEN {generation}"
                     if outcomes.width < 600
                     else f"{gate} · GENERATION {generation}"
                 )
@@ -2463,9 +2545,9 @@ class TrainingMenu(Menu):
                 pg.draw.rect(self.game.display, self.game.palette.border, bar, 1, border_radius=6)
         else:
             labels = (
-                ("AI victories", wins, self.game.palette.success),
+                ("Selected deck victories" if is_counter else "Deck A victories", wins, self.game.palette.success),
                 ("Draws", draws, self.game.palette.muted),
-                ("Random victories", losses, self.game.palette.danger),
+                ("Counter victories" if is_counter else "Deck B victories", losses, self.game.palette.danger),
             )
             row_height = max(36, available // 3)
             for index, (label, count, color) in enumerate(labels):
@@ -2485,11 +2567,18 @@ class TrainingMenu(Menu):
                     percentage,
                     color,
                 )
+        footer_text = (
+            f"{insights.total_evaluation_games or total} trials · {insights.opponent}"
+        )
+        if is_counter and insights.top_counter_name:
+            rate = (
+                f" ({insights.top_counter_win_rate * 100:.1f}% counter win rate)"
+                if insights.top_counter_win_rate is not None
+                else ""
+            )
+            footer_text = f"Top counter: {insights.top_counter_name}{rate}"
         self.game.draw_text_left(
-            (
-                f"{insights.total_evaluation_games or total} total trials · random opponent: "
-                f"{insights.opponent or 'selected opponent deck'}"
-            ),
+            footer_text,
             max(10, metrics.font_small - 2),
             outcomes.x + metrics.margin,
             outcomes.bottom - metrics.margin,
@@ -2653,9 +2742,13 @@ class TrainingMenu(Menu):
                 color=self.game.palette.text,
             )
 
-        is_player = insights.run_kind == TrainingKind.PLAYER_DECK.value
+        is_counter = insights.run_kind == TrainingKind.PLAYER_DECK.value
+        is_evaluation = insights.run_kind in {
+            TrainingKind.PLAYER_DECK.value,
+            TrainingKind.MATCHUP_EVALUATION.value,
+        }
         self.game.draw_text_left(
-            "EVALUATION VERDICT" if is_player else "CARD SIGNALS",
+            "EVALUATION VERDICT" if is_evaluation else "CARD SIGNALS",
             metrics.font_normal,
             cards.x + metrics.margin,
             cards.y + metrics.margin,
@@ -2664,8 +2757,8 @@ class TrainingMenu(Menu):
         )
         self.game.draw_text_left(
             (
-                f"{insights.subject or 'Selected deck'} vs {insights.opponent or 'random play'}"
-                if is_player
+                f"{insights.subject or 'Selected deck'} vs {insights.opponent or 'opposition'}"
+                if is_evaluation
                 else "Average fitness of decks containing each card"
             ),
             max(10, metrics.font_small - 2),
@@ -2674,7 +2767,7 @@ class TrainingMenu(Menu):
             self.game.palette.muted,
             cards.width - metrics.margin * 2,
         )
-        if is_player:
+        if is_evaluation:
             wins, draws, losses = insights.evaluation
             total = wins + draws + losses
             rate = wins / total if total else 0.0
@@ -2715,6 +2808,19 @@ class TrainingMenu(Menu):
                 cards.y + cards.height * 2 // 3 + metrics.font_normal,
                 self.game.palette.accent,
             )
+            if is_counter and insights.top_counter_name:
+                counter_rate = (
+                    f" · {insights.top_counter_win_rate * 100:.1f}% wins"
+                    if insights.top_counter_win_rate is not None
+                    else ""
+                )
+                self.game.draw_text(
+                    f"Top counter: {insights.top_counter_name}{counter_rate}",
+                    max(10, metrics.font_small - 2),
+                    cards.centerx,
+                    cards.bottom - metrics.margin,
+                    self.game.palette.danger,
+                )
             return
         if not insights.top_cards:
             self.game.draw_text(
@@ -2781,7 +2887,10 @@ class TrainingMenu(Menu):
             self._draw_dashboard_footer(layout)
             return
         if self.dashboard_page == 2:
-            if self._dashboard_kind(insights) == TrainingKind.PLAYER_DECK.value:
+            if self._dashboard_kind(insights) in {
+                TrainingKind.PLAYER_DECK.value,
+                TrainingKind.MATCHUP_EVALUATION.value,
+            }:
                 self._draw_evaluation_page(layout, insights)
             else:
                 self._draw_matchups_page(layout, insights)

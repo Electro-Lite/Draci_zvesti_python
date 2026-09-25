@@ -114,15 +114,16 @@ class TrainingCockpitStateTests(unittest.TestCase):
         self.assertEqual(state.value("run_label"), "builder-study")
         self.assertEqual(state.validate().request.seeds, (400009, 450001, 400009))
 
-    def test_direct_values_map_exactly_to_player_request(self):
+    def test_direct_values_map_exactly_to_matchup_request(self):
         state = TrainingCockpitState(("Blue", "Queen"))
+        state.switch(TrainingKind.MATCHUP_EVALUATION)
         values = {
             "run_label": "exact-player",
             "deck_id": "Queen",
             "opponent_deck_id": "Blue",
             "evaluator_generations": "9999",
             "workers": "127",
-            "evaluation_games": "99999",
+            "evaluation_games": "99998",
         }
         for key, value in values.items():
             state.set_value(key, value)
@@ -135,7 +136,20 @@ class TrainingCockpitStateTests(unittest.TestCase):
         self.assertEqual(validation.request.opponent_deck_id, "Blue")
         self.assertEqual(validation.request.evaluator_generations, 9999)
         self.assertEqual(validation.request.workers, 127)
-        self.assertEqual(validation.request.evaluation_games, 99999)
+        self.assertEqual(validation.request.evaluation_games, 99998)
+
+    def test_counter_request_uses_one_fixed_deck_and_persistent_generations(self):
+        state = TrainingCockpitState(("Blue", "Queen"))
+        state.set_value("deck_id", "Queen")
+        state.set_value("outer_generations", "7")
+        state.set_value("evaluator_generations", "41")
+
+        request = state.validate().request
+
+        self.assertEqual(request.deck_id, "Queen")
+        self.assertIsNone(request.opponent_deck_id)
+        self.assertEqual(request.outer_generations, 7)
+        self.assertEqual(request.evaluator_generations, 41)
 
     def test_builder_validation_keeps_bad_text_visible_and_rejects_odd_matches(self):
         state = TrainingCockpitState(("Blue",))
@@ -153,6 +167,11 @@ class TrainingCockpitStateTests(unittest.TestCase):
     def test_empty_deck_database_disables_player_request(self):
         validation = TrainingCockpitState(()).validate()
         self.assertFalse(validation.valid)
+        self.assertIn("deck_id", validation.errors)
+
+        state = TrainingCockpitState(())
+        state.switch(TrainingKind.MATCHUP_EVALUATION)
+        validation = state.validate()
         self.assertIn("deck_id", validation.errors)
         self.assertIn("opponent_deck_id", validation.errors)
 

@@ -10,3 +10,7 @@ def evaluation_checkpoints(generations: int) -> tuple[int, ...]:
         checkpoints.append(generations)
     return tuple(sorted(set(checkpoints)))
 
+
+def matchup_checkpoints(generations: int) -> tuple[int, ...]:
+    """Include a generation-one baseline in fixed-deck matchup reports."""
+    return tuple(sorted({1, *evaluation_checkpoints(generations)}))
