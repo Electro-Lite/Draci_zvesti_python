@@ -414,7 +414,7 @@ Training outputs may include:
 
 These files can become large. The current local `train.db` is several GB.
 
-### Player Controller Training
+### Counter-deck Training
 
 Entrypoint:
 
@@ -426,25 +426,38 @@ Configurable example:
 
 ```bash
 python -m neat_ai.player_trainer "Starter Blue_1" \
-  --generations 35 \
+  --counter-generations 5 \
+  --controller-generations 40 \
   --workers 8 \
-  --evaluation-games 100 \
+  --evaluation-games 40 \
   --run-label professor-demo
 ```
 
 Current behavior:
 
-- trains NEAT player controllers on the requested deck,
-- uses `neat_ai/configs/neat_config_player.txt`,
-- current config has `pop_size = 15`, `num_inputs = 158`,
-  `num_outputs = 28`,
-- evaluates the winner against a random controller with deterministic,
-  balanced starting-player assignments,
-- saves a winner pickle under `neat_ai/trained_ai/`, or under the artifact
-  directory supplied by the Pygame training service.
+- keeps the selected deck fixed while evolving a population of counter decks,
+- maintains both NEAT controller populations across every counter generation,
+- evaluates every final counter candidate with balanced seating,
+- reports the selected deck's aggregate win rate and the strongest evolved
+  counter deck,
+- saves the winning builder and both persistent controllers under
+  `neat_ai/trained_ai/`, or under the artifact directory supplied by Pygame.
 
-The controller uses the same outcome-based fitness and masked action policy as
-the nested evaluator.
+### Fixed-deck Matchup Evaluation
+
+Entrypoint:
+
+```bash
+python -m neat_ai.matchup_trainer "Starter Blue_1" "Killer Queen_1" \
+  --generations 40 \
+  --workers 8 \
+  --evaluation-games 100 \
+  --run-label blue-vs-queen
+```
+
+This mission coevolves one controller population for each fixed deck and
+reports seat-balanced Deck A win rates at generation 1, the standard maturity
+checkpoints, and the final generation.
 
 ### Deck Evaluator Training
 

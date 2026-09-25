@@ -204,11 +204,24 @@ def _training(game, output, size):
     menu = TrainingMenu(game)
     menu.refresh_layout()
     menu.draw_training_cockpit()
-    _save(game, output, "training-cockpit-player", size)
+    _save(game, output, "training-workbench-counter", size)
     if size == (640, 480):
         menu.setup_scroll = menu._current_setup_layout().max_scroll
         menu.draw_training_cockpit()
-        _save(game, output, "training-cockpit-player-bottom", size)
+        _save(game, output, "training-workbench-counter-bottom", size)
+
+
+def _training_matchup_setup(game, output, size):
+    menu = TrainingMenu(game)
+    menu.refresh_layout()
+    menu.cockpit.switch(TrainingKind.MATCHUP_EVALUATION)
+    menu.cockpit.set_value("run_label", "blue-vs-queen")
+    menu.draw_training_cockpit()
+    _save(game, output, "training-workbench-matchup", size)
+    if size == (640, 480):
+        menu.setup_scroll = menu._current_setup_layout().max_scroll
+        menu.draw_training_cockpit()
+        _save(game, output, "training-workbench-matchup-bottom", size)
 
 
 def _training_builder(game, output, size):
@@ -219,11 +232,11 @@ def _training_builder(game, output, size):
     menu.cockpit.set_value("seeds", "400009, 450001, 500009, 550007")
     menu.cockpit.set_value("workers", "12")
     menu.draw_training_cockpit()
-    _save(game, output, "training-cockpit-builder", size)
+    _save(game, output, "training-workbench-builder", size)
     if size == (640, 480):
         menu.setup_scroll = menu._current_setup_layout().max_scroll
         menu.draw_training_cockpit()
-        _save(game, output, "training-cockpit-builder-bottom", size)
+        _save(game, output, "training-workbench-builder-bottom", size)
 
 
 def _training_review(game, output, size):
@@ -235,7 +248,7 @@ def _training_review(game, output, size):
     menu.cockpit.set_value("workers", "12")
     menu._launch()
     menu.draw_training_cockpit()
-    _save(game, output, "training-cockpit-review", size)
+    _save(game, output, "training-workbench-review", size)
 
 
 def _training_runs_menu(game):
@@ -368,9 +381,9 @@ def _training_conclusions(game, output, size):
 
 
 def _sample_player_dashboard():
-    # //placeholder: deterministic controller-evaluation report for visual review.
+    # //placeholder: deterministic counter-training report for visual review.
     job = TrainingJob(
-        job_id="20260901-killer-queen-controller",
+        job_id="20260901-killer-queen-counters",
         request={"kind": TrainingKind.PLAYER_DECK.value},
         command=[],
         created_at="2026-09-01T15:00:00",
@@ -383,8 +396,8 @@ def _sample_player_dashboard():
     telemetry = TrainingTelemetry(
         status="completed",
         phase="completed",
-        generation=40,
-        total_generations=40,
+        generation=5,
+        total_generations=5,
         best_score=146.2,
         workers=12,
         phase_progress=1.0,
@@ -394,28 +407,31 @@ def _sample_player_dashboard():
     insights = TrainingInsights(
         run_kind=TrainingKind.PLAYER_DECK.value,
         subject="Killer Queen",
-        opponent="Iron Choir",
+        opponent="20 evolved counter decks",
         generation_scores=(
-            (1, 18.0, 18.0, 18.0, 1),
-            (7, 46.0, 46.0, 46.0, 1),
-            (14, 72.0, 72.0, 72.0, 1),
-            (21, 101.0, 101.0, 101.0, 1),
-            (28, 127.0, 127.0, 127.0, 1),
-            (40, 146.2, 146.2, 146.2, 1),
+            (1, 71.0, 71.0, 71.0, 800),
+            (2, 66.0, 66.0, 66.0, 800),
+            (3, 61.0, 61.0, 61.0, 800),
+            (4, 57.0, 57.0, 57.0, 800),
+            (5, 54.0, 54.0, 54.0, 800),
         ),
-        evaluation=(63, 12, 25),
+        evaluation=(432, 96, 272),
         skill_evaluations=(
-            (10, 38, 14, 48),
-            (25, 52, 15, 33),
-            (40, 63, 12, 25),
+            (1, 568, 72, 160),
+            (2, 528, 80, 192),
+            (3, 488, 88, 224),
+            (4, 456, 88, 256),
+            (5, 432, 96, 272),
         ),
-        total_evaluation_games=300,
+        total_evaluation_games=4000,
         elapsed_seconds=512.0,
+        top_counter_name="Counter G5 #17",
+        top_counter_win_rate=0.72,
+        opponent_count=20,
         conclusions=(
-            "The trained controller won 63.0% of 100 evaluation games.",
-            "Evaluation produced 63 wins, 12 draws, and 25 losses.",
-            "The strongest recorded controller fitness was 146.2.",
-            "Checkpoint trials use Killer Queen against random play with Iron Choir.",
+            "The selected deck won 54.0% of 800 final evaluation games.",
+            "Top counter Counter G5 #17 won 72.0% against the selected deck.",
+            "Controller populations persisted while counter decks evolved.",
         ),
     )
     return job, telemetry, insights
@@ -466,15 +482,19 @@ def _training_about_page(game, output, size, page, name):
 
 
 def _training_about_player(game, output, size):
-    _training_about_page(game, output, size, 0, "training-about-player")
+    _training_about_page(game, output, size, 0, "training-about-counter")
+
+
+def _training_about_matchup(game, output, size):
+    _training_about_page(game, output, size, 1, "training-about-matchup")
 
 
 def _training_about_builder(game, output, size):
-    _training_about_page(game, output, size, 1, "training-about-builder")
+    _training_about_page(game, output, size, 2, "training-about-builder")
 
 
 def _training_about_recommendations(game, output, size):
-    _training_about_page(game, output, size, 2, "training-about-recommendations")
+    _training_about_page(game, output, size, 3, "training-about-recommendations")
 
 
 def _sample_gameplay_state():
@@ -686,6 +706,7 @@ def generate(output: Path, sizes=REVIEW_SIZES) -> list[Path]:
         _decks,
         _editor,
         _training,
+        _training_matchup_setup,
         _training_builder,
         _training_review,
         _training_runs,
@@ -699,6 +720,7 @@ def generate(output: Path, sizes=REVIEW_SIZES) -> list[Path]:
         _training_player_conclusions,
         _training_quit_warning,
         _training_about_player,
+        _training_about_matchup,
         _training_about_builder,
         _training_about_recommendations,
         _gameplay,
