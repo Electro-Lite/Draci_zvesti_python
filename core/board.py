@@ -17,6 +17,7 @@ class Board:
         self.game_state = GameState.PREP
         self.dragon     = None # for pygame
         self.round      = 0    # for pygame
+        self.battle_event = None
     def cycle_mana(self):
         """Rotate the mana pool left by one"""
         if not self.mana_pool:
@@ -61,19 +62,36 @@ class Board:
             else:
                 player_2.graveyard.append(card)
             self.positions[x]=None
-    def place_card(self, card:Card, pos:int, use_ability:bool, target_pos:int):
+    def stage_card(self, card: Card, pos: int):
+        """Put a selected card on the board before optional choices resolve."""
         if self.positions[pos] != None:
             raise ValueError("This position is already occupied!")
         self.positions[pos] = card
-        #apply mana
-        if(self.mana_pool[0].color == card.color):
-                card.dmg += card.color_buf[0]
-                card.hp  += card.color_buf[1]
-        #card ability
-        if(card.ability.is_active and use_ability):
-                card.ability.activate(card, self)
-        #update
         self.recalculate()
+
+    def resolve_staged_card(
+        self,
+        card: Card,
+        use_ability: bool,
+        target_pos: int | None = None,
+    ):
+        """Resolve an already visible card's optional active ability."""
+        if card not in self.positions:
+            raise ValueError("Card must be staged before its ability is resolved!")
+        if card.ability.is_active and use_ability:
+            card.ability.activate(card, self, target_pos)
+        self.recalculate()
+
+    def place_card(
+        self,
+        card: Card,
+        pos: int,
+        use_ability: bool,
+        target_pos: int | None = None,
+    ):
+        """Compatibility helper for non-interactive callers."""
+        self.stage_card(card, pos)
+        self.resolve_staged_card(card, use_ability, target_pos)
 
     def remove_card(self,card:Card):
         card_pos = self.positions.index(card)

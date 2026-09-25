@@ -19,13 +19,10 @@ class DeckMenu(Menu):
         self.deck_ids = DBUtil().get_all_deck_ids()
         self.items = ["Back", "Create deck", *self.deck_ids]
         self.selected = 0
+        self._visible_offset = 0
 
     def _return(self):
-        self.run_display = False
-        self.game.curr_menu = self.previous_menu
-        if self.previous_menu is not None:
-            self.previous_menu.__init__(self.game)
-            self.previous_menu.run_display = True
+        self.return_to_previous()
 
     def _open_editor(self, deck_id=None):
         self.run_display = False
@@ -42,7 +39,10 @@ class DeckMenu(Menu):
         if self.game.BACK_KEY:
             self._return()
             return
-        if not self.game.START_KEY:
+        clicked = self.clicked_button()
+        if clicked is not None:
+            self.selected = self._visible_offset + clicked
+        if not (self.game.START_KEY or clicked is not None):
             return
         if self.selected == 0:
             self._return()
@@ -54,68 +54,31 @@ class DeckMenu(Menu):
     def display_menu(self):
         self.run_display = True
         self.game.reset_keys()
-        while self.run_display:
-            self.game.check_events()
+        while self.run_display and self.game.running:
+            self.begin_frame()
+            if self.game.mouse_wheel:
+                self.selected = (self.selected - self.game.mouse_wheel) % len(self.items)
+            page_size = max(4, min(self.PAGE_SIZE, (self.game.DISPLAY_H - 190) // self.game.layout.target_height))
+            offset = max(0, min(self.selected - page_size + 1, len(self.items) - page_size))
+            self._visible_offset = offset
+            visible = self.items[offset : offset + page_size]
+            self.build_menu_buttons(
+                visible,
+                self.selected - offset,
+                top_ratio=0.22,
+                bottom_ratio=0.86,
+                width_ratio=0.64,
+            )
             self.check_input()
             if not self.run_display:
                 break
-            self.game.display.fill(self.game.BLACK)
-            self.game.draw_text(
-                "Deck Menu",
-                self.TEXT_LARGE,
-                self.mid_w,
-                self.mid_h - 40,
-            )
-            return_y = self.mid_h + 25
-            create_y = return_y + self.TEXT_NORMAL
-            deck_start_y = create_y + self.TEXT_NORMAL * 2
-            self.game.draw_text("Return", self.TEXT_NORMAL, self.mid_w, return_y)
-            self.game.draw_text(
-                "Create deck",
-                self.TEXT_NORMAL,
-                self.mid_w,
-                create_y,
-            )
-
-            deck_selected = max(0, self.selected - 2)
-            deck_offset = max(
-                0,
-                min(
-                    deck_selected - self.PAGE_SIZE + 1,
-                    len(self.deck_ids) - self.PAGE_SIZE,
-                ),
-            )
-            for row, deck_id in enumerate(
-                self.deck_ids[deck_offset : deck_offset + self.PAGE_SIZE]
-            ):
-                self.game.draw_text(
-                    deck_id,
-                    self.TEXT_NORMAL,
-                    self.mid_w,
-                    deck_start_y + row * self.TEXT_NORMAL,
-                )
-
-            if self.selected == 0:
-                cursor_y = return_y
-            elif self.selected == 1:
-                cursor_y = create_y
-            else:
-                cursor_y = (
-                    deck_start_y
-                    + (deck_selected - deck_offset) * self.TEXT_NORMAL
-                )
-            self.cursor_rect.midtop = (
-                self.mid_w + self.offset,
-                cursor_y,
-            )
-            self.draw_cursor()
+            self.draw_background()
+            self.draw_title("Deck Management", "Create a deck or select one to edit")
+            self.draw_buttons()
+            detail = ""
             if self.selected >= 2:
                 deck = DBUtil().load_deck(self.items[self.selected])
                 if deck:
-                    self.game.draw_text(
-                        f"{len(deck.cards)} cards",
-                        self.TEXT_NORMAL,
-                        self.mid_w,
-                        555,
-                    )
+                    detail = f"{len(deck.cards)} cards  •  {deck.description or 'No description'}"
+            self.draw_message(detail, self.game.palette.muted)
             self.blit_screen()

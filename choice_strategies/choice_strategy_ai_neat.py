@@ -91,12 +91,10 @@ class PlayerChoiceStrategyNeat(PlayerChoiceStrategy):
     def get_choice_use_ability(self) -> bool:
         if self._selected_card is None or not self._selected_card.ability.is_active:
             return False
-        target_owner = getattr(
-            self._selected_card.ability,
-            "target_owner",
-            AbilityTarget.ANY,
-        )
-        if target_owner != AbilityTarget.DRAGON and not self._legal_ability_targets():
+        if (
+            getattr(self._selected_card.ability, "requires_target", False)
+            and not self._legal_ability_targets()
+        ):
             return False
         # Index 0 means skip; index 1 means use.
         self._use_ability = self._argmax(USE_ABILITY, (0, 1)) == 1
@@ -104,7 +102,7 @@ class PlayerChoiceStrategyNeat(PlayerChoiceStrategy):
 
     def get_choice_ability_target(self) -> int:
         if not self._use_ability:
-            return 0
-        if self._selected_card.ability.target_owner == AbilityTarget.DRAGON:
-            return 0
+            return None
+        if not getattr(self._selected_card.ability, "requires_target", False):
+            return None
         return self._argmax(ABILITY_TARGET, self._legal_ability_targets())

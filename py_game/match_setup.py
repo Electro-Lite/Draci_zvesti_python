@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import pickle
+import threading
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -34,20 +35,32 @@ class PacedRandomStrategy(ChoiceStrategyAIRandom):
 
     delay_seconds = 0.35
 
-    def begin_turn_choices(self):
-        import time
+    def __init__(self, player):
+        super().__init__(player)
+        self._exit = threading.Event()
 
-        time.sleep(self.delay_seconds)
+    def begin_turn_choices(self):
+        if self._exit.wait(self.delay_seconds):
+            raise SystemExit
+
+    def exit_thread(self):
+        self._exit.set()
 
 
 class PacedNeatStrategy(PlayerChoiceStrategyNeat):
     delay_seconds = 0.35
 
-    def begin_turn_choices(self):
-        import time
+    def __init__(self, player):
+        super().__init__(player)
+        self._exit = threading.Event()
 
-        time.sleep(self.delay_seconds)
+    def begin_turn_choices(self):
+        if self._exit.wait(self.delay_seconds):
+            raise SystemExit
         super().begin_turn_choices()
+
+    def exit_thread(self):
+        self._exit.set()
 
 
 @dataclass(frozen=True)

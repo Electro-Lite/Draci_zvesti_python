@@ -6,6 +6,9 @@ from cards.card import Card
 from choice_strategies.choice_strategy import PlayerChoiceStrategy
 
 
+PASS_SELECTION = object()
+
+
 class ChoiceType(Enum):
     NONE = 0
     CARD = 1
@@ -13,6 +16,7 @@ class ChoiceType(Enum):
     PASS = 3
     USE_ABILITY = 4
     TARGET = 5
+    PLAY_OR_PASS = 6
 
 
 class PygameChoiceStrategy(PlayerChoiceStrategy):
@@ -45,7 +49,9 @@ class PygameChoiceStrategy(PlayerChoiceStrategy):
         return True
 
     def get_choice_card(self) -> Card:
-        card = self._wait_for_input(ChoiceType.CARD)
+        card = self.selected_card
+        if card is None:
+            card = self._wait_for_input(ChoiceType.CARD)
         position = self.this_player.hand.cards.index(card)
         self.selected_card = self.this_player.hand.cards.pop(position)
         return self.selected_card
@@ -60,17 +66,21 @@ class PygameChoiceStrategy(PlayerChoiceStrategy):
     def get_choice_pass(self) -> bool:
         self.selected_card = None
         self.selected_position = None
-        return bool(self._wait_for_input(ChoiceType.PASS))
+        choice = self._wait_for_input(ChoiceType.PLAY_OR_PASS)
+        if choice is PASS_SELECTION:
+            return True
+        if choice not in self.this_player.hand.cards:
+            raise ValueError("Selected card is no longer in the hand")
+        self.selected_card = choice
+        return False
 
     def get_choice_use_ability(self) -> bool:
         if self.selected_card is None or not self.selected_card.ability.is_active:
             return False
-        target_owner = getattr(
-            self.selected_card.ability,
-            "target_owner",
-            AbilityTarget.ANY,
-        )
-        if target_owner != AbilityTarget.DRAGON and not self.legal_targets():
+        if (
+            getattr(self.selected_card.ability, "requires_target", False)
+            and not self.legal_targets()
+        ):
             return False
         return bool(self._wait_for_input(ChoiceType.USE_ABILITY))
 
@@ -104,7 +114,12 @@ class PygameChoiceStrategy(PlayerChoiceStrategy):
 
     def get_choice_ability_target(self) -> int:
         if self.selected_card is None:
-            return 0
-        if self.selected_card.ability.target_owner == AbilityTarget.DRAGON:
-            return 0
+            return None
+        if not self.selected_card.ability.is_active:
+            return None
+        if not getattr(self.selected_card.ability, "requires_target", False):
+            return None
+        legal = self.legal_targets()
+        if not legal:
+            return None
         return self._wait_for_input(ChoiceType.TARGET)

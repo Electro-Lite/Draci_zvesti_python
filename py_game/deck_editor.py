@@ -9,6 +9,7 @@ from cards.deck import Deck
 from cards.power import Power
 from py_game.deck_advisor import DeckAdvisor, discover_advisors
 from py_game.menu.base_menu import Menu
+from py_game.ui.layout import RectSpec
 from utils.database_utils import DBUtil
 
 if TYPE_CHECKING:
@@ -52,7 +53,17 @@ class DeckBuilderMenu(Menu):
         self.message = ""
         self.message_color = self.game.WHITE
         self.image_cache = {}
-        self.actions = ["Advisor", "Save deck", "Rename deck", "Delete deck", "Back"]
+        self.actions = [
+            "Advisor",
+            "Add selected to deck",
+            "Remove selected",
+            "Save deck",
+            "Rename deck",
+            "Delete deck",
+            "Back",
+        ]
+        self.row_hitboxes = []
+        self.pane_rects = {}
 
     def _copy_count(self, card) -> int:
         return sum(
@@ -210,7 +221,6 @@ class DeckBuilderMenu(Menu):
         self.run_display = False
         self.game.curr_menu = self.previous_menu
         if self.previous_menu is not None:
-            self.previous_menu.__init__(self.game)
             self.previous_menu.run_display = True
 
     def _activate_action(self):
@@ -218,10 +228,14 @@ class DeckBuilderMenu(Menu):
         if action == 0:
             self._cycle_advisor()
         elif action == 1:
-            self._save()
+            self._add_selected()
         elif action == 2:
-            self._rename()
+            self._remove_selected()
         elif action == 3:
+            self._save()
+        elif action == 4:
+            self._rename()
+        elif action == 5:
             self._delete()
         else:
             self._return()
@@ -365,106 +379,201 @@ class DeckBuilderMenu(Menu):
     def display_menu(self):
         self.run_display = True
         self.game.reset_keys()
-        while self.run_display:
-            self.game.check_events()
+        while self.run_display and self.game.running:
+            self.begin_frame()
+            self._handle_mouse()
             self.check_input()
             if not self.run_display:
                 break
             self._clamp_indices()
-            self.game.display.fill(self.game.BLACK)
-            self.game.draw_text(
+            self.draw_background()
+            deck_title = self.deck_name or "New deck"
+            self.draw_title(
                 "Deck Builder",
-                self.TEXT_LARGE,
-                self.game.DISPLAY_W // 2,
-                40,
+                f"{deck_title}  •  {len(self.deck_cards)}/12 cards  •  drag cards between lists",
             )
-            width = self.game.DISPLAY_W
-            start_y = self.game.DISPLAY_H * 0.20
-            self.game.draw_text(
-                "Available Cards",
-                self.TEXT_NORMAL,
-                width * 0.20,
-                start_y - 40,
-            )
-            self.game.draw_text(
-                "Deck Cards",
-                self.TEXT_NORMAL,
-                width * 0.80,
-                start_y - 40,
-            )
-            self._draw_list(
-                ActivePane.AVAILABLE,
-                width * 0.20,
-                width * 0.28,
-            )
-            self._draw_list(
-                ActivePane.ACTIONS,
-                width * 0.50,
-                width * 0.24,
-            )
-            self._draw_list(
-                ActivePane.DECK,
-                width * 0.80,
-                width * 0.28,
-            )
-            self._draw_details()
-            self._update_cursor()
-            self.draw_cursor()
-            if self.message:
-                self.game.draw_text(
-                    self.message,
-                    self.TEXT_NORMAL,
-                    self.game.DISPLAY_W // 2,
-                    565,
-                    self.message_color,
-                )
+            self._draw_responsive_editor()
+            self.draw_message(self.message, self.message_color)
             self.blit_screen()
+
+    def _draw_responsive_editor(self):
+        metrics = self.game.layout
+        top = metrics.margin + metrics.font_large + metrics.font_small + metrics.gap * 2
+        bottom = self.game.DISPLAY_H - metrics.margin - metrics.font_small - metrics.gap
+        area = RectSpec(metrics.margin, top, self.game.DISPLAY_W - metrics.margin * 2, bottom - top)
+        columns = metrics.columns(area, (1.15, 0.9, 1.15))
+        panes = dict(zip(ActivePane, columns))
+        self.pane_rects = panes
+        self.row_hitboxes = []
+        titles = {
+            ActivePane.AVAILABLE: "Available cards",
+            ActivePane.ACTIONS: "Deck actions",
+            ActivePane.DECK: "Deck cards",
+        }
+        for pane, spec in panes.items():
+            rect = pg.Rect(spec.x, spec.y, spec.width, spec.height)
+            active = pane == self.active_pane
+            drop_key = (
+                "deck"
+                if pane == ActivePane.DECK
+                else "available"
+                if pane == ActivePane.AVAILABLE
+                else None
+            )
+            valid_drop = (
+                self.game.drag.start is not None
+                and drop_key in self.game.drag.valid_targets
+            )
+            pg.draw.rect(self.game.display, self.game.palette.panel, rect, border_radius=10)
+            pg.draw.rect(
+                self.game.display,
+                self.game.palette.success
+                if valid_drop
+                else self.game.palette.accent
+                if active
+                else self.game.palette.border,
+                rect,
+                3 if valid_drop else 2,
+                border_radius=10,
+            )
+            self.game.draw_text(
+                titles[pane],
+                metrics.font_normal,
+                rect.centerx,
+                rect.y + metrics.target_height // 2,
+                self.game.palette.accent if active else self.game.palette.text,
+            )
+            self._draw_responsive_list(pane, spec)
+        self._draw_responsive_details(panes[ActivePane.ACTIONS])
+
+    def _draw_responsive_list(self, pane, spec):
+        metrics = self.game.layout
+        items = self._items(pane)
+        selected = self.indices[pane]
+        details_reserved = int(spec.height * 0.30) if pane == ActivePane.ACTIONS else 0
+        list_top = spec.y + metrics.target_height
+        available_height = spec.height - metrics.target_height - details_reserved - metrics.gap
+        row_height = max(28, metrics.target_height - metrics.gap // 2)
+        page_size = max(1, available_height // row_height)
+        offset = max(0, min(selected - page_size + 1, len(items) - page_size))
+        for row, item in enumerate(items[offset : offset + page_size]):
+            index = offset + row
+            rect = pg.Rect(
+                spec.x + metrics.gap,
+                list_top + row * row_height,
+                spec.width - metrics.gap * 2,
+                row_height - 3,
+            )
+            hovered = rect.collidepoint(self.game.mouse_position)
+            fill = (
+                self.game.palette.selected
+                if pane == self.active_pane and index == selected
+                else self.game.palette.hover
+                if hovered
+                else self.game.palette.panel_alt
+            )
+            pg.draw.rect(self.game.display, fill, rect, border_radius=5)
+            if pane == ActivePane.AVAILABLE:
+                advice = self.advice.get(str(item.id))
+                value = f"  #{advice.rank} {advice.score:.2f}" if advice else ""
+                label = f"{item.name}{value}"
+            elif pane == ActivePane.DECK:
+                label = item.name
+            elif index == 0:
+                label = "Advisor: Off" if self.advisor_index == 0 else f"Advisor: {self.advisor_index}/{len(self.advisor_options) - 1}"
+            else:
+                label = str(item)
+            self.game.draw_text_left(
+                label,
+                metrics.font_small,
+                rect.x + metrics.gap,
+                rect.centery,
+                max_width=rect.width - metrics.gap * 2,
+            )
+            self.row_hitboxes.append((pane, index, rect))
+
+    def _draw_responsive_details(self, spec):
+        card = self._selected_card()
+        if card is None:
+            return
+        metrics = self.game.layout
+        max_height = int(spec.height * 0.20)
+        image_height = max(50, max_height)
+        image_width = int(image_height * 5 / 7)
+        x = spec.x + (spec.width - image_width) // 2
+        y = spec.bottom - image_height - metrics.font_small * 2 - metrics.gap
+        image = self.game.assets.image(card.image, (image_width, image_height))
+        self.game.display.blit(image, (x, y))
+        self.game.draw_text(
+            card.name,
+            metrics.font_small,
+            spec.center[0],
+            y + image_height + metrics.font_small // 2,
+        )
+        self.game.draw_text(
+            f"{card.dmg} attack  •  {card.hp} health",
+            metrics.font_small,
+            spec.center[0],
+            y + image_height + metrics.font_small * 3 // 2,
+            self.game.palette.muted,
+        )
+
+    def _handle_mouse(self):
+        if self.game.mouse_wheel:
+            for pane, spec in self.pane_rects.items():
+                if spec.contains(self.game.mouse_position):
+                    self.active_pane = pane
+                    self._move_vertical(-self.game.mouse_wheel)
+                    break
+        for event in self.game.events:
+            if event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
+                for pane, index, rect in self.row_hitboxes:
+                    if rect.collidepoint(event.pos):
+                        self.active_pane = pane
+                        self.indices[pane] = index
+                        if pane in (ActivePane.AVAILABLE, ActivePane.DECK):
+                            target = "deck" if pane == ActivePane.AVAILABLE else "available"
+                            self.game.drag.begin(f"{pane.name.lower()}:{index}", event.pos, {target})
+                            self.message = "Drag to the highlighted list, or release to cancel"
+                            self.message_color = self.game.palette.muted
+                        if getattr(event, "clicks", 1) >= 2:
+                            self._add_selected() if pane == ActivePane.AVAILABLE else self._remove_selected() if pane == ActivePane.DECK else self._activate_action()
+                        break
+            elif event.type == pg.MOUSEMOTION and self.game.drag.start is not None:
+                self.game.drag.move(event.pos)
+            elif event.type == pg.MOUSEBUTTONUP and event.button == 1 and self.game.drag.start is not None:
+                target = next(
+                    (
+                        "deck" if pane == ActivePane.DECK else "available"
+                        for pane, spec in self.pane_rects.items()
+                        if pane in (ActivePane.AVAILABLE, ActivePane.DECK) and spec.contains(event.pos)
+                    ),
+                    None,
+                )
+                was_dragging = self.game.drag.dragging
+                result = self.game.drag.release(target)
+                if result:
+                    if result[0].startswith("available:") and result[1] == "deck":
+                        self._add_selected()
+                    elif result[0].startswith("deck:") and result[1] == "available":
+                        self._remove_selected()
+                elif was_dragging:
+                    self._set_message(
+                        "Drop canceled; use the highlighted list",
+                        error=True,
+                    )
+        if self.game.mouse_clicked:
+            for pane, index, rect in self.row_hitboxes:
+                if rect.collidepoint(self.game.mouse_position):
+                    self.active_pane = pane
+                    self.indices[pane] = index
+                    if pane == ActivePane.ACTIONS:
+                        self._activate_action()
+                    break
 
     def _text_dialog(self, title, initial):
-        value = initial
-        while True:
-            for event in pg.event.get():
-                if event.type == pg.QUIT:
-                    return None
-                if event.type != pg.KEYDOWN:
-                    continue
-                if event.key == pg.K_ESCAPE:
-                    return None
-                if event.key == pg.K_RETURN:
-                    return value
-                if event.key == pg.K_BACKSPACE:
-                    value = value[:-1]
-                elif event.unicode.isprintable() and len(value) < 32:
-                    value += event.unicode
-            self.game.display.fill(self.game.BLACK)
-            self.game.draw_text(title, self.TEXT_LARGE, self.mid_w, 235)
-            field = pg.Rect(self.mid_w - 220, 280, 440, 55)
-            pg.draw.rect(self.game.display, (20, 22, 24), field)
-            pg.draw.rect(self.game.display, self.game.ORANGE, field, 2)
-            self.game.draw_text(value, self.TEXT_NORMAL, self.mid_w, 307)
-            self.blit_screen()
+        return self.prompt_text(title, initial, max_length=32)
 
     def _confirm_dialog(self, title):
-        selected = False
-        while True:
-            for event in pg.event.get():
-                if event.type == pg.QUIT:
-                    return False
-                if event.type != pg.KEYDOWN:
-                    continue
-                if event.key in (pg.K_ESCAPE, pg.K_BACKSPACE):
-                    return False
-                if event.key in (pg.K_LEFT, pg.K_RIGHT):
-                    selected = not selected
-                if event.key in (pg.K_RETURN, pg.K_SPACE):
-                    return selected
-            self.game.display.fill(self.game.BLACK)
-            self.game.draw_text(title, self.TEXT_LARGE, self.mid_w, 245)
-            self.game.draw_text(
-                "Confirm" if selected else "Cancel",
-                self.TEXT_NORMAL,
-                self.mid_w,
-                320,
-                self.game.ORANGE,
-            )
-            self.blit_screen()
+        label = "Delete" if title.startswith("Delete") else "Discard"
+        return self.confirm_action(title, confirm_label=label)

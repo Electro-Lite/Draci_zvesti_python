@@ -9,13 +9,26 @@ if TYPE_CHECKING:
 
 
 class Ability():
-    def __init__(self, name, description, target_owner: AbilityTarget, is_active=True, is_passive=False, id:AbilityId = 0):
+    def __init__(
+        self,
+        name,
+        description,
+        target_owner: AbilityTarget,
+        is_active=True,
+        is_passive=False,
+        id: AbilityId = 0,
+        requires_target=False,
+    ):
         self.name           = name  #TODO change primary key to id!
         self.id             = id    # Currently used only for neat 
         self.description    = description
         self.target_owner   = target_owner # must be of type AbilityTarget
         self.is_active      = is_active
         self.is_passive     = is_passive
+        # Position-driven abilities (move forward, swap, attack ahead) do not
+        # ask the player to select an unrelated board card. Targeted abilities
+        # must opt in explicitly.
+        self.requires_target = requires_target
         # ability type # vstup,smrt,passive
     def activate(self, card:"Card", board:"Board", args=None):
         raise NotImplementedError()

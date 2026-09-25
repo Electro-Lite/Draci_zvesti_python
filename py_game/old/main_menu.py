@@ -147,6 +147,7 @@ class App:
         sx = WIDTH // 2 - sub_w // 2
         sy = 180
         self.play_buttons = []
+        # //placeholder: legacy archived menu; the active LAN UI replaces this control.
         self.play_buttons.append(Button((sx, sy, sub_w, 48), 'Play Online', onclick=lambda: self.show_message('Play Online not implemented'), font=FONT))
         self.play_buttons.append(Button((sx, sy + 60, sub_w, 48), 'Play Hot Seat', onclick=lambda: self.show_message('Play Hot Seat selected'), font=FONT))
         self.play_buttons.append(Button((sx, sy + 120, sub_w, 48), 'Play AI', onclick=lambda: self.show_message('Play vs AI selected'), font=FONT))
@@ -331,6 +332,7 @@ class App:
     def draw_train(self):
         title = TITLE_FONT.render('Train', True, WHITE)
         screen.blit(title, (WIDTH // 2 - title.get_width() // 2, 50))
+        # //placeholder: legacy archived menu; active training lives in TrainingMenu.
         msg = FONT.render('Training tools would appear here. (Not implemented)', True, WHITE)
         screen.blit(msg, (50, 150))
         back = Button((20, HEIGHT - 70, 120, 44), 'Back', onclick=lambda: self.set_screen('menu'))
@@ -339,6 +341,7 @@ class App:
     def draw_settings(self):
         title = TITLE_FONT.render('Settings', True, WHITE)
         screen.blit(title, (WIDTH // 2 - title.get_width() // 2, 50))
+        # //placeholder: legacy archived menu; active settings live in OptionsMenu.
         msg = FONT.render('Settings screen (Not implemented).', True, WHITE)
         screen.blit(msg, (50, 150))
         back = Button((20, HEIGHT - 70, 120, 44), 'Back', onclick=lambda: self.set_screen('menu'))

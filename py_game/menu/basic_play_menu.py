@@ -124,29 +124,14 @@ class BasicPlayMenu(Menu):
         self.game.curr_menu = None
         self.game.playing = True
         self.game.game_loop()
+        if self.game.running:
+            self.game.curr_menu = self
+            self.run_display = True
 
     def _return(self):
-        self.run_display = False
-        self.game.curr_menu = self.previous_menu
-        if self.previous_menu is not None:
-            self.previous_menu.__init__(self.game)
-            self.previous_menu.run_display = True
+        self.return_to_previous()
 
-    def check_input(self):
-        if self.game.LEFT_KEY:
-            self._handle_horizontal(-1)
-        if self.game.RIGHT_KEY:
-            self._handle_horizontal(1)
-        if self.game.UP_KEY:
-            self.state_index = (self.state_index - 1) % len(self.states)
-        if self.game.DOWN_KEY:
-            self.state_index = (self.state_index + 1) % len(self.states)
-        if self.game.BACK_KEY:
-            self._return()
-            return
-        if not self.game.START_KEY:
-            return
-
+    def _activate_current(self):
         if self.state == PlayMenuState.P1_DECK:
             self._choose_deck(1)
         elif self.state == PlayMenuState.P2_DECK:
@@ -163,6 +148,25 @@ class BasicPlayMenu(Menu):
         elif self.state == PlayMenuState.BACK:
             self._return()
 
+    def check_input(self):
+        if self.game.LEFT_KEY:
+            self._handle_horizontal(-1)
+        if self.game.RIGHT_KEY:
+            self._handle_horizontal(1)
+        if self.game.UP_KEY:
+            self.state_index = (self.state_index - 1) % len(self.states)
+        if self.game.DOWN_KEY:
+            self.state_index = (self.state_index + 1) % len(self.states)
+        if self.game.BACK_KEY:
+            self._return()
+            return
+        clicked = self.clicked_button()
+        if clicked is not None:
+            self.state_index = clicked
+            self._activate_current()
+        elif self.game.START_KEY:
+            self._activate_current()
+
     def _model_label(self, player_number: int) -> str:
         if self._controller(player_number) != ControllerKind.TRAINED_AI:
             return "Not used"
@@ -175,19 +179,8 @@ class BasicPlayMenu(Menu):
     def display_menu(self):
         self.run_display = True
         self.game.reset_keys()
-        while self.run_display:
-            self.game.check_events()
-            self.check_input()
-            if not self.run_display:
-                break
-
-            self.game.display.fill(self.game.BLACK)
-            self.game.draw_text(
-                "Match Setup",
-                self.TEXT_LARGE,
-                self.game.DISPLAY_W // 2,
-                self.game.DISPLAY_H // 2 - 100,
-            )
+        while self.run_display and self.game.running:
+            self.begin_frame()
             labels = [
                 f"Player 1: {self._controller(1).value}",
                 f"Player 1 deck: {self.p1_deck_id or 'Select deck'}",
@@ -198,30 +191,32 @@ class BasicPlayMenu(Menu):
                 "Start match",
                 "Back",
             ]
-            for index, label in enumerate(labels):
-                y = self.row_y + index * self.row_gap
-                self.game.draw_text(
-                    label,
-                    self.TEXT_NORMAL,
-                    self.mid_w,
-                    y,
-                )
-            selected_y = self.row_y + self.state_index * self.row_gap
-            self.cursor_rect.midtop = (
-                self.mid_w + self.offset,
-                selected_y,
+            enabled = [
+                True,
+                True,
+                self._controller(1) == ControllerKind.TRAINED_AI,
+                True,
+                True,
+                self._controller(2) == ControllerKind.TRAINED_AI,
+                True,
+                True,
+            ]
+            self.build_menu_buttons(
+                labels,
+                self.state_index,
+                top_ratio=0.20,
+                bottom_ratio=0.88,
+                width_ratio=0.70,
+                enabled=enabled,
             )
-            self.draw_cursor()
-            if self.message:
-                self.game.draw_text(
-                    self.message,
-                    self.TEXT_NORMAL,
-                    self.mid_w,
-                    self.game.DISPLAY_H - 28,
-                    self.message_color,
-                )
+            self.check_input()
+            if not self.run_display:
+                break
+            self.draw_background()
+            self.draw_title("Local Match", "Choose decks and controllers for both players")
+            self.draw_buttons()
+            self.draw_message(self.message, self.message_color)
             self.blit_screen()
-            self.game.clock.tick(60)
 
     def select_deck_dialog(self, title: str, deck_ids: list[str]) -> str | None:
         if not deck_ids:
@@ -232,56 +227,68 @@ class BasicPlayMenu(Menu):
         selected = 0
         offset = 0
         page_size = 8
-        panel = pg.Rect(
-            (self.game.DISPLAY_W - 480) // 2,
-            (self.game.DISPLAY_H - 390) // 2,
-            480,
-            390,
-        )
         while True:
-            for event in pg.event.get():
+            self.begin_frame()
+            for event in self.game.events:
                 if event.type == pg.QUIT:
                     self.game.running = False
                     return None
-                if event.type != pg.KEYDOWN:
-                    continue
-                if event.key in (pg.K_ESCAPE, pg.K_BACKSPACE):
-                    return None
-                if event.key in (pg.K_RETURN, pg.K_SPACE):
-                    return deck_ids[selected]
-                if event.key == pg.K_UP:
-                    selected = (selected - 1) % len(deck_ids)
-                if event.key == pg.K_DOWN:
-                    selected = (selected + 1) % len(deck_ids)
+                if event.type == pg.KEYDOWN:
+                    if event.key in (pg.K_ESCAPE, pg.K_BACKSPACE):
+                        return None
+                    if event.key in (pg.K_RETURN, pg.K_SPACE):
+                        return deck_ids[selected]
+                    if event.key == pg.K_UP:
+                        selected = (selected - 1) % len(deck_ids)
+                    if event.key == pg.K_DOWN:
+                        selected = (selected + 1) % len(deck_ids)
+                elif event.type == pg.MOUSEWHEEL:
+                    selected = (selected - event.y) % len(deck_ids)
 
             if selected < offset:
                 offset = selected
             elif selected >= offset + page_size:
                 offset = selected - page_size + 1
 
-            self.game.display.fill(self.game.DARK_GREY)
+            panel_spec = self.game.layout.centered_panel(0.64, 0.78)
+            panel = pg.Rect(panel_spec.x, panel_spec.y, panel_spec.width, panel_spec.height)
+            self.game.display.fill(self.game.palette.background)
             pg.draw.rect(self.game.display, (22, 25, 28), panel)
             pg.draw.rect(self.game.display, (105, 115, 125), panel, 2)
             self.game.draw_text(
                 title,
                 self.TEXT_LARGE,
                 self.mid_w,
-                panel.y + 35,
+                panel.y + self.game.layout.margin,
             )
-            for row, deck_id in enumerate(deck_ids[offset : offset + page_size]):
+            visible = deck_ids[offset : offset + page_size]
+            list_top = panel.y + self.game.layout.font_large + self.game.layout.margin * 2
+            row_height = max(34, (panel.bottom - list_top - self.game.layout.margin) // page_size)
+            row_rects = []
+            for row, deck_id in enumerate(visible):
                 absolute_index = offset + row
-                color = (
-                    self.game.ORANGE
-                    if absolute_index == selected
-                    else self.game.WHITE
+                rect = pg.Rect(panel.x + self.game.layout.margin, list_top + row * row_height, panel.width - self.game.layout.margin * 2, row_height - 4)
+                row_rects.append((absolute_index, rect))
+                hovered = rect.collidepoint(self.game.mouse_position)
+                pg.draw.rect(
+                    self.game.display,
+                    self.game.palette.selected if absolute_index == selected else self.game.palette.hover if hovered else self.game.palette.panel_alt,
+                    rect,
+                    border_radius=6,
                 )
-                self.game.draw_text(
+                self.game.draw_text_left(
                     deck_id,
                     self.TEXT_NORMAL,
-                    self.mid_w,
-                    panel.y + 90 + row * 34,
-                    color,
+                    rect.x + self.game.layout.gap,
+                    rect.centery,
+                    self.game.ORANGE if absolute_index == selected else self.game.WHITE,
+                    rect.width - self.game.layout.gap * 2,
                 )
+            if self.game.mouse_clicked:
+                for absolute_index, rect in row_rects:
+                    if rect.collidepoint(self.game.mouse_position):
+                        return deck_ids[absolute_index]
             self.game.window.blit(self.game.display, (0, 0))
             pg.display.update()
+            self.game.reset_keys()
             self.game.clock.tick(60)

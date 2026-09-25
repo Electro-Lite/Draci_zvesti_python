@@ -143,7 +143,11 @@ def run(
                 choice_strategy.begin_turn_choices()
             try:
                 # pass?
-                Player_choice_pass = choice_strategy.get_choice_pass() if player_on_turn.passed == False else True
+                Player_choice_pass = (
+                    choice_strategy.get_choice_pass()
+                    if not player_on_turn.passed and player_on_turn.hand.cards
+                    else True
+                )
                 if Player_choice_pass or len(player_on_turn.hand.cards) <= 0:
                     player_on_turn.passed = True
 
@@ -151,28 +155,11 @@ def run(
                     if  display_strategy.this_player == player_on_turn:
                         display_strategy.display_hand()
 
-                    # select card
-                    Player_choice_card          = choice_strategy.get_choice_card()
-                    Player_choice_position      = choice_strategy.get_choice_pos()
-                    Player_choice_use_ability   = choice_strategy.get_choice_use_ability()
-                    Player_choice_target        = choice_strategy.get_choice_ability_target()
-                    Player_choice_card.owner    = player_on_turn
-
-                    display_strategy.display_choice(
-                        Player_choice_card,
-                        Player_choice_position,
-                        Player_choice_use_ability,
-                        Player_choice_target
-                    )
-                    board.place_card(
-                        Player_choice_card,
-                        Player_choice_position,
-                        Player_choice_use_ability,
-                        Player_choice_target,
-                    )
-                    player_on_turn.record_card_play(
-                        Player_choice_card,
-                        Player_choice_use_ability,
+                    play_card(
+                        player_on_turn,
+                        choice_strategy,
+                        board,
+                        display_strategy,
                     )
                     ### evaluate ability ###
                     board.recalculate(do_display=False)  # TODO remove do_display, it is responsibility of player strategy
@@ -235,38 +222,132 @@ def run(
     )
 
 
+def play_card(player, choice_strategy, board, display_strategy):
+    """Stage a card visibly, then resolve its optional ability choices."""
+    card = choice_strategy.get_choice_card()
+    position = choice_strategy.get_choice_pos()
+    card.owner = player
+    board.stage_card(card, position)
+    display_strategy.display_board()
+
+    use_ability = choice_strategy.get_choice_use_ability()
+    requires_target = bool(
+        use_ability
+        and getattr(card.ability, "requires_target", False)
+    )
+    target = (
+        choice_strategy.get_choice_ability_target()
+        if requires_target
+        else None
+    )
+    board.resolve_staged_card(card, use_ability, target)
+    player.record_card_play(card, use_ability)
+    display_strategy.display_choice(card, position, use_ability, target)
+    return card
+
+
 def battle_dragon(board: Board, display_strategy: DisplayStrategy) -> Player:  # returns winner or None if dragon survived
     board.game_state = GameState.BATTLE
     dragon = board.dragons.pop()
+    dragon_name = str(getattr(dragon, "name", "Dragon"))
     board.dragon = dragon
     display_strategy.dragon = dragon
+    board.battle_event = {
+        "phase": "reveal",
+        "card": None,
+        "slot": None,
+        "message": f"{dragon_name} enters the battle",
+    }
     display_strategy.display_dragon()
     ### activate dragon ability ###
     if dragon.ability.is_active:
         dragon.ability.activate(dragon, board)
+        board.battle_event = {
+            "phase": "dragon_ability",
+            "card": None,
+            "slot": None,
+            "message": str(getattr(dragon.ability, "name", "Dragon ability")),
+        }
+        display_strategy.display_dragon()
     ### recalculate board ###
     board.recalculate()
     display_strategy.display_board()
     ### battle positions ###
+    winning_card = None
+    winning_slot = None
     for x in range(0, 6):
         card = board.positions[x]
         if card is None:
             continue
-        # TODO Display battle
-        while card.hp > 0 and dragon.hp > 0:  # TODO bug if neither deal dmg
-            # sleep(3) #TODO tmp solution for pygame.
+        card_name = str(getattr(card, "name", "Card"))
+        # A zero-damage stalemate belongs to the defending dragon. Without this
+        # guard malformed or heavily debuffed content could stall every UI and
+        # LAN match forever.
+        if card.dmg <= 0 and dragon.dmg <= 0:
+            board.battle_event = {
+                "phase": "stalemate",
+                "card": card,
+                "slot": x,
+                "message": "Neither fighter can deal damage; the dragon advances",
+            }
+            display_strategy.display_dragon_vs_card()
+            board.remove_card(card)
+            board.recalculate(False)
+            board.battle_event = {
+                "phase": "card_defeated",
+                "card": card,
+                "slot": x,
+                "message": f"{card_name} leaves the battle; board effects recalculate",
+            }
+            display_strategy.display_dragon_vs_card()
+            continue
+        while card.hp > 0 and dragon.hp > 0:
+            board.battle_event = {
+                "phase": "versus",
+                "card": card,
+                "slot": x,
+                "message": f"{card_name} challenges {dragon_name}",
+            }
             display_strategy.display_dragon_vs_card()
             dragon.hp -= card.dmg
             card.hp   -= dragon.dmg
+            board.battle_event = {
+                "phase": "impact",
+                "card": card,
+                "slot": x,
+                "card_damage": dragon.dmg,
+                "dragon_damage": card.dmg,
+                "message": f"{card_name} and {dragon_name} exchange blows",
+            }
+            display_strategy.display_dragon_vs_card()
 
         ### evaluate results ###
         # if slain
         if dragon.hp <= 0:  # if dragon defeated
             dragon.slain_by = card.owner
+            winning_card = card
+            winning_slot = x
             break
         board.remove_card(card)
         board.recalculate(False)
-        display_strategy.display_board()
+        board.battle_event = {
+            "phase": "card_defeated",
+            "card": card,
+            "slot": x,
+            "message": f"{card_name} was defeated; board effects recalculate",
+        }
+        display_strategy.display_dragon_vs_card()
+    board.battle_event = {
+        "phase": "dragon_defeated" if dragon.slain_by is not None else "dragon_survived",
+        "card": winning_card,
+        "slot": winning_slot,
+        "point_for": dragon.slain_by,
+        "message": (
+            f"{dragon_name} was defeated — Player {getattr(dragon.slain_by, 'id', '?')} earns the point"
+            if dragon.slain_by is not None
+            else f"{dragon_name} survived the round"
+        ),
+    }
     display_strategy.display_battle_result()
     # else put dragon to bottom#
     # TODO restore dragon is tmp solution, convert dragon to card of type Dragon !!!
@@ -274,6 +355,7 @@ def battle_dragon(board: Board, display_strategy: DisplayStrategy) -> Player:  #
         dragon.restore()
         board.dragons.append(dragon)
     board.dragon = None
+    board.battle_event = None
     return dragon.slain_by
 
 
