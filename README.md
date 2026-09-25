@@ -90,7 +90,11 @@ Controls:
 
 - Arrow keys move through menu items, cards, and board positions.
 - Enter confirms the highlighted menu item or selected game action.
-- Backspace or Escape exits the active view back to the menu.
+- The mouse can select controls and cards; the wheel scrolls long lists.
+- Drag a hand card to a highlighted empty board slot to play it. Invalid drops
+  cancel cleanly and leave the card in its original location.
+- Backspace or Escape exits the active view back to the menu. Leaving an active
+  local or LAN match requires confirmation.
 
 The active menu flow supports:
 
@@ -106,6 +110,63 @@ Pygame starts training in a separate process. UI-launched logs, metadata,
 checkpoints, summaries, and winner files are grouped under `.ui_training/`.
 The launch action is disabled while `train.db` contains an unfinished training
 row, preventing accidental concurrent experiments.
+
+Settings are saved atomically in `.ui_settings.json`. They cover window mode
+and resolution, UI audio volume, AI pacing, card tooltips, the LAN player name,
+and the LAN port. Reset Defaults restores a validated configuration. The
+settings file and UI training output are intentionally ignored by Git.
+
+### LAN player-versus-player
+
+LAN mode uses an authoritative host: the host runs the canonical game rules,
+validates every requested guest action, and sends the guest only public state.
+The opponent's hidden hand and deck order are never included in snapshots.
+Messages are size-limited, versioned, sequence-checked, length-framed JSON; the
+network path never loads pickle data.
+
+To play on the same trusted local network:
+
+1. On the first computer, choose **LAN Match → Host LAN Game**. Select a deck,
+   mark the host ready, and share or copy the displayed `address:port`.
+2. On the second computer, choose **LAN Match → Join LAN Game**. Enter an IPv4
+   address, hostname, or bracketed IPv6 address such as `[fd00::25]:47777`.
+3. Select the guest deck and mark the guest ready. The host can start after both
+   players have valid decks and are ready.
+4. After a completed match both players return to the lobby and can ready up
+   again.
+
+The default TCP port is `47777` and can be changed in Settings or on the Join
+screen. If connection fails, verify that both computers are on the same LAN,
+the address and port match, and the host firewall allows inbound TCP traffic on
+that port. Do not forward this port or expose the host directly to the public
+internet; this mode is designed for trusted LANs, not an internet-facing game
+service.
+
+There is no mid-match state reconnection. A timeout or dropped connection ends
+the interrupted match clearly; the host lobby remains available, and the guest
+can reconnect from the remembered Join address. Closing the LAN menu or the
+application closes listener, peer socket, and worker threads.
+
+### UI verification
+
+The deterministic headless review command renders all major screens, dialogs,
+LAN states, gameplay, and results at 800×600, 1024×768, 1280×720, and
+1920×1080. Output defaults to `/tmp/draci-ui-review` and is not committed:
+
+```bash
+SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \
+  python -m py_game.visual_review
+```
+
+Run the automated suite, including loopback host/client integration tests, with:
+
+```bash
+SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \
+  python -m unittest discover -s tests -v
+```
+
+Missing final card artwork uses the centralized generated fallback in
+`py_game/assets.py`, marked with the searchable `//placeholder` token.
 
 ### Clear training data
 

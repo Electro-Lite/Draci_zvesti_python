@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+<rect width="1600" height="900" fill="#0d1219"/>
+<rect x="0" y="0" width="1600" height="7" rx="0" fill="#ecb14b"/>
+<text x="42" y="38" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700" text-anchor="start" letter-spacing="2">DRACI ZVESTI  /  AI TRAINING</text>
+<text x="42" y="88" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="38" font-weight="700" text-anchor="start" letter-spacing="0">Experiment workbench</text>
+<text x="43" y="119" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="400" text-anchor="start" letter-spacing="0">Independent sections for the nested deck builder experiment</text>
+<rect x="1414" y="39" width="142" height="34" rx="9" fill="#392d1e" stroke="#ecb14b" stroke-width="1"/>
+<text x="1485.0" y="60.55" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">CONCEPT 02</text>
+<rect x="43" y="151" width="294" height="39" rx="9" fill="#202c38" stroke="#ecb14b" stroke-width="1"/>
+<text x="190.0" y="175.75" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">Deck builder experiment</text>
+<rect x="349" y="151" width="225" height="39" rx="9" fill="#202c38" stroke="#a8b6c5" stroke-width="1"/>
+<text x="461.5" y="175.75" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">Specific deck player</text>
+<text x="1547" y="178" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="end" letter-spacing="0">RUN LABEL  /  final-deck-discovery</text>
+<rect x="42" y="210" width="499" height="257" rx="14" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="42" y="210" width="5" height="257" rx="2" fill="#6da9df"/>
+<text x="65" y="242" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">01  Design the study</text>
+<text x="65" y="266" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">What is repeated, and for how long</text>
+<text x="65" y="284" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="1">INDEPENDENT SEEDS</text>
+<rect x="65" y="297" width="220" height="39" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="77" y="324" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="start" letter-spacing="0">4 seed set  ▾</text>
+<text x="65" y="353" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="start" letter-spacing="0">104729, 130363, 155921, 196613</text>
+<text x="306" y="284" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="1">OUTER GENERATIONS</text>
+<rect x="306" y="297" width="212" height="39" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="318" y="324" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="start" letter-spacing="0">1  ▾</text>
+<text x="306" y="353" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="start" letter-spacing="0">Deck evolution cycles</text>
+<text x="65" y="380" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="1">INNER GENERATIONS</text>
+<rect x="65" y="393" width="220" height="39" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="77" y="420" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="start" letter-spacing="0">50  ▾</text>
+<text x="65" y="449" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="start" letter-spacing="0">Controller learning per candidate</text>
+<text x="306" y="380" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="1">MATCHES / CANDIDATE</text>
+<rect x="306" y="393" width="212" height="39" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="318" y="420" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="start" letter-spacing="0">12  ▾</text>
+<text x="306" y="449" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="start" letter-spacing="0">Even count required</text>
+<rect x="560" y="210" width="499" height="257" rx="14" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="560" y="210" width="5" height="257" rx="2" fill="#5bc684"/>
+<text x="583" y="242" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">02  Evidence quality</text>
+<text x="583" y="266" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Holdout games determine deck strength</text>
+<text x="583" y="284" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="1">HOLDOUT SEED PAIRS</text>
+<rect x="583" y="297" width="214" height="39" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="595" y="324" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="start" letter-spacing="0">20  ▾</text>
+<text x="583" y="353" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="start" letter-spacing="0">40 games per pairing</text>
+<text x="818" y="284" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="1">EVALUATOR WORKERS</text>
+<rect x="818" y="297" width="217" height="39" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="830" y="324" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="start" letter-spacing="0">12  ▾</text>
+<text x="818" y="353" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="start" letter-spacing="0">Inner parallel matches</text>
+<rect x="583" y="380" width="452" height="58" rx="8" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="600" y="404" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="0">Frozen controllers + matched seeds</text>
+<text x="600" y="427" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Both seating orders · paired evaluation</text>
+<rect x="1078" y="210" width="480" height="257" rx="14" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="1078" y="210" width="5" height="257" rx="2" fill="#ecb14b"/>
+<text x="1101" y="242" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">03  Workload model</text>
+<text x="1101" y="266" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Computed from current scheduling formula</text>
+<text x="1102" y="300" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="52" font-weight="700" text-anchor="start" letter-spacing="0">480</text>
+<text x="1237" y="296" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="600" text-anchor="start" letter-spacing="0">outer matchups</text>
+<text x="1237" y="322" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">plus nested controller training</text>
+<path d="M1102 354 L1534 354" stroke="#45586a" stroke-width="1"/>
+<text x="1102" y="388" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="400" text-anchor="start" letter-spacing="0">4 seeds × 1 outer gen × 20 × 12 ÷ 2</text>
+<text x="1102" y="428" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">This is workload, not a clock estimate</text>
+<rect x="42" y="484" width="1017" height="342" rx="14" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="42" y="484" width="5" height="342" rx="2" fill="#ecb14b"/>
+<text x="65" y="516" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">04  Review the experiment</text>
+<text x="65" y="540" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Wide review area for method, validation and implications</text>
+<rect x="65" y="558" width="299" height="223" rx="9" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="84" y="591" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="700" text-anchor="start" letter-spacing="0">Configuration</text>
+<text x="84" y="627" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">•  4 independent seed runs</text>
+<text x="84" y="659" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">•  1 outer / 50 inner generations</text>
+<text x="84" y="691" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">•  12 rival decks per candidate</text>
+<text x="84" y="723" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">•  12 evaluator workers</text>
+<rect x="379" y="558" width="310" height="223" rx="9" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="397" y="591" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="700" text-anchor="start" letter-spacing="0">Preflight checks</text>
+<text x="397" y="627" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">✓  Seed set is valid</text>
+<text x="397" y="659" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">✓  Matches count is even</text>
+<text x="397" y="691" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">✓  Worker count in range</text>
+<text x="397" y="723" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">✓  20 holdout pairs</text>
+<rect x="705" y="558" width="331" height="223" rx="9" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="723" y="591" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="700" text-anchor="start" letter-spacing="0">Experimental note</text>
+<text x="723" y="626" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">One outer generation keeps</text>
+<text x="723" y="653" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">seed runs independent.</text>
+<text x="723" y="698" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">Comparison remains available</text>
+<text x="723" y="725" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">after the run completes.</text>
+<rect x="1078" y="484" width="480" height="342" rx="14" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="1078" y="484" width="5" height="342" rx="2" fill="#ecb14b"/>
+<text x="1101" y="516" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">05  Launch controls</text>
+<text x="1101" y="540" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Final checks and a deliberate start</text>
+<text x="1102" y="567" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="1">PRESET</text>
+<rect x="1102" y="582" width="136" height="37" rx="9" fill="#202c38" stroke="#a8b6c5" stroke-width="1"/>
+<text x="1170.0" y="605.75" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">Quick check</text>
+<rect x="1248" y="582" width="136" height="37" rx="9" fill="#202c38" stroke="#a8b6c5" stroke-width="1"/>
+<text x="1316.0" y="605.75" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">Balanced</text>
+<rect x="1394" y="582" width="140" height="37" rx="9" fill="#202c38" stroke="#ecb14b" stroke-width="1"/>
+<text x="1464.0" y="605.75" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">Custom</text>
+<rect x="1102" y="653" width="432" height="66" rx="9" fill="#2b352f" stroke="#5bc684" stroke-width="1"/>
+<text x="1119" y="681" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="700" text-anchor="start" letter-spacing="0">All fields valid</text>
+<text x="1119" y="704" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Review the request before starting</text>
+<rect x="1102" y="742" width="432" height="55" rx="9" fill="#47351d" stroke="#ecb14b" stroke-width="1"/>
+<text x="1318.0" y="775.8" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="700" text-anchor="middle" letter-spacing="0">Review &amp; launch  →</text>
+<path d="M42 854 L1558 854" stroke="#45586a" stroke-width="1"/>
+<text x="43" y="878" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">Best for research: separates schedule, evidence and workload</text>
+<text x="1557" y="878" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="end" letter-spacing="0">B  ·  WORKBENCH</text>
+</svg>

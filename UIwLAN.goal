@@ -1,0 +1,164 @@
+Complete the Pygame UI on the `py-game-UI` branch and turn the project into a polished, fully usable game with LAN player-versus-player support.
+
+Act as a senior game, UI, and networking developer. First inspect the existing architecture, gameplay flow, menus, training services, tests, database integration, and current branch state. Preserve working functionality and improve weak abstractions where necessary. Make informed decisions independently and carry the work through implementation, testing, and visual review.
+
+Primary objectives
+
+1. Deliver a complete game experience
+
+- Implement a coherent flow from startup through the main menu, match setup, deck management, gameplay, results, and returning to menus.
+- Handle empty states, errors, loading, cancellation, confirmation, and interrupted actions gracefully.
+- Ensure navigation state and user selections are preserved where appropriate.
+- Avoid dead ends and placeholder buttons that do nothing.
+
+2. Build a high-quality responsive UI
+
+- Prioritize element placement, spacing, visual hierarchy, readability, and consistent interaction patterns.
+- Support window resizing and common aspect ratios and resolutions.
+- Scale text, cards, controls, panels, margins, and hitboxes predictably.
+- Prevent clipping, overlap, inaccessible controls, tiny targets, and distorted images.
+- Centralize layout metrics, colors, typography, component sizing, and responsive calculations.
+- Avoid scattering unexplained pixel constants throughout the code.
+
+3. Implement strong UX and interaction
+
+- Support reliable mouse clicking, hover, selection, scrolling, keyboard navigation, Escape/Back behavior, and clear focus states.
+- Implement intuitive card drag-and-drop where appropriate.
+- Include drag thresholds, valid-drop highlighting, invalid-drop feedback, cancellation, and snap-back behavior.
+- Ensure click and drag interactions do not conflict.
+- Use explicit enabled, disabled, selected, hovered, focused, loading, success, and error states.
+- Keep input handling deterministic and separate from rendering and domain logic.
+
+4. Complete gameplay presentation
+
+- Make the board, hands, cards, turn state, scores, abilities, available actions, and game results understandable without reading source code.
+- Clearly communicate legal actions and why an action is unavailable.
+- Add confirmations for destructive actions and suitable feedback for game events.
+- Keep animations subtle and avoid making automated games or training unnecessarily slow.
+
+5. Complete deck-management UX
+
+- Support creating, editing, validating, saving, selecting, and deleting decks.
+- Provide readable validation errors and useful card filtering or browsing.
+- Integrate the existing deck advisor cleanly.
+- Make large card collections usable through scrolling, paging, or another well-designed mechanism.
+
+6. Complete Training and Settings sections
+
+- Training must support configuring available training types, decks, generations, workers, seeds, labels, and other supported options.
+- Validate settings before launch and explain invalid values.
+- Show active-job status, progress, output location, completion summaries, and failures.
+- Prevent accidental duplicate or concurrent training runs.
+- Settings should include meaningful display, audio, interaction, and gameplay options supported by the application.
+- Persist settings safely and provide sensible defaults and reset behavior.
+- Do not invent backend capabilities that the existing services cannot support; extend them cleanly when needed.
+
+7. Use explicit placeholders
+
+- Placeholder copy and visual assets are acceptable when final content is unavailable.
+- Mark every placeholder occurrence with the exact searchable marker `//placeholder`.
+- In Python, use a valid comment containing that marker, for example: `# //placeholder: replace with final card artwork`.
+- Do not leave unmarked placeholder text, temporary images, fake data, or unfinished controls.
+- Keep placeholder assets centralized and easy to replace.
+
+8. Add automated tests
+
+- Write unit tests for layout calculations, responsive scaling, hit-testing, UI state transitions, navigation, settings persistence, validation, and drag-and-drop behavior.
+- Add tests for training command construction and failure states.
+- Keep rendering and input logic testable without requiring a visible display.
+- Add regression tests for bugs found during visual review.
+- Avoid brittle tests that depend unnecessarily on exact pixels when relative constraints are more appropriate.
+
+9. Perform visual validation
+
+- Run the UI and capture screenshots at multiple representative window sizes and aspect ratios.
+- Use Pygame screenshots, headless SDL rendering, or another suitable inspection tool.
+- Review every major screen for alignment, clipping, overlap, readability, layering, and correct scaling.
+- Include menus, match setup, deck management, training, settings, gameplay, dialogs, and result screens.
+- Test dense content, long labels, empty states, errors, and disabled controls.
+- Iterate based on screenshot evidence rather than assuming layouts are correct.
+- Store only useful, intentional visual-test artifacts; do not commit disposable screenshots.
+
+10. Add LAN player-versus-player mode
+
+- Allow one player to host a LAN match and another player to join using the host's IP address.
+- Provide clear Host Game and Join Game flows from the match setup UI.
+- The host screen should display the local IP address, configured port, connection status, player status, and a cancel option.
+- The join screen should accept an IPv4 or IPv6 address or hostname and optional port, validate the input, remember the last successful address, and show useful connection errors.
+- Add a lobby where both players can select or confirm decks, see opponent readiness, and explicitly mark themselves ready.
+- Start the match only after both players have completed validation and confirmed readiness.
+
+Networking architecture
+
+- Use an authoritative-host model. The host owns and validates canonical game state; the joining client sends only player intentions or requested actions.
+- Reuse the existing game rules and legal-action validation. Never trust the client to submit scores, board state, card ownership, or game results.
+- Define a versioned network protocol with explicit message types and framed messages.
+- Use safe structured serialization such as JSON. Never deserialize pickle data received over the network.
+- Include a protocol version, application version, match identifier, message sequence number, and request identifier where appropriate.
+- Keep networking separate from rendering, menus, and domain logic.
+- Do not block the Pygame event loop while accepting connections, connecting, reading messages, or waiting for the opponent.
+- Queue network events and process them predictably in the main application loop.
+- Handle partial messages, malformed data, duplicate messages, unexpected ordering, timeouts, and dropped connections.
+- Apply reasonable message-size limits and reject invalid protocol messages safely.
+- Bind to an appropriate configurable interface and port. Make the default suitable for trusted LAN use.
+- Clearly state in the UI and documentation that this is a LAN mode and is not intended to expose a host directly to the public internet.
+
+Match synchronization
+
+- Synchronize deck validation, player readiness, random seed, starting player, turns, legal choices, card plays, ability use, results, and return-to-lobby state.
+- Ensure both players see the same deterministic game state.
+- Give each player only information they are allowed to see; do not send the opponent's hidden hand or deck order.
+- Provide explicit waiting-for-opponent, reconnecting, disconnected, timed-out, protocol-mismatch, and host-ended-match states.
+- Support graceful cancellation before a game starts and graceful return to the lobby after a game.
+- If practical within the existing architecture, allow a short reconnect window using a match token. Otherwise end the match cleanly and explain why.
+- Ensure closing a menu, returning to the main menu, or quitting the game also closes sockets and background workers cleanly.
+
+LAN UX
+
+- Show the host address in an easy-to-copy form.
+- Provide editable port settings with a sensible default.
+- Clearly identify which player is the host.
+- Display connection progress and actionable error messages rather than raw socket exceptions.
+- Disable controls that cannot currently be used.
+- Require confirmation before abandoning an active LAN match.
+- Mark temporary networking copy or imagery with `# //placeholder` in Python.
+
+LAN testing
+
+- Add unit tests for message encoding, framing, decoding, validation, size limits, protocol versions, sequence handling, and hidden-information filtering.
+- Add integration tests that run a host and client over the loopback interface.
+- Test connecting, lobby readiness, deterministic match setup, representative player actions, invalid actions, normal completion, cancellation, timeout, disconnect, and protocol mismatch.
+- Test that illegal client messages cannot mutate authoritative state.
+- Test that sockets and worker threads or tasks are cleaned up after success and failure.
+- Keep networking tests deterministic and independent of the public internet.
+- Add UI tests for host/join validation and all important connection states.
+- Visually review Host, Join, Lobby, waiting, connection-error, disconnect, and result screens at multiple resolutions.
+
+Engineering expectations
+
+- Preserve separation between game logic, application services, UI state, layout, rendering, input handling, and networking.
+- Reuse shared components instead of duplicating menu or widget behavior.
+- Keep frame-rate-independent behavior where timing is involved.
+- Avoid blocking the render and event loop with database access, network operations, training, or expensive work.
+- Maintain compatibility with the current project data and existing workflows.
+- Do not silently discard unrelated user changes.
+- Do not stop after scaffolding: continue until the UI is cohesive, tested, visually reviewed, network-safe, and practically playable.
+
+Definition of done
+
+- A user can launch the application and complete the core local game loop without using the CLI.
+- Match setup, deck management, gameplay, results, Training, and Settings are functional and connected.
+- Click, keyboard, scrolling, and drag-and-drop interactions behave consistently.
+- Major screens scale correctly across tested resolutions without overlap or clipping.
+- Two application instances on the same LAN can host and join using the host's IP address and complete a full match.
+- The UI remains responsive while connecting or waiting for network activity.
+- The host authoritatively validates all LAN actions.
+- Hidden game information is not disclosed to the opponent.
+- Invalid, malformed, duplicated, or out-of-order messages fail safely.
+- Disconnects and cancellations return both applications to a clear, usable state.
+- Loopback integration tests cover the complete host and join lifecycle.
+- All placeholders are marked with `//placeholder`.
+- Relevant automated tests pass.
+- Visual inspection has been performed using screenshots at multiple resolutions.
+- The working tree contains no accidental generated files or disposable artifacts.
+- Provide a concise final report covering implementation, tests run, screenshot resolutions reviewed, remaining marked placeholders, networking limitations, and any other genuine limitations.

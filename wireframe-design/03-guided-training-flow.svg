@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+<rect width="1600" height="900" fill="#0d1219"/>
+<rect x="0" y="0" width="1600" height="7" rx="0" fill="#ecb14b"/>
+<text x="42" y="38" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700" text-anchor="start" letter-spacing="2">DRACI ZVESTI  /  AI TRAINING</text>
+<text x="42" y="88" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="38" font-weight="700" text-anchor="start" letter-spacing="0">Guided training flow</text>
+<text x="43" y="119" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="400" text-anchor="start" letter-spacing="0">Full-screen pages with one decision group at a time</text>
+<rect x="1414" y="39" width="142" height="34" rx="9" fill="#392d1e" stroke="#ecb14b" stroke-width="1"/>
+<text x="1485.0" y="60.55" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">CONCEPT 03</text>
+<rect x="42" y="151" width="286" height="58" rx="9" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<text x="62" y="187" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="21" font-weight="700" text-anchor="start" letter-spacing="0">1</text>
+<text x="96" y="187" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="600" text-anchor="start" letter-spacing="0">Mission</text>
+<rect x="348" y="151" width="286" height="58" rx="9" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<text x="368" y="187" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="21" font-weight="700" text-anchor="start" letter-spacing="0">2</text>
+<text x="402" y="187" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="600" text-anchor="start" letter-spacing="0">Decks</text>
+<rect x="654" y="151" width="286" height="58" rx="9" fill="#47351d" stroke="#ecb14b" stroke-width="1"/>
+<text x="674" y="187" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="21" font-weight="700" text-anchor="start" letter-spacing="0">3</text>
+<text x="708" y="187" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="600" text-anchor="start" letter-spacing="0">Learning</text>
+<rect x="960" y="151" width="286" height="58" rx="9" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<text x="980" y="187" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="21" font-weight="700" text-anchor="start" letter-spacing="0">4</text>
+<text x="1014" y="187" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="600" text-anchor="start" letter-spacing="0">Evaluation</text>
+<rect x="1266" y="151" width="286" height="58" rx="9" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<text x="1286" y="187" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="21" font-weight="700" text-anchor="start" letter-spacing="0">5</text>
+<text x="1320" y="187" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="600" text-anchor="start" letter-spacing="0">Launch</text>
+<rect x="42" y="231" width="1068" height="568" rx="14" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="42" y="231" width="5" height="568" rx="2" fill="#6da9df"/>
+<text x="65" y="263" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Step 3  /  Learning schedule</text>
+<text x="65" y="287" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Control the training depth and resource use</text>
+<text x="67" y="333" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="29" font-weight="700" text-anchor="start" letter-spacing="0">How long should the controller learn?</text>
+<text x="67" y="369" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="400" text-anchor="start" letter-spacing="0">Choose a starting point, then adjust the numbers below.</text>
+<rect x="67" y="406" width="314" height="111" rx="10" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="87" y="446" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="21" font-weight="700" text-anchor="start" letter-spacing="0">Quick check</text>
+<text x="87" y="483" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">10 generations · 4 workers</text>
+<rect x="405" y="406" width="314" height="111" rx="10" fill="#47351d" stroke="#ecb14b" stroke-width="2"/>
+<text x="425" y="446" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="21" font-weight="700" text-anchor="start" letter-spacing="0">Balanced</text>
+<text x="425" y="483" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">40 generations · 8 workers</text>
+<rect x="743" y="406" width="314" height="111" rx="10" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="763" y="446" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="21" font-weight="700" text-anchor="start" letter-spacing="0">Deep study</text>
+<text x="763" y="483" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">65 generations · 12 workers</text>
+<text x="68" y="572" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="1">CONTROLLER GENERATIONS</text>
+<rect x="68" y="585" width="300" height="39" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="80" y="612" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="start" letter-spacing="0">40  ▾</text>
+<text x="68" y="641" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="start" letter-spacing="0">10–10,000 supported</text>
+<text x="391" y="572" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="1">PARALLEL WORKERS</text>
+<rect x="391" y="585" width="300" height="39" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="403" y="612" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="start" letter-spacing="0">8  ▾</text>
+<text x="391" y="641" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="start" letter-spacing="0">1–128 supported</text>
+<rect x="714" y="573" width="369" height="91" rx="8" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="731" y="601" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="0">Maturity checkpoints</text>
+<text x="731" y="638" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="22" font-weight="700" text-anchor="start" letter-spacing="0">10    →    25    →    40</text>
+<rect x="68" y="704" width="1015" height="65" rx="8" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="85" y="732" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700" text-anchor="start" letter-spacing="0">Why this matters</text>
+<text x="85" y="756" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">More generations add training games; checkpoints show whether learning continues.</text>
+<rect x="1130" y="231" width="428" height="568" rx="14" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="1130" y="231" width="5" height="568" rx="2" fill="#ecb14b"/>
+<text x="1153" y="263" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Live review</text>
+<text x="1153" y="287" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Follows each step so context is never lost</text>
+<text x="1154" y="315" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="1">MISSION</text>
+<text x="1154" y="341" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="600" text-anchor="start" letter-spacing="0">Deck controller</text>
+<path d="M1154 356 L1534 356" stroke="#45586a" stroke-width="1"/>
+<text x="1154" y="390" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="1">PLAYER DECK</text>
+<text x="1154" y="416" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="600" text-anchor="start" letter-spacing="0">Starter Blue_1</text>
+<path d="M1154 431 L1534 431" stroke="#45586a" stroke-width="1"/>
+<text x="1154" y="465" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="1">OPPONENT</text>
+<text x="1154" y="491" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="600" text-anchor="start" letter-spacing="0">Killer Queen_1</text>
+<path d="M1154 506 L1534 506" stroke="#45586a" stroke-width="1"/>
+<text x="1154" y="540" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="1">SCHEDULE</text>
+<text x="1154" y="566" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="600" text-anchor="start" letter-spacing="0">40 generations / 8 workers</text>
+<path d="M1154 581 L1534 581" stroke="#45586a" stroke-width="1"/>
+<rect x="1154" y="627" width="380" height="72" rx="8" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="1171" y="655" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="700" text-anchor="start" letter-spacing="0">Next: evaluation games</text>
+<text x="1171" y="682" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">Review workload before launch</text>
+<rect x="1154" y="725" width="380" height="55" rx="9" fill="#47351d" stroke="#ecb14b" stroke-width="1"/>
+<text x="1344.0" y="758.8" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="700" text-anchor="middle" letter-spacing="0">Continue  →</text>
+<path d="M42 854 L1558 854" stroke="#45586a" stroke-width="1"/>
+<text x="43" y="878" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">Best for first-time users: one stage at a time, with persistent summary</text>
+<text x="1557" y="878" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="end" letter-spacing="0">C  ·  GUIDED</text>
+</svg>
