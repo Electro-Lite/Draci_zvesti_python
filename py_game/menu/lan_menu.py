@@ -36,7 +36,8 @@ class LanMenu(Menu):
         self.client: LanClient | None = None
         self.lobby: HostLobbyController | None = None
         self.remote_lobby: dict | None = None
-        self.deck_ids = DBUtil().get_all_deck_ids()
+        self.deck_options = DBUtil().get_all_deck_options()
+        self.deck_ids = [deck_id for deck_id, _name in self.deck_options]
         self.deck_index = 0
         self.guest_ready = False
         self.join_host = self.game.settings.last_join_host
@@ -50,6 +51,18 @@ class LanMenu(Menu):
         except (ValueError, RuntimeError):
             return False
 
+    def _deck_label(self, deck_id: str | None) -> str:
+        if not deck_id:
+            return "No valid decks"
+        return next(
+            (
+                name
+                for current_id, name in getattr(self, "deck_options", ())
+                if current_id == deck_id
+            ),
+            deck_id,
+        )
+
     def _rows(self):
         if self.mode == "root":
             return ["Host LAN Game", "Join LAN Game", "Back"]
@@ -62,7 +75,7 @@ class LanMenu(Menu):
             ]
         if self.mode == "host_lobby":
             state = self.lobby.state
-            deck = self.deck_ids[self.deck_index] if self.deck_ids else "No valid decks"
+            deck = self._deck_label(self.deck_ids[self.deck_index] if self.deck_ids else None)
             ready = state.host.ready
             guest = (
                 f"{state.guest.name} — {'Ready' if state.guest.ready else 'Not ready'}"
@@ -79,7 +92,7 @@ class LanMenu(Menu):
                 "Cancel lobby",
             ]
         if self.mode == "guest_lobby":
-            deck = self.deck_ids[self.deck_index] if self.deck_ids else "No valid decks"
+            deck = self._deck_label(self.deck_ids[self.deck_index] if self.deck_ids else None)
             host = (self.remote_lobby or {}).get("host") or {}
             host_name = host.get("name", "Host")
             return [

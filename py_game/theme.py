@@ -1,6 +1,14 @@
 from dataclasses import dataclass
 
 
+MANA_COLORS: dict[str, tuple[int, int, int]] = {
+    "RED": (211, 72, 75),
+    "BLACK": (45, 49, 58),
+    "BLUE": (68, 132, 207),
+    "GREEN": (70, 154, 92),
+}
+
+
 @dataclass(frozen=True)
 class Palette:
     background: tuple[int, int, int] = (13, 18, 25)

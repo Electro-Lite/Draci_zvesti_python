@@ -251,6 +251,7 @@ def battle_dragon(board: Board, display_strategy: DisplayStrategy) -> Player:  #
     dragon = board.dragons.pop()
     dragon_name = str(getattr(dragon, "name", "Dragon"))
     board.dragon = dragon
+    board.dragon_position = None
     display_strategy.dragon = dragon
     board.battle_event = {
         "phase": "reveal",
@@ -259,8 +260,20 @@ def battle_dragon(board: Board, display_strategy: DisplayStrategy) -> Player:  #
         "message": f"{dragon_name} enters the battle",
     }
     display_strategy.display_dragon()
+    winning_card = None
+    winning_slot = None
+    # Dispatch reveal hooks; each ability owns its effect and presentation event.
+    for slot, card in enumerate(board.positions):
+        ability = getattr(card, "ability", None) if card else None
+        if ability and getattr(ability, "is_onDragonReveal", False):
+            ability.apply_onDragonReveal(card, board, dragon)
+            display_strategy.display_dragon()
+            if dragon.slain_by is not None:
+                winning_card = card
+                winning_slot = slot
+                break
     ### activate dragon ability ###
-    if dragon.ability.is_active:
+    if dragon.hp > 0 and dragon.ability.is_active:
         dragon.ability.activate(dragon, board)
         board.battle_event = {
             "phase": "dragon_ability",
@@ -273,12 +286,13 @@ def battle_dragon(board: Board, display_strategy: DisplayStrategy) -> Player:  #
     board.recalculate()
     display_strategy.display_board()
     ### battle positions ###
-    winning_card = None
-    winning_slot = None
     for x in range(0, 6):
+        if dragon.slain_by:
+            break
         card = board.positions[x]
         if card is None:
             continue
+        board.dragon_position = x - 1
         card_name = str(getattr(card, "name", "Card"))
         # A zero-damage stalemate belongs to the defending dragon. Without this
         # guard malformed or heavily debuffed content could stall every UI and
@@ -292,6 +306,11 @@ def battle_dragon(board: Board, display_strategy: DisplayStrategy) -> Player:  #
             }
             display_strategy.display_dragon_vs_card()
             board.remove_card(card)
+            if dragon.hp <= 0:
+                dragon.slain_by = card.owner
+                winning_card = card
+                winning_slot = x
+                break
             board.recalculate(False)
             board.battle_event = {
                 "phase": "card_defeated",
@@ -329,6 +348,11 @@ def battle_dragon(board: Board, display_strategy: DisplayStrategy) -> Player:  #
             winning_slot = x
             break
         board.remove_card(card)
+        if dragon.hp <= 0:
+            dragon.slain_by = card.owner
+            winning_card = card
+            winning_slot = x
+            break
         board.recalculate(False)
         board.battle_event = {
             "phase": "card_defeated",
@@ -353,8 +377,9 @@ def battle_dragon(board: Board, display_strategy: DisplayStrategy) -> Player:  #
     # TODO restore dragon is tmp solution, convert dragon to card of type Dragon !!!
     if dragon.slain_by == None:
         dragon.restore()
-        board.dragons.append(dragon)
+        board.dragons.insert(0, dragon)
     board.dragon = None
+    board.dragon_position = None
     board.battle_event = None
     return dragon.slain_by
 

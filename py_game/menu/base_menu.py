@@ -77,7 +77,7 @@ class Menu():
         return None
 
     def draw_background(self):
-        self.game.display.fill(self.game.palette.background)
+        self.game.draw_background()
 
     def draw_title(self, title: str, subtitle: str | None = None):
         metrics = self.game.layout

@@ -14,8 +14,11 @@ class Ability():
         name,
         description,
         target_owner: AbilityTarget,
-        is_active=True,
+        is_active=False,
         is_passive=False,
+        is_onDragonReveal=False,
+        is_onDragonMove=False,
+        is_onDeath=False,
         id: AbilityId = 0,
         requires_target=False,
     ):
@@ -25,15 +28,19 @@ class Ability():
         self.target_owner   = target_owner # must be of type AbilityTarget
         self.is_active      = is_active
         self.is_passive     = is_passive
-        # Position-driven abilities (move forward, swap, attack ahead) do not
-        # ask the player to select an unrelated board card. Targeted abilities
-        # must opt in explicitly.
+        self.is_onDragonReveal      = is_onDragonReveal
+        self.is_onDragonMove        = is_onDragonMove
+        self.is_onDeath             = is_onDeath
+
         self.requires_target = requires_target
         # ability type # vstup,smrt,passive
     def activate(self, card:"Card", board:"Board", args=None):
         raise NotImplementedError()
 
     def apply_passive(self, card:"Card", board:"Board", args=None):
+        raise NotImplementedError()
+
+    def apply_onDeath(self, card:"Card", board:"Board", args=None):
         raise NotImplementedError()
 
 class NoAbility(Ability):
@@ -72,7 +79,6 @@ class SidewaysPlus1(Ability):
             description="Gives +1 attack and +1 hp to adjacent friendly cards.",
             id              = AbilityId.PLUS_1_1_SIDEWAYS,
             target_owner=AbilityTarget.ALLY,
-            is_active=False,
             is_passive=True
         )
     def apply_passive(self, card, board, args=None):
@@ -102,7 +108,6 @@ class GoFirst(Ability):
             id              = AbilityId.GO_FIRST,
             target_owner=AbilityTarget.ANY,
             is_active=True,
-            is_passive=False
         )
     def activate(self, card, board, args=None):
         tmp                             = board.positions[0]
@@ -120,7 +125,6 @@ class GoBefore1(Ability):
             id              = AbilityId.SWAP_BEFORE,
             target_owner=AbilityTarget.ANY,
             is_active=True,
-            is_passive=False
         )
     def activate(self, card, board, args=None):
         original_pos                            = board.positions.index(card)
@@ -147,6 +151,75 @@ class AttackFront(Ability):
                 target.hp = target.hp - card.dmg
                 board.remove_card(target)
 
+class SideWay2DmgOnDeath(Ability):
+    def __init__(self):
+        super().__init__(
+            name            = "Explode on death",
+            description     = "When hp goes bellow 0, direct neighbors take 2 dmg",
+            id              = AbilityId.DMG_2_SIDEWAYS_ON_DEATH,
+            target_owner    = AbilityTarget.ANY,
+            is_onDeath      = True,
+        )
+    def apply_onDeath(self, card, board, args=None):
+        original_pos = args["position"]
+        neighbors = []
+        if original_pos > 0:
+            neighbors.append(board.positions[original_pos - 1])
+        if original_pos < len(board.positions) - 1:
+            neighbors.append(board.positions[original_pos + 1])
+
+        # The dragon is only hit if he is before explosion
+        if board.dragon is not None and board.dragon_position == original_pos-1:
+            board.dragon.hp -= 2
+
+        victims = [neighbor for neighbor in neighbors if neighbor and neighbor.hp <= 2]
+        for victim in victims:
+            if victim in board.positions:
+                board.remove_card(victim)
+
+class ReturnByDeath(Ability):
+    def __init__(self):
+        super().__init__(
+            name            = "Return on death",
+            description     = "When this card dies, it returns to owners hand",
+            id              = AbilityId.RETURN_BY_DEATH,
+            target_owner    = AbilityTarget.ALLY,
+            is_onDeath      = True,
+        )
+    def apply_onDeath(self, card, board, args=None):
+        card.restore()
+        card.owner.hand.cards.append(card)
+
+class HitDragon2Dmg(Ability):
+    def __init__(self):
+        super().__init__(
+            name            = "Hit entering dragon for 2 dmg",
+            description     = "When dragon is revealed, he immediately suffers 2 dmg",
+            id              = AbilityId.HIT_DRAGON_2_DMG,
+            target_owner    = AbilityTarget.DRAGON,
+            is_onDragonReveal      = True,
+        )
+    def apply_onDragonReveal(self, card, board, dragon):
+        dragon.hp -= 2
+        dragon_name = str(getattr(dragon, "name", "Dragon"))
+        slot = board.positions.index(card)
+        defeated = dragon.hp <= 0
+        if defeated:
+            dragon.slain_by = card.owner
+        board.battle_event = {
+            "phase": "dragon_defeated" if defeated else "dragon_reveal_ability",
+            "card": card,
+            "slot": -1,
+            "dragon_damage": 2,
+            "point_for": dragon.slain_by if defeated else None,
+            "message": (
+                f"{dragon_name} was defeated by {getattr(card, 'name', 'Card')} "
+                f"— Player {getattr(card.owner, 'id', '?')} earns the point"
+                if defeated
+                else f"{getattr(card, 'name', 'Card')} hits {dragon_name} for 2 damage"
+            ),
+        }
+
 
 # Black dragon
 class EatFirst(Ability):
@@ -157,7 +230,6 @@ class EatFirst(Ability):
             id              = AbilityId.EAT_FIRST,
             target_owner=AbilityTarget.ANY,
             is_active=True,
-            is_passive=False
         )
     def activate(self, card, board, args=None):
         board.positions[0] = None
@@ -171,12 +243,11 @@ class HitAll1Dmg(Ability):
             id              = AbilityId.HIT_ALL_1_DMG,
             target_owner=AbilityTarget.ANY,
             is_active=True,
-            is_passive=False
         )
     def activate(self, card, board, args=None):
         for i in range(0,6):
-            if ( board.positions[i] != None ) and (board.positions[i].hp <= 1):
-                board.positions[i] = None
+            if ( board.positions[i] != None ) and (board.positions[i] != card) and (board.positions[i].hp <= 1):
+                board.remove_card(board.positions[i])
 
 # Blue dragon
 class InvertBoard(Ability):

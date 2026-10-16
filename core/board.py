@@ -16,6 +16,7 @@ class Board:
         self.player_on_turn = None
         self.game_state = GameState.PREP
         self.dragon     = None # for pygame
+        self.dragon_position = None # current slot during a dragon battle
         self.round      = 0    # for pygame
         self.battle_event = None
     def cycle_mana(self):
@@ -95,7 +96,9 @@ class Board:
 
     def remove_card(self,card:Card):
         card_pos = self.positions.index(card)
-        card.owner.graveyard.append(card)
         self.positions[card_pos]=None
+        card.owner.graveyard.append(card)
+        if card.ability.is_onDeath:
+            card.ability.apply_onDeath(card, self, {"position": card_pos})
         self.recalculate(False)
 

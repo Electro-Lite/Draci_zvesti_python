@@ -28,6 +28,9 @@ def serialize_card(card, local_player) -> dict | None:
     ability = getattr(card, "ability", None)
     initial = getattr(card, "init_args", None)
     max_hp = initial[5] if isinstance(initial, list) and len(initial) > 5 else card.hp
+    color_buf = getattr(card, "color_buf", None)
+    mana_dmg = int(color_buf[0]) if isinstance(color_buf, (list, tuple)) and len(color_buf) > 0 else 0
+    mana_hp = int(color_buf[1]) if isinstance(color_buf, (list, tuple)) and len(color_buf) > 1 else 0
     return {
         "id": str(card.id),
         "name": str(card.name),
@@ -35,6 +38,7 @@ def serialize_card(card, local_player) -> dict | None:
         "max_hp": max(1, int(max_hp)),
         "dmg": int(card.dmg),
         "color": _enum_value(card.color),
+        "mana_bonus": {"dmg": mana_dmg, "hp": mana_hp},
         "power": _enum_value(card.power),
         "ability_name": str(getattr(ability, "name", "")),
         "ability_description": str(getattr(ability, "description", "")),

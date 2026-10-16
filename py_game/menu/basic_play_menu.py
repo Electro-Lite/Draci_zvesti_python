@@ -43,8 +43,9 @@ class BasicPlayMenu(Menu):
         self.p2_deck_id = None
         self.p1_model_index = 0
         self.p2_model_index = 0
-        self.artifacts = discover_player_artifacts()
-        self.deck_ids = DBUtil().get_all_deck_ids()
+        self.artifacts = {1: [], 2: []}
+        self.deck_options = DBUtil().get_all_deck_options()
+        self.deck_ids = [deck_id for deck_id, _name in self.deck_options]
         self.message = ""
         self.message_color = self.game.WHITE
         self.row_y = self.mid_h - 70
@@ -63,16 +64,51 @@ class BasicPlayMenu(Menu):
         )
         return self.controller_kinds[index]
 
+    def _deck_label(self, deck_id: str | None) -> str:
+        if not deck_id:
+            return "Select deck"
+        return next(
+            (name for current_id, name in self.deck_options if current_id == deck_id),
+            deck_id,
+        )
+
     def _model_path(self, player_number: int) -> str | None:
-        if not self.artifacts:
+        artifacts = self.artifacts[player_number]
+        if not artifacts:
             return None
         index = self.p1_model_index if player_number == 1 else self.p2_model_index
-        return str(self.artifacts[index % len(self.artifacts)])
+        return str(artifacts[index % len(artifacts)].path)
+
+    def _model_artifact(self, player_number: int):
+        artifacts = self.artifacts[player_number]
+        if not artifacts:
+            return None
+        index = self.p1_model_index if player_number == 1 else self.p2_model_index
+        return artifacts[index % len(artifacts)]
+
+    def _refresh_player_artifacts(self, player_number: int):
+        deck_id = self.p1_deck_id if player_number == 1 else self.p2_deck_id
+        deck = DBUtil().load_deck(deck_id) if deck_id else None
+        self.artifacts[player_number] = (
+            discover_player_artifacts(deck) if deck is not None else []
+        )
+        if player_number == 1:
+            self.p1_model_index = 0
+        else:
+            self.p2_model_index = 0
 
     def _controller_spec(self, player_number: int) -> ControllerSpec:
         kind = self._controller(player_number)
-        model = self._model_path(player_number) if kind == ControllerKind.TRAINED_AI else None
-        return ControllerSpec(kind, model)
+        artifact = (
+            self._model_artifact(player_number)
+            if kind == ControllerKind.TRAINED_AI
+            else None
+        )
+        return ControllerSpec(
+            kind,
+            str(artifact.path) if artifact else None,
+            artifact.manifest.deck_signature if artifact else None,
+        )
 
     def _cycle(self, attribute: str, count: int, direction: int):
         if count:
@@ -84,20 +120,21 @@ class BasicPlayMenu(Menu):
         elif self.state == PlayMenuState.P2_CONTROLLER:
             self._cycle("p2_controller_index", len(self.controller_kinds), direction)
         elif self.state == PlayMenuState.P1_MODEL:
-            self._cycle("p1_model_index", len(self.artifacts), direction)
+            self._cycle("p1_model_index", len(self.artifacts[1]), direction)
         elif self.state == PlayMenuState.P2_MODEL:
-            self._cycle("p2_model_index", len(self.artifacts), direction)
+            self._cycle("p2_model_index", len(self.artifacts[2]), direction)
 
     def _choose_deck(self, player_number: int):
         choice = self.select_deck_dialog(
             f"Choose Player {player_number} Deck",
-            self.deck_ids,
+            self.deck_options,
         )
         if choice is not None:
             if player_number == 1:
                 self.p1_deck_id = choice
             else:
                 self.p2_deck_id = choice
+            self._refresh_player_artifacts(player_number)
 
     def _start_match(self):
         db = DBUtil()
@@ -170,11 +207,13 @@ class BasicPlayMenu(Menu):
     def _model_label(self, player_number: int) -> str:
         if self._controller(player_number) != ControllerKind.TRAINED_AI:
             return "Not used"
-        if not self.artifacts:
-            return "No player models found"
-        return self.artifacts[
-            self.p1_model_index if player_number == 1 else self.p2_model_index
-        ].stem
+        deck_id = self.p1_deck_id if player_number == 1 else self.p2_deck_id
+        if not deck_id:
+            return "Select a deck first"
+        artifact = self._model_artifact(player_number)
+        if artifact is None:
+            return "No trained model for this composition"
+        return artifact.label
 
     def display_menu(self):
         self.run_display = True
@@ -183,10 +222,10 @@ class BasicPlayMenu(Menu):
             self.begin_frame()
             labels = [
                 f"Player 1: {self._controller(1).value}",
-                f"Player 1 deck: {self.p1_deck_id or 'Select deck'}",
+                f"Player 1 deck: {self._deck_label(self.p1_deck_id)}",
                 f"Player 1 model: {self._model_label(1)}",
                 f"Player 2: {self._controller(2).value}",
-                f"Player 2 deck: {self.p2_deck_id or 'Select deck'}",
+                f"Player 2 deck: {self._deck_label(self.p2_deck_id)}",
                 f"Player 2 model: {self._model_label(2)}",
                 "Start match",
                 "Back",
@@ -218,8 +257,12 @@ class BasicPlayMenu(Menu):
             self.draw_message(self.message, self.message_color)
             self.blit_screen()
 
-    def select_deck_dialog(self, title: str, deck_ids: list[str]) -> str | None:
-        if not deck_ids:
+    def select_deck_dialog(
+        self,
+        title: str,
+        deck_options: list[tuple[str, str]],
+    ) -> str | None:
+        if not deck_options:
             self.message = "Create a valid deck before starting a match"
             self.message_color = (235, 105, 105)
             return None
@@ -237,13 +280,13 @@ class BasicPlayMenu(Menu):
                     if event.key in (pg.K_ESCAPE, pg.K_BACKSPACE):
                         return None
                     if event.key in (pg.K_RETURN, pg.K_SPACE):
-                        return deck_ids[selected]
+                        return deck_options[selected][0]
                     if event.key == pg.K_UP:
-                        selected = (selected - 1) % len(deck_ids)
+                        selected = (selected - 1) % len(deck_options)
                     if event.key == pg.K_DOWN:
-                        selected = (selected + 1) % len(deck_ids)
+                        selected = (selected + 1) % len(deck_options)
                 elif event.type == pg.MOUSEWHEEL:
-                    selected = (selected - event.y) % len(deck_ids)
+                    selected = (selected - event.y) % len(deck_options)
 
             if selected < offset:
                 offset = selected
@@ -252,7 +295,7 @@ class BasicPlayMenu(Menu):
 
             panel_spec = self.game.layout.centered_panel(0.64, 0.78)
             panel = pg.Rect(panel_spec.x, panel_spec.y, panel_spec.width, panel_spec.height)
-            self.game.display.fill(self.game.palette.background)
+            self.draw_background()
             pg.draw.rect(self.game.display, (22, 25, 28), panel)
             pg.draw.rect(self.game.display, (105, 115, 125), panel, 2)
             self.game.draw_text(
@@ -261,11 +304,11 @@ class BasicPlayMenu(Menu):
                 self.mid_w,
                 panel.y + self.game.layout.margin,
             )
-            visible = deck_ids[offset : offset + page_size]
+            visible = deck_options[offset : offset + page_size]
             list_top = panel.y + self.game.layout.font_large + self.game.layout.margin * 2
             row_height = max(34, (panel.bottom - list_top - self.game.layout.margin) // page_size)
             row_rects = []
-            for row, deck_id in enumerate(visible):
+            for row, (_deck_id, deck_name) in enumerate(visible):
                 absolute_index = offset + row
                 rect = pg.Rect(panel.x + self.game.layout.margin, list_top + row * row_height, panel.width - self.game.layout.margin * 2, row_height - 4)
                 row_rects.append((absolute_index, rect))
@@ -277,7 +320,7 @@ class BasicPlayMenu(Menu):
                     border_radius=6,
                 )
                 self.game.draw_text_left(
-                    deck_id,
+                    deck_name,
                     self.TEXT_NORMAL,
                     rect.x + self.game.layout.gap,
                     rect.centery,
@@ -287,7 +330,7 @@ class BasicPlayMenu(Menu):
             if self.game.mouse_clicked:
                 for absolute_index, rect in row_rects:
                     if rect.collidepoint(self.game.mouse_position):
-                        return deck_ids[absolute_index]
+                        return deck_options[absolute_index][0]
             self.game.window.blit(self.game.display, (0, 0))
             pg.display.update()
             self.game.reset_keys()

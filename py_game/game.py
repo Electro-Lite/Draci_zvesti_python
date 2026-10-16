@@ -8,7 +8,7 @@ from py_game.assets import AssetCache
 from py_game.audio import AudioFeedback
 from py_game.battle_presentation import local_battle_display_strategy
 from py_game.settings import SettingsStore
-from py_game.theme import PALETTE
+from py_game.theme import MANA_COLORS, PALETTE
 from py_game.training_service import TrainingService
 from py_game.ui.layout import LayoutMetrics, RectSpec
 from py_game.ui.widgets import DragController
@@ -33,6 +33,18 @@ from core.player import Player
 
 class Game():
     BATTLE_FRAME_SECONDS = 0.65 * 3
+    BACKGROUND_OVERLAY_OPACITY = 255
+    BACKGROUND_MANA_BASE_STRENGTH = 0.18
+    MENU_BACKGROUND_PATH = (
+        Path(__file__).resolve().parent
+        / "resources"
+        / "transparent_background.png"
+    )
+    MATCH_BACKGROUND_PATH = (
+        Path(__file__).resolve().parent
+        / "resources"
+        / "mana_background.png"
+    )
 
     def __init__(self):
         pygame.init()
@@ -129,7 +141,7 @@ class Game():
                 if event.key in (pygame.K_RETURN, pygame.K_SPACE):
                     self.START_KEY      = True
                     self.audio.play_click()
-                elif event.key in (pygame.K_BACKSPACE, pygame.K_ESCAPE):
+                elif event.key == pygame.K_ESCAPE:
                     self.BACK_KEY       = True
                 elif event.key == pygame.K_p:
                     self.PASS_KEY = True
@@ -220,6 +232,43 @@ class Game():
         self.mouse_right_clicked = False
         self.mouse_released = False
         self.mouse_wheel = 0
+
+    @staticmethod
+    def _mix_color(base, tint, strength):
+        return tuple(
+            round(base_channel + (tint_channel - base_channel) * strength)
+            for base_channel, tint_channel in zip(base, tint)
+        )
+
+    def draw_background(self, active_mana=None, *, match=False):
+        """Draw the shared color base and responsive decorative overlay."""
+        mana_key = str(getattr(active_mana, "name", active_mana or "")).upper()
+        mana_color = MANA_COLORS.get(mana_key)
+        background = (
+            self._mix_color(
+                self.palette.background,
+                mana_color,
+                self.BACKGROUND_MANA_BASE_STRENGTH,
+            )
+            if mana_color
+            else self.palette.background
+        )
+        self.display.fill(background)
+        size = (self.DISPLAY_W, self.DISPLAY_H)
+        background_path = (
+            self.MATCH_BACKGROUND_PATH if match else self.MENU_BACKGROUND_PATH
+        )
+        overlay = (
+            self.assets.tinted_cover(
+                background_path,
+                size,
+                mana_color,
+            )
+            if mana_color
+            else self.assets.cover(background_path, size)
+        )
+        overlay.set_alpha(self.BACKGROUND_OVERLAY_OPACITY)
+        self.display.blit(overlay, (0, 0))
 
     def navigate_hand(self, player):
         cards = player.hand.cards
@@ -347,7 +396,68 @@ class Game():
         card = self._card_model_cache[card_id]
         return getattr(card, "image", None) if card else None
 
-    def _draw_card_view(self, card_view, rect, *, selected=False, legal=False, hidden=False):
+    def _draw_card_stat_circle(self, center, value, radius):
+        pygame.draw.circle(self.display, (249, 246, 237), center, radius)
+        pygame.draw.circle(self.display, (48, 48, 55), center, radius, max(1, radius // 6))
+        label = str(max(0, int(value)))
+        font_size = max(9, round(radius * 1.5))
+        font = pygame.font.Font(self.font_name, font_size)
+        rendered = font.render(label, True, (24, 27, 32))
+        while rendered.get_width() > radius * 2 - 2 and font_size > 8:
+            font_size -= 1
+            font = pygame.font.Font(self.font_name, font_size)
+            rendered = font.render(label, True, (24, 27, 32))
+        self.display.blit(rendered, rendered.get_rect(center=center))
+
+    def _draw_card_stats_on_art(self, card_view, rect):
+        """Cover the printed ATK/HP numerals without covering the card text/art."""
+        radius = max(7, min(round(rect.width * 0.076), round(rect.height * 0.064)))
+        top = rect.y + max(radius + 1, round(rect.height * 0.060))
+        inset = max(radius + 1, round(rect.width * 0.098))
+        self._draw_card_stat_circle((rect.x + inset, top), card_view.get("dmg", 0), radius)
+        self._draw_card_stat_circle((rect.right - inset, top), card_view.get("hp", 0), radius)
+
+    def _draw_active_mana_marker(self, card_view, rect, active_mana):
+        bonus = card_view.get("mana_bonus") or {}
+        if (
+            not active_mana
+            or card_view.get("color") != active_mana
+            or not (bonus.get("dmg", 0) or bonus.get("hp", 0))
+        ):
+            return
+        color = MANA_COLORS.get(active_mana)
+        if color is None:
+            return
+        radius = max(5, min(10, rect.width // 15))
+        center = (rect.centerx, rect.y + radius + 3)
+        pygame.draw.circle(self.display, self.palette.text, center, radius + 2)
+        pygame.draw.circle(self.display, color, center, radius)
+        self.draw_text("+", max(10, radius * 2), center[0], center[1], self.palette.text)
+
+    def _draw_owner_marker(self, rect, player_id):
+        radius = max(6, min(9, rect.width // 14))
+        center = (rect.centerx, rect.bottom + radius + 2)
+        pygame.draw.circle(self.display, self.palette.background, center, radius + 2)
+        pygame.draw.circle(self.display, self.palette.accent, center, radius)
+        self.draw_text(str(player_id), max(9, radius + 3), center[0], center[1], self.palette.background)
+
+    @staticmethod
+    def _marked_board_owner(state, mark_current_player):
+        local = state.get("local") or {}
+        opponent = state.get("opponent") or {}
+        if mark_current_player:
+            if state.get("game_state") == "BATTLE":
+                return None, None
+            side = state.get("turn")
+            player = local if side == "local" else opponent if side == "opponent" else {}
+            return side, player.get("id")
+        if local.get("id") == 1:
+            return "local", 1
+        if opponent.get("id") == 1:
+            return "opponent", 1
+        return None, None
+
+    def _draw_card_view(self, card_view, rect, *, selected=False, legal=False, hidden=False, active_mana=None):
         border = self.palette.accent if selected else self.palette.success if legal else self.palette.border
         pygame.draw.rect(self.display, self.palette.panel_alt, rect, border_radius=6)
         pygame.draw.rect(self.display, border, rect, 3 if (selected or legal) else 1, border_radius=6)
@@ -361,28 +471,19 @@ class Game():
             return
         if not card_view:
             return
-        image = self.assets.image(self._card_image_path(card_view), rect.size)
+        image_path = self._card_image_path(card_view)
+        image = self.assets.image(image_path, rect.size)
         self.display.blit(image, rect)
-        shade_height = max(24, rect.height // 4)
-        shade = pygame.Surface((rect.width, shade_height), pygame.SRCALPHA)
-        shade.fill((7, 10, 14, 205))
-        self.display.blit(shade, (rect.x, rect.bottom - shade_height))
-        name_size = max(11, min(self.TEXT_SMALL, rect.width // 7))
-        self.draw_text_left(
-            card_view.get("name", card_view.get("id", "Card")),
-            name_size,
-            rect.x + 4,
-            rect.bottom - shade_height + name_size,
-            max_width=rect.width - 8,
-        )
-        self.draw_text_left(
-            f"ATK {card_view.get('dmg', 0)}  HP {card_view.get('hp', 0)}",
-            name_size,
-            rect.x + 4,
-            rect.bottom - max(7, name_size // 2),
-            self.palette.accent,
-            rect.width - 8,
-        )
+        if not image_path:
+            self.draw_text_left(
+                card_view.get("name", card_view.get("id", "Card")),
+                max(10, min(self.TEXT_SMALL, rect.width // 7)),
+                rect.x + 4,
+                rect.centery,
+                max_width=rect.width - 8,
+            )
+        self._draw_card_stats_on_art(card_view, rect)
+        self._draw_active_mana_marker(card_view, rect, active_mana)
         pygame.draw.rect(self.display, border, rect, 3 if (selected or legal) else 1, border_radius=6)
 
     def _choice_prompt(self, choice_type):
@@ -419,6 +520,7 @@ class Game():
         )
         image = self.assets.image(self._card_image_path(card_view), image_rect.size)
         self.display.blit(image, image_rect)
+        self._draw_card_stats_on_art(card_view, image_rect)
         pygame.draw.rect(self.display, self.palette.border, image_rect, 2, border_radius=8)
 
         text_x = image_rect.right + metrics.margin
@@ -489,11 +591,12 @@ class Game():
         notice="",
         return_destination="menu",
         battle_continue_owner="local",
+        mark_current_player=False,
     ):
         """Draw local or LAN state using one responsive board layout."""
         metrics = self.layout
         self._sync_choice_defaults(choice_type)
-        self.display.fill(self.palette.background)
+        self.draw_background(state.get("mana"), match=True)
         self.hand_card_rects = []
         self.board_slot_rects = []
         self.action_rects = {}
@@ -590,11 +693,12 @@ class Game():
             board_zone.y + metrics.font_small // 2,
             self.palette.muted,
         )
+        marker_band = max(15, metrics.gap + 3)
         board_area = RectSpec(
             board_zone.x,
             board_zone.y + metrics.font_small + 3,
             board_zone.width,
-            max(1, board_zone.height - metrics.font_small - 3),
+            max(1, board_zone.height - metrics.font_small - 3 - marker_band),
         )
         card_w, card_h, gap = metrics.card_size(board_area, 6, minimum_width=32)
         total_w = card_w * 6 + gap * 5
@@ -602,6 +706,7 @@ class Game():
         legal_indices = set()
         if choice_type in ("position", "target"):
             legal_indices = set(getattr(self, "current_legal_indices", []))
+        marked_side, marked_player_id = self._marked_board_owner(state, mark_current_player)
         hovered_card = None
         for index, card in enumerate((state.get("board") or [None] * 6)[:6]):
             rect = pygame.Rect(start_x + index * (card_w + gap), board_area.y, card_w, card_h)
@@ -615,7 +720,10 @@ class Game():
                 rect,
                 selected=self.selected_position == index,
                 legal=index in legal_indices or drag_legal,
+                active_mana=state.get("mana"),
             )
+            if card and card.get("owner") == marked_side and marked_player_id is not None:
+                self._draw_owner_marker(rect, marked_player_id)
             active_battle_slot = (
                 state.get("game_state") == "BATTLE"
                 and battle_event.get("slot") == index
@@ -865,7 +973,7 @@ class Game():
         )
         self._draw_card_view(dragon, dragon_rect, selected=True)
         if challenger:
-            self._draw_card_view(challenger, challenger_rect, selected=True)
+            self._draw_card_view(challenger, challenger_rect, selected=True, active_mana=state.get("mana"))
         else:
             pygame.draw.rect(
                 self.display,
@@ -972,7 +1080,163 @@ class Game():
                 self.selected_card_index = None
         else:
             self.selected_card_index = None
-        self.draw_match_state(state, choice_type, notice="Escape opens leave confirmation")
+        hotseat = (
+            getattr(getattr(self, "p1_controller", None), "kind", None) == ControllerKind.HUMAN
+            and getattr(getattr(self, "p2_controller", None), "kind", None) == ControllerKind.HUMAN
+        )
+        self.draw_match_state(
+            state,
+            choice_type,
+            notice="Escape opens leave confirmation",
+            mark_current_player=hotseat,
+        )
+
+    def _clear_hotseat_private_state(self):
+        """Discard interaction state that could reveal or act on the next hand."""
+        self.selected_card = None
+        self.selected_card_index = None
+        self.selected_position = None
+        self.pending_drop_position = None
+        self.binary_choice = False
+        self.previous_choice_type = None
+        self.interaction_message = ""
+        self.inspected_card_view = None
+        self.hand_card_rects = []
+        self.board_slot_rects = []
+        self.action_rects = {}
+        self.current_legal_indices = []
+        self.drag.cancel()
+
+    def _hotseat_ready_rect(self):
+        metrics = self.layout
+        width = min(420, self.DISPLAY_W - metrics.margin * 4)
+        return pygame.Rect(
+            (self.DISPLAY_W - width) // 2,
+            min(
+                self.DISPLAY_H - metrics.margin - metrics.target_height,
+                self.DISPLAY_H * 2 // 3,
+            ),
+            width,
+            metrics.target_height,
+        )
+
+    def _hotseat_handoff_confirmed(self):
+        return bool(
+            self.START_KEY
+            or (
+                self.mouse_clicked
+                and self._hotseat_ready_rect().collidepoint(self.mouse_position)
+            )
+        )
+
+    def draw_hotseat_handoff(self, player_id):
+        """Draw an opaque privacy screen without serializing either player's hand."""
+        metrics = self.layout
+        self.draw_background()
+        self.hand_card_rects = []
+        self.board_slot_rects = []
+        self.action_rects = {}
+
+        panel_spec = metrics.centered_panel(0.78, 0.68)
+        panel = pygame.Rect(
+            panel_spec.x,
+            panel_spec.y,
+            panel_spec.width,
+            panel_spec.height,
+        )
+        pygame.draw.rect(self.display, self.palette.panel, panel, border_radius=14)
+        pygame.draw.rect(
+            self.display, self.palette.accent, panel, 3, border_radius=14
+        )
+
+        lock_center = (
+            panel.centerx,
+            panel.y + max(metrics.margin * 2, panel.height // 5),
+        )
+        lock_size = max(18, min(38, panel.height // 12))
+        shackle = pygame.Rect(
+            lock_center[0] - lock_size // 2,
+            lock_center[1] - lock_size,
+            lock_size,
+            lock_size,
+        )
+        pygame.draw.arc(
+            self.display,
+            self.palette.accent,
+            shackle,
+            0,
+            3.14159,
+            max(3, lock_size // 7),
+        )
+        body = pygame.Rect(
+            lock_center[0] - lock_size * 3 // 4,
+            lock_center[1] - lock_size // 3,
+            lock_size * 3 // 2,
+            lock_size,
+        )
+        pygame.draw.rect(
+            self.display, self.palette.accent, body, border_radius=6
+        )
+
+        title_y = lock_center[1] + lock_size + metrics.gap
+        self.draw_text(
+            "Pass the device",
+            metrics.font_large,
+            panel.centerx,
+            title_y,
+            self.palette.text,
+        )
+        self.draw_text(
+            f"Player {player_id}'s turn",
+            metrics.font_normal,
+            panel.centerx,
+            title_y + metrics.font_large,
+            self.palette.accent,
+        )
+        self.draw_text(
+            "The board and both hands are hidden during the handoff.",
+            metrics.font_small,
+            panel.centerx,
+            title_y + metrics.font_large + metrics.font_normal * 2,
+            self.palette.muted,
+        )
+
+        ready = self._hotseat_ready_rect()
+        hovered = ready.collidepoint(self.mouse_position)
+        pygame.draw.rect(
+            self.display,
+            self.palette.hover if hovered else self.palette.selected,
+            ready,
+            border_radius=9,
+        )
+        pygame.draw.rect(
+            self.display, self.palette.border, ready, 2, border_radius=9
+        )
+        self.draw_text(
+            "I have the device · Enter",
+            metrics.font_normal,
+            ready.centerx,
+            ready.centery,
+        )
+        self.draw_text(
+            "Escape opens the leave-match confirmation",
+            max(9, metrics.font_small - 2),
+            panel.centerx,
+            panel.bottom - metrics.margin,
+            self.palette.muted,
+        )
+
+    def _draw_local_match_frame(self):
+        if self.logic_error:
+            self.draw_background()
+            self.draw_notice_overlay(
+                "Match could not continue",
+                f"{self.logic_error}  •  Enter or click to return",
+            )
+        elif self.changing_player:
+            self.draw_hotseat_handoff(self.p1.id)
+        else:
+            self.draw_responsive_game()
 
     def _handle_local_mouse_choice(self):
         player = getattr(self, "board", None) and self.board.player_on_turn
@@ -1143,12 +1407,18 @@ class Game():
                     self.p2 = logic_p2 if current_turn is logic_p1 else logic_p1
                     if previous_turn is not None:
                         self.changing_player = True
+                        self._clear_hotseat_private_state()
                 previous_turn = current_turn
 
             if self.previous_game_state != self.board.game_state:
                 self.previous_game_state = self.board.game_state
-            elif (self.START_KEY or self.mouse_clicked) and self.changing_player:
-                self.changing_player    = False
+            elif self.changing_player:
+                if self._hotseat_handoff_confirmed():
+                    self.changing_player = False
+                elif self.BACK_KEY:
+                    if self.confirm_dialog("Leave the active match?"):
+                        self._leave_match(logic_thread, (logic_p1, logic_p2))
+                        return
             elif self.BACK_KEY:
                 if self.confirm_dialog("Leave the active match?"):
                     self._leave_match(logic_thread, (logic_p1, logic_p2))
@@ -1159,20 +1429,7 @@ class Game():
             else:
                 self._handle_local_mouse_choice()
                 self.handle_choice()
-            if self.logic_error:
-                self.display.fill(self.palette.background)
-                self.draw_notice_overlay(
-                    "Match could not continue",
-                    f"{self.logic_error}  •  Enter or click to return",
-                )
-            else:
-                self.draw_responsive_game()
-                if self.changing_player:
-                    self.draw_notice_overlay(
-                        f"Player {self.p1.id}'s turn",
-                        "Pass the device, then press Enter",
-                        color=self.palette.accent,
-                    )
+            self._draw_local_match_frame()
             self.window.blit(self.display, (0,0))
             pygame.display.update()
             self.reset_keys()
@@ -1399,7 +1656,7 @@ class Game():
                 if self.logic_error:
                     self.draw_notice_overlay("LAN connection", self.logic_error)
             else:
-                self.display.fill(self.palette.background)
+                self.draw_background()
                 self.draw_text("Waiting for the host…", self.TEXT_LARGE, self.DISPLAY_W // 2, self.DISPLAY_H // 2)
 
             if self.BACK_KEY and self.confirm_dialog("Leave the active LAN match?"):
@@ -1573,7 +1830,7 @@ class Game():
                 self.reset_keys()
                 return selected
             metrics = self.layout
-            self.display.fill(self.palette.background)
+            self.draw_background()
             panel = metrics.centered_panel(0.68, 0.36)
             rect = pygame.Rect(panel.x, panel.y, panel.width, panel.height)
             pygame.draw.rect(self.display, self.palette.panel, rect, border_radius=12)
