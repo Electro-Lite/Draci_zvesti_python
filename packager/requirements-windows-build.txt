@@ -1,0 +1,4 @@
+# Install these into a clean 64-bit Python 3.12 virtual environment on Windows.
+PyInstaller>=6.10,<7
+pygame>=2.6,<3
+neat-python>=0.92,<2

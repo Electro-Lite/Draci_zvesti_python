@@ -111,13 +111,18 @@ def _file_sha256(path: Path) -> str | None:
 
 def _git_metadata(project_root: Path) -> dict:
     def run_git(*args):
-        completed = subprocess.run(
-            ["git", *args],
-            cwd=project_root,
-            check=False,
-            capture_output=True,
-            text=True,
-        )
+        try:
+            completed = subprocess.run(
+                ["git", *args],
+                cwd=project_root,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        except OSError:
+            # Packaged end-user installations do not require Git. Repository
+            # provenance is optional metadata and must not prevent training.
+            return None
         return completed.stdout.strip() if completed.returncode == 0 else None
 
     return {
