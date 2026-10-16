@@ -60,7 +60,7 @@ class TrainingDraft:
     matches_per_genome: str = "12"
     workers: str = "8"
     holdout_seed_pairs: str = "20"
-    evaluation_games: str = "100"
+    evaluation_games: str = "1000"
     preset_index: int | None = 1
     auto_run_label: bool = True
     run_stamp: str = field(
@@ -81,7 +81,12 @@ def _bounded_segment(value: str, maximum: int) -> str:
 
 
 def default_run_label(kind: TrainingKind, draft: TrainingDraft) -> str:
-    """Return mission_preset_YYMMDD-HH_[decks]_run-id within 64 characters."""
+    """Return a descriptive mission/preset/time/deck label within 64 characters.
+
+    The job service owns the unique run ID. Repeating that ID in this
+    user-facing label wastes the limited width available in the workbench and
+    run library.
+    """
     preset = (
         ("quick", "balanced", "deep")[draft.preset_index]
         if draft.preset_index in range(3)
@@ -89,14 +94,12 @@ def default_run_label(kind: TrainingKind, draft: TrainingDraft) -> str:
     )
     if kind == TrainingKind.PLAYER_DECK:
         prefix = f"counter_{preset}_{draft.run_stamp}_"
-        suffix = f"_{draft.run_id}"
         deck = _run_name_segment(draft.deck_id, "no-deck")
-        deck = _bounded_segment(deck, 64 - len(prefix) - len(suffix))
-        return f"{prefix}{deck}{suffix}"
+        deck = _bounded_segment(deck, 64 - len(prefix))
+        return f"{prefix}{deck}"
     if kind == TrainingKind.MATCHUP_EVALUATION:
         prefix = f"matchup_{preset}_{draft.run_stamp}_"
-        suffix = f"_{draft.run_id}"
-        available = 64 - len(prefix) - len(suffix) - len("-vs-")
+        available = 64 - len(prefix) - len("-vs-")
         first_width = max(1, available // 2)
         second_width = max(1, available - first_width)
         first = _bounded_segment(
@@ -107,8 +110,8 @@ def default_run_label(kind: TrainingKind, draft: TrainingDraft) -> str:
             _run_name_segment(draft.opponent_deck_id, "no-deck"),
             second_width,
         )
-        return f"{prefix}{first}-vs-{second}{suffix}"
-    return f"deck-builder_{preset}_{draft.run_stamp}_{draft.run_id}"
+        return f"{prefix}{first}-vs-{second}"
+    return f"deck-builder_{preset}_{draft.run_stamp}"
 
 
 @dataclass(frozen=True)
@@ -132,7 +135,7 @@ class TrainingCockpitState:
             TrainingKind.PLAYER_DECK: TrainingDraft(
                 deck_id=first,
                 outer_generations="5",
-                evaluation_games="40",
+                evaluation_games="1000",
             ),
             TrainingKind.MATCHUP_EVALUATION: TrainingDraft(
                 deck_id=first,

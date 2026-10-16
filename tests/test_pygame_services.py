@@ -22,6 +22,8 @@ from choice_strategies.choice_strategy_human_pygame import (
 from choice_strategies.choice_strategy_ai_random import ChoiceStrategyAIRandom
 from py_game.deck_advisor import DeckAdvisor
 from py_game.game import Game
+from py_game.menu.basic_play_menu import BasicPlayMenu
+from py_game.menu.deck_menu import DeckMenu
 from py_game.menu.training_menu import TrainingMenu
 from py_game.theme import PALETTE
 from py_game.match_setup import (
@@ -49,6 +51,8 @@ from py_game.ui.training_setup import (
     wilson_interval,
 )
 from py_game.ui.training_cockpit import TrainingCockpitState
+from py_game.ui.layout import LayoutMetrics
+from py_game.ui.widgets import TextInput
 from py_game.ui.training_runs import (
     RunFilters,
     combined_runs,
@@ -60,6 +64,166 @@ from utils.database_utils import DBUtil
 
 
 class PygameServiceTests(unittest.TestCase):
+    def test_deck_management_displays_names_but_keeps_ids_for_actions(self):
+        game = SimpleNamespace(
+            DISPLAY_W=1280,
+            DISPLAY_H=720,
+            TEXT_SMALL=16,
+            TEXT_NORMAL=22,
+            TEXT_LARGE=36,
+        )
+        options = (
+            ("Starter Blue_1", "Starter Blue"),
+            ("user_24f0127", "Killer queen counter"),
+        )
+        with patch.object(DBUtil, "get_all_deck_options", return_value=options):
+            menu = DeckMenu(game)
+
+        self.assertEqual(
+            menu.items,
+            ["Back", "Create deck", "Starter Blue", "Killer queen counter"],
+        )
+        menu.selected = 3
+        self.assertEqual(menu._selected_deck_id(), "user_24f0127")
+
+    def test_local_match_deck_rows_display_names_but_retain_ids(self):
+        menu = BasicPlayMenu.__new__(BasicPlayMenu)
+        menu.deck_options = [
+            ("Starter Blue_1", "Starter Blue"),
+            ("user_24f0127", "Killer queen counter"),
+        ]
+
+        self.assertEqual(menu._deck_label("user_24f0127"), "Killer queen counter")
+        self.assertEqual(menu._deck_label("missing-id"), "missing-id")
+        self.assertEqual(menu._deck_label(None), "Select deck")
+
+    def test_training_deck_fields_display_names_but_requests_retain_ids(self):
+        menu = TrainingMenu.__new__(TrainingMenu)
+        menu.deck_options = [
+            ("user_24f0127", "Killer queen counter"),
+            ("Starter Blue_1", "Starter Blue"),
+        ]
+        request = TrainingRequest(
+            kind=TrainingKind.MATCHUP_EVALUATION,
+            deck_id="user_24f0127",
+            opponent_deck_id="Starter Blue_1",
+        )
+
+        rows = dict(menu._review_rows(request))
+
+        self.assertEqual(rows["Deck A"], "Killer queen counter")
+        self.assertEqual(rows["Deck B"], "Starter Blue")
+        self.assertEqual(request.deck_id, "user_24f0127")
+        self.assertEqual(request.opponent_deck_id, "Starter Blue_1")
+
+    def test_backspace_edits_adoption_name_without_closing_dialog(self):
+        menu = TrainingMenu.__new__(TrainingMenu)
+        menu.game = SimpleNamespace(
+            BACK_KEY=False,
+            LEFT_KEY=False,
+            RIGHT_KEY=False,
+            START_KEY=False,
+            mouse_clicked=False,
+            events=[pg.event.Event(pg.KEYDOWN, key=pg.K_BACKSPACE, unicode="")],
+        )
+        menu.adoption_source = object()
+        menu.adoption_receipt = None
+        menu.adoption_input = TextInput("Copy name", focused=True)
+        menu.adoption_error = ""
+        menu.adoption_conflict_id = None
+        menu.adoption_action = 1
+        menu.adoption_buttons = []
+
+        menu._check_adoption_input()
+
+        self.assertEqual(menu.adoption_input.value, "Copy nam")
+        self.assertIsNotNone(menu.adoption_source)
+
+    def test_only_escape_sets_the_global_back_action(self):
+        game = Game.__new__(Game)
+        game.settings = SimpleNamespace(fullscreen=False)
+        game._quit_prompt_open = False
+        game.BACK_KEY = False
+        with patch(
+            "py_game.game.pygame.event.get",
+            return_value=[pg.event.Event(pg.KEYDOWN, key=pg.K_BACKSPACE, unicode="")],
+        ), patch("py_game.game.pygame.mouse.get_pos", return_value=(0, 0)):
+            game.check_events()
+        self.assertFalse(game.BACK_KEY)
+
+        game.BACK_KEY = False
+        with patch(
+            "py_game.game.pygame.event.get",
+            return_value=[pg.event.Event(pg.KEYDOWN, key=pg.K_ESCAPE, unicode="")],
+        ), patch("py_game.game.pygame.mouse.get_pos", return_value=(0, 0)):
+            game.check_events()
+        self.assertTrue(game.BACK_KEY)
+
+    def test_hotseat_handoff_never_draws_or_serializes_the_next_hand(self):
+        game = Game.__new__(Game)
+        game.logic_error = None
+        game.changing_player = True
+        game.p1 = SimpleNamespace(id=2)
+        game.draw_hotseat_handoff = Mock()
+        game.draw_responsive_game = Mock()
+
+        with patch("py_game.game.serialize_game_state") as serialize:
+            game._draw_local_match_frame()
+
+        game.draw_hotseat_handoff.assert_called_once_with(2)
+        game.draw_responsive_game.assert_not_called()
+        serialize.assert_not_called()
+
+    def test_hotseat_handoff_requires_enter_or_the_ready_button(self):
+        game = Game.__new__(Game)
+        game.layout = LayoutMetrics.from_size(640, 480)
+        game.DISPLAY_W = 640
+        game.DISPLAY_H = 480
+        game.START_KEY = False
+        game.mouse_clicked = True
+        game.mouse_position = (1, 1)
+        self.assertFalse(game._hotseat_handoff_confirmed())
+
+        game.mouse_position = game._hotseat_ready_rect().center
+        self.assertTrue(game._hotseat_handoff_confirmed())
+
+        game.mouse_clicked = False
+        game.mouse_position = (1, 1)
+        game.START_KEY = True
+        self.assertTrue(game._hotseat_handoff_confirmed())
+
+    def test_hotseat_transition_clears_private_interaction_state(self):
+        game = Game.__new__(Game)
+        game.selected_card = object()
+        game.selected_card_index = 3
+        game.selected_position = 4
+        game.pending_drop_position = 2
+        game.binary_choice = True
+        game.previous_choice_type = "card"
+        game.interaction_message = "secret"
+        game.inspected_card_view = {"name": "Hidden card"}
+        game.hand_card_rects = [object()]
+        game.board_slot_rects = [object()]
+        game.action_rects = {"pass": object()}
+        game.current_legal_indices = [1, 2]
+        game.drag = Mock()
+
+        game._clear_hotseat_private_state()
+
+        self.assertIsNone(game.selected_card)
+        self.assertIsNone(game.selected_card_index)
+        self.assertIsNone(game.selected_position)
+        self.assertIsNone(game.pending_drop_position)
+        self.assertFalse(game.binary_choice)
+        self.assertIsNone(game.previous_choice_type)
+        self.assertEqual(game.interaction_message, "")
+        self.assertIsNone(game.inspected_card_view)
+        self.assertEqual(game.hand_card_rects, [])
+        self.assertEqual(game.board_slot_rects, [])
+        self.assertEqual(game.action_rects, {})
+        self.assertEqual(game.current_legal_indices, [])
+        game.drag.cancel.assert_called_once_with()
+
     def test_training_about_guide_covers_every_configurable_setting(self):
         headings = {
             heading
@@ -103,7 +267,8 @@ class PygameServiceTests(unittest.TestCase):
         workload = training_workload(request)
 
         self.assertEqual(balanced.label, "Balanced")
-        self.assertIn("13,000 simulated games", workload.headline)
+        self.assertEqual(balanced.evaluation_games, 1_000)
+        self.assertIn("109,000 simulated games", workload.headline)
         self.assertTrue(any("persistent controller generations" in line for line in workload.details))
 
         matchup = MATCHUP_PRESETS[1]
@@ -117,7 +282,8 @@ class PygameServiceTests(unittest.TestCase):
                 evaluation_games=matchup.evaluation_games,
             )
         )
-        self.assertIn("9,400 simulated games", matchup_workload.headline)
+        self.assertEqual(matchup.evaluation_games, 1_000)
+        self.assertIn("13,000 simulated games", matchup_workload.headline)
 
     @staticmethod
     def _cockpit_menu(service):
@@ -258,6 +424,29 @@ class PygameServiceTests(unittest.TestCase):
         )
 
         self.assertEqual(runs, [job, self._run_summary(11)])
+        self.assertEqual(
+            TrainingMenu._run_library_label(job),
+            "Run 12  [completed]",
+        )
+        self.assertEqual(
+            TrainingMenu._run_library_label(self._run_summary(11)),
+            "DB 11  Run 11  [completed]",
+        )
+
+    def test_run_library_font_shrinks_to_fit_long_automatic_labels(self):
+        pg.font.init()
+        menu = TrainingMenu.__new__(TrainingMenu)
+        menu.game = SimpleNamespace(font_name=None)
+        label = (
+            "20260926-143916-matchup_deep_260926-14_Killer-Queen-1-vs-"
+            "Killer-Queen-1  matchup_deep_260926-14_Killer-Queen-1-vs-"
+            "Killer-Queen-1  [completed]"
+        )
+
+        size = menu._fitted_text_size(label, 24, 600, minimum=6)
+
+        self.assertLess(size, 24)
+        self.assertLessEqual(pg.font.Font(None, size).size(label)[0], 600)
 
     def test_run_library_search_filters_sorting_and_ten_item_pages(self):
         runs = [self._run_summary(index) for index in range(1, 24)]
@@ -309,6 +498,100 @@ class PygameServiceTests(unittest.TestCase):
 
         self.assertEqual(menu.view, "setup")
         self.assertEqual(menu.selected, 1)
+
+    def test_training_job_opens_its_dashboard(self):
+        job = TrainingJob(
+            job_id="ui-run",
+            request={},
+            command=["trainer"],
+            created_at="2026-09-25T10:00:00",
+            status="completed",
+            pid=None,
+            log_path="training.log",
+            progress_path="progress.log",
+            summary_path="summary.json",
+        )
+        menu = TrainingMenu.__new__(TrainingMenu)
+        menu._start_insight_refresh = Mock()
+
+        menu._activate_run(job)
+
+        self.assertEqual(menu.view, "dashboard")
+        self.assertIs(menu.dashboard_item, job)
+        menu._start_insight_refresh.assert_called_once_with(job)
+
+    def test_counter_and_builder_runs_route_to_independent_detail_pages(self):
+        menu = TrainingMenu.__new__(TrainingMenu)
+        menu.dashboard_insights = None
+        menu.dashboard_item = SimpleNamespace(
+            request={"kind": TrainingKind.PLAYER_DECK.value}
+        )
+        self.assertEqual(menu._dashboard_pages(), ("Counters",))
+        menu.dashboard_item = SimpleNamespace(
+            request={"kind": TrainingKind.DECK_BUILDER.value}
+        )
+        self.assertEqual(
+            menu._dashboard_pages(),
+            ("Run pulse", "Population", "Matchups", "Composition", "Research"),
+        )
+
+    def test_counter_adoption_uses_selected_candidate_not_default_candidate(self):
+        top = SimpleNamespace(
+            key="top",
+            deck=SimpleNamespace(
+                deck_id="top-id",
+                name="Top candidate",
+                cards=(SimpleNamespace(card_id="top-card", copies=10),),
+            ),
+        )
+        selected = SimpleNamespace(
+            key="selected",
+            deck=SimpleNamespace(
+                deck_id="selected-id",
+                name="Selected candidate",
+                cards=(SimpleNamespace(card_id="selected-card", copies=10),),
+            ),
+        )
+        detail = SimpleNamespace(
+            candidates=(top, selected),
+            default_candidate_key="top",
+            candidate=lambda key: {"top": top, "selected": selected}.get(key),
+        )
+        menu = TrainingMenu.__new__(TrainingMenu)
+        menu.dashboard_insights = SimpleNamespace(counter=detail)
+        menu.counter_candidate_key = "selected"
+        menu._begin_adoption = Mock()
+
+        menu._adopt_counter_selected()
+
+        source = menu._begin_adoption.call_args.args[0]
+        self.assertEqual(source.source_id, "selected-id")
+        self.assertEqual(source.card_ids, ("selected-card",) * 10)
+
+    def test_evolution_adoption_uses_browser_selection_not_default_deck(self):
+        top = SimpleNamespace(
+            deck_id="top-id", name="Top deck", card_ids=("top-card",) * 10
+        )
+        selected = SimpleNamespace(
+            deck_id="selected-id",
+            name="Selected deck",
+            card_ids=("selected-card",) * 10,
+        )
+        detail = SimpleNamespace(
+            decks=(top, selected),
+            default_deck_id="top-id",
+            training_id=17,
+            deck=lambda key: {"top-id": top, "selected-id": selected}.get(key),
+        )
+        menu = TrainingMenu.__new__(TrainingMenu)
+        menu.evolution_selected_deck_id = "selected-id"
+        menu._begin_adoption = Mock()
+
+        menu._activate_evolution_button("adopt", detail)
+
+        source = menu._begin_adoption.call_args.args[0]
+        self.assertEqual(source.source_id, "selected-id")
+        self.assertEqual(source.card_ids, ("selected-card",) * 10)
 
     def test_human_turn_opens_as_card_or_pass_and_preselects_the_card(self):
         card = object()
@@ -1029,7 +1312,7 @@ class PygameServiceTests(unittest.TestCase):
         self.assertEqual(insights.total_evaluation_games, 60)
         self.assertEqual(
             menu._dashboard_pages(),
-            ("Overview", "Learning", "Evaluation", "Conclusions"),
+            ("Duel",),
         )
 
 

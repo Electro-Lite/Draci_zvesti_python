@@ -10,7 +10,24 @@ from typing import TYPE_CHECKING
 
 import pygame as pg
 
+from neat_ai.player_artifacts import discover_player_artifacts as discover_manifest_artifacts
 from neat_ai.training_plan import matchup_checkpoints
+from py_game.counter_presentation import (
+    COMPARISON_TARGET,
+    CounterCandidate,
+    CounterDeckSnapshot,
+    CounterPresentation,
+    counter_bar_segments,
+)
+from py_game.deck_editor import DeckBuilderMenu
+from py_game.deck_adoption import (
+    AdoptableDeck,
+    AdoptionReceipt,
+    DeckAdoptionConflict,
+    DeckAdoptionError,
+    DeckAdoptionService,
+)
+from py_game.evolution_presentation import EvolutionDeck, EvolutionPresentation
 from py_game.menu.base_menu import Menu
 from py_game.training_service import (
     TrainingKind,
@@ -23,6 +40,10 @@ from py_game.training_service import (
 )
 from utils.database_utils import DBUtil
 from py_game.ui.layout import RectSpec
+from py_game.ui.counter_dashboard import counter_dashboard_layout
+from py_game.ui.evolution_dashboard import evolution_dashboard_layout
+from py_game.ui.matchup_dashboard import matchup_dashboard_layout
+from py_game.ui.training_progress import training_progress_layout
 from py_game.ui.training_dashboard import training_dashboard_layout
 from py_game.ui.training_cockpit import (
     TrainingCockpitState,
@@ -51,6 +72,17 @@ from py_game.ui.training_runs import (
     run_title,
 )
 from py_game.ui.widgets import Button, TextInput
+from py_game.training_lifecycle import (
+    ACTIVE_STATUSES,
+    ArenaDestination,
+    ResultArtifactStatus,
+    arena_destination,
+    eta_label,
+    mission_progress_name,
+    mission_result_label,
+    overall_progress,
+    progress_levels,
+)
 
 if TYPE_CHECKING:
     from py_game.game import Game
@@ -64,7 +96,7 @@ class TrainingMenu(Menu):
     WORKERS = [4, 8, 12]
     MATCH_COUNTS = [4, 8, 12]
     HOLDOUT_COUNTS = [5, 10, 20]
-    EVALUATION_GAMES = [20, 100, 300]
+    EVALUATION_GAMES = [100, 1_000, 2_000]
     BUILDER_DASHBOARD_PAGES = ("Overview", "Population", "Matchups", "Conclusions")
     PLAYER_DASHBOARD_PAGES = ("Overview", "Learning", "Evaluation", "Conclusions")
     DASHBOARD_PAGES = BUILDER_DASHBOARD_PAGES
@@ -83,7 +115,7 @@ class TrainingMenu(Menu):
                 ("Deck under test", "Your selected deck stays fixed while a population evolves decks designed to counter it."),
                 ("Counter generations", "How many generations of counter-deck candidates survive, mutate, and improve."),
                 ("Controller generations", "Both sides keep the same evolving controller populations across every counter generation; progress is not reset between opponents."),
-                ("Games per counter", "Validation games played against each candidate counter deck. More games stabilize win rates but increase work linearly."),
+                ("Games per counter", "Use at least 1,000 seat-balanced games for a comparison run. Smaller diagnostics remain exploratory."),
                 ("Results", "Overall deck win rate aggregates the final counter population; Top counter is the opponent deck with the highest win rate against your deck."),
             ),
         ),
@@ -93,7 +125,7 @@ class TrainingMenu(Menu):
             (
                 ("Deck A and Deck B", "The two fixed decks whose controllers learn directly against each other."),
                 ("Controller generations", "Both player populations evolve together; checkpoint results show how the matchup changes as play improves."),
-                ("Games per checkpoint", "Seat-balanced holdout games used to calculate each generation checkpoint's win rate."),
+                ("Games per checkpoint", "Use at least 1,000 seat-balanced holdout games for comparison; smaller checkpoints remain exploratory."),
                 ("What it answers", "Use this when you want a direct deck-vs-deck win-rate curve rather than new deck construction."),
                 ("Workers", "Parallel match processes; 4 is gentle, 8 balanced, and 12 suits a capable machine."),
             ),
@@ -114,9 +146,9 @@ class TrainingMenu(Menu):
             "Recommended missions",
             "Choose the cost and confidence level you actually need",
             (
-                ("Quick smoke test", "10 player generations, 4 workers, 20 evaluation games; verify the pipeline."),
-                ("Balanced counter lab", "5 counter generations, 40 persistent controller generations, and 40 games per candidate."),
-                ("Balanced matchup", "40 generations, 8 workers, and 100 seat-balanced games per checkpoint."),
+                ("Quick smoke test", "10 player generations, 4 workers, 100 evaluation games; exploratory pipeline check."),
+                ("Balanced counter lab", "5 counter generations, 40 persistent controller generations, and 1,000 games per candidate."),
+                ("Balanced matchup", "40 generations, 8 workers, and 1,000 seat-balanced games per checkpoint."),
                 ("Deck-builder rehearsal", "1 outer generation, 50 inner, 12 matches, one seed; catch setup issues."),
                 ("Final deck study", "10 outer, 65 inner, 12 matches, four seeds, 20 holdouts; expect a long run."),
                 ("Arena sections", "Overview shows live operation; Learning, Evaluation, and Conclusions explain results."),
@@ -130,7 +162,8 @@ class TrainingMenu(Menu):
         self.service = getattr(game, "training_service", None) or TrainingService()
         self.view = "setup"
         self.selected = 0
-        self.deck_ids = DBUtil().get_all_deck_ids()
+        self.deck_options = DBUtil().get_all_deck_options()
+        self.deck_ids = [deck_id for deck_id, _name in self.deck_options]
         self.cockpit = TrainingCockpitState(self.deck_ids)
         self.setup_focus_key = "mission_counter"
         self.setup_scroll = 0
@@ -185,6 +218,32 @@ class TrainingMenu(Menu):
         self.dashboard_telemetry = None
         self.dashboard_insights = None
         self.dashboard_buttons = []
+        self.dashboard_scroll = 0
+        self.dashboard_max_scroll = 0
+        self.dashboard_watching_live = False
+        self.dashboard_results_opened = False
+        self.dashboard_artifact_status = None
+        self.counter_candidate_key = None
+        self.counter_candidate_scroll = 0
+        self.counter_candidate_keys = ()
+        self.counter_candidate_rects = []
+        self.counter_candidate_viewport = None
+        self.counter_candidate_capacity = 1
+        self.counter_focus = "candidates"
+        self.evolution_selected_deck_id = None
+        self.evolution_generation_filter = None
+        self.evolution_deck_scroll = 0
+        self.evolution_deck_keys = ()
+        self.evolution_deck_rects = []
+        self.evolution_deck_viewport = None
+        self.evolution_focus = "decks"
+        self.adoption_source = None
+        self.adoption_input = TextInput(max_length=32)
+        self.adoption_error = ""
+        self.adoption_conflict_id = None
+        self.adoption_receipt = None
+        self.adoption_buttons = []
+        self.adoption_action = 1
         self._insight_results = queue.Queue()
         self._insight_thread = None
         self.about_page = 0
@@ -256,9 +315,25 @@ class TrainingMenu(Menu):
             (f"Mission: {self._mission_label(self.kind)}", "mission"),
             (f"Preset: {self._preset_label()}", "preset"),
         ]
-        rows.extend((f"{key}: {self.cockpit.value(key)}", key) for key in self.cockpit.field_keys)
+        for key in self.cockpit.field_keys:
+            value = self.cockpit.value(key)
+            if key in {"deck_id", "opponent_deck_id"}:
+                value = self._deck_label(value)
+            rows.append((f"{key}: {value}", key))
         rows.append(("Review and launch", "launch" if validation.valid else "invalid"))
         return rows
+
+    def _deck_label(self, deck_id: str | None) -> str:
+        if not deck_id:
+            return "No decks available"
+        return next(
+            (
+                name
+                for current_id, name in getattr(self, "deck_options", ())
+                if current_id == deck_id
+            ),
+            deck_id,
+        )
 
     def _run_rows(self):
         return [
@@ -316,11 +391,24 @@ class TrainingMenu(Menu):
         return {"back": back, "search": search, "toolbar": toolbar, "list": listing}
 
     @staticmethod
-    def _short_run_label(item, max_chars):
-        label = f"{run_id(item)}  {run_title(item)}  [{run_status(item)}]"
-        if len(label) <= max_chars:
-            return label
-        return label[: max(1, max_chars - 1)].rstrip() + "…"
+    def _run_library_label(item):
+        # UI job IDs already contain the run label, so showing both repeats the
+        # same long text and forces it to an unreadably small size. Database
+        # runs retain their compact "DB N" identity because it is not part of
+        # their title.
+        identity = "" if isinstance(item, TrainingJob) else f"{run_id(item)}  "
+        return f"{identity}{run_title(item)}  [{run_status(item)}]"
+
+    def _fitted_text_size(self, text, preferred_size, max_width, minimum=8):
+        """Choose the largest font size whose rendered text fits max_width."""
+        size = max(minimum, int(preferred_size))
+        while (
+            size > minimum
+            and pg.font.Font(self.game.font_name, size).size(str(text))[0]
+            > max_width
+        ):
+            size -= 1
+        return size
 
     def _prepare_run_view(self):
         layout = self._run_library_layout()
@@ -382,12 +470,11 @@ class TrainingMenu(Menu):
             layout["list"],
             gap=row_gap,
         )
-        max_chars = max(24, layout["list"].width // max(7, metrics.font_normal // 2))
         for index, (item, rect) in enumerate(zip(page_items, rows)):
             self.run_buttons.append(
                 Button(
                     f"run:{index}",
-                    self._short_run_label(item, max_chars),
+                    self._run_library_label(item),
                     rect,
                     selected=index == self.run_selected,
                     hovered=rect.contains(mouse),
@@ -653,6 +740,7 @@ class TrainingMenu(Menu):
                 (
                     start + offset,
                     deck_id,
+                    self._deck_label(deck_id),
                     RectSpec(
                         panel.x + self.game.layout.gap,
                         panel.y + 62 + offset * (row_height + 4),
@@ -683,7 +771,7 @@ class TrainingMenu(Menu):
             return
         if self.game.mouse_clicked:
             _panel, rows = self._picker_panel()
-            for index, deck_id, rect in rows:
+            for index, deck_id, _deck_name, rect in rows:
                 if rect.contains(self.game.mouse_position):
                     self.setup_picker_index = index
                     self.cockpit.set_value(self.setup_picker_key, deck_id, user_edit=False)
@@ -826,18 +914,16 @@ class TrainingMenu(Menu):
         )
         value = self.cockpit.value(key)
         if key in {"deck_id", "opponent_deck_id"}:
-            value = (value or "No decks available") + ("  v" if self.deck_ids else "")
+            value = self._deck_label(value) + ("  v" if self.deck_ids else "")
         if editing:
             value += " |"
         value_size = max(13, self.game.layout.font_normal - 3)
         if key == "run_label":
-            available_width = max(1, rect.width - 20)
-            while (
-                value_size > 8
-                and pg.font.Font(self.game.font_name, value_size).size(value)[0]
-                > available_width
-            ):
-                value_size -= 1
+            value_size = self._fitted_text_size(
+                value,
+                value_size,
+                max(1, rect.width - 20),
+            )
         self.game.draw_text_left(
             value or " ",
             value_size,
@@ -861,7 +947,7 @@ class TrainingMenu(Menu):
             return (
                 ("MISSION", "Counter-deck training"),
                 ("PRESET", self.cockpit.preset_label),
-                ("DECK UNDER TEST", request.deck_id if request else self.cockpit.value("deck_id")),
+                ("DECK UNDER TEST", self._deck_label(request.deck_id if request else self.cockpit.value("deck_id"))),
                 ("COUNTER EVOLUTION", f"{request.outer_generations} generations" if request else self.cockpit.value("outer_generations")),
                 ("CONTROLLER LEARNING", f"{request.evaluator_generations} persistent generations" if request else self.cockpit.value("evaluator_generations")),
                 ("VALIDATION", f"{request.evaluation_games} games/counter" if request else f"{self.cockpit.value('evaluation_games')} games/counter"),
@@ -870,8 +956,8 @@ class TrainingMenu(Menu):
             return (
                 ("MISSION", "Two-deck matchup"),
                 ("PRESET", self.cockpit.preset_label),
-                ("DECK A", request.deck_id if request else self.cockpit.value("deck_id")),
-                ("DECK B", request.opponent_deck_id if request else self.cockpit.value("opponent_deck_id")),
+                ("DECK A", self._deck_label(request.deck_id if request else self.cockpit.value("deck_id"))),
+                ("DECK B", self._deck_label(request.opponent_deck_id if request else self.cockpit.value("opponent_deck_id"))),
                 ("CONTROLLER LEARNING", str(request.evaluator_generations) if request else self.cockpit.value("evaluator_generations")),
                 ("CHECKPOINT", f"{request.evaluation_games} seat-balanced games" if request else self.cockpit.value("evaluation_games")),
             )
@@ -976,7 +1062,7 @@ class TrainingMenu(Menu):
                 self.game.palette.muted,
                 panel.width - self.game.layout.gap * 2,
             )
-        labels = ["Quick check", "Balanced", "Deep study", "Custom"]
+        labels = [preset.label for preset in presets_for(self.kind)] + ["Custom"]
         active = self.cockpit.draft.preset_index
         for index, label in enumerate(labels):
             self._draw_setup_button(
@@ -1155,20 +1241,19 @@ class TrainingMenu(Menu):
         self._draw_cockpit_panel(panel, accent=self.game.palette.accent)
         self.game.draw_text_left("Select deck", self.game.layout.font_normal, panel.x + self.game.layout.gap, panel.y + 27, self.game.palette.text, panel.width - self.game.layout.gap * 2)
         font = pg.font.Font(self.game.font_name, max(12, self.game.layout.font_small))
-        for index, deck_id, rect in rows:
+        for index, _deck_id, deck_name, rect in rows:
             Button(
                 str(index),
-                deck_id,
+                deck_name,
                 rect,
                 selected=index == self.setup_picker_index,
                 hovered=rect.contains(self.game.mouse_position),
             ).draw(self.game.display, font, self.game.palette)
 
-    @staticmethod
-    def _review_rows(request):
+    def _review_rows(self, request):
         if request.kind == TrainingKind.PLAYER_DECK:
             return (
-                ("Deck under test", request.deck_id),
+                ("Deck under test", self._deck_label(request.deck_id)),
                 ("Counter generations", request.outer_generations),
                 ("Persistent controller generations", request.evaluator_generations),
                 ("Workers", request.workers),
@@ -1180,8 +1265,8 @@ class TrainingMenu(Menu):
                 map(str, matchup_checkpoints(request.evaluator_generations))
             )
             return (
-                ("Deck A", request.deck_id),
-                ("Deck B", request.opponent_deck_id),
+                ("Deck A", self._deck_label(request.deck_id)),
+                ("Deck B", self._deck_label(request.opponent_deck_id)),
                 ("Controller generations", request.evaluator_generations),
                 ("Workers", request.workers),
                 ("Games / checkpoint", request.evaluation_games),
@@ -1266,8 +1351,22 @@ class TrainingMenu(Menu):
                             None,
                         )
                     if replacement is not None:
+                        previous_status = str(
+                            getattr(self.dashboard_item, "status", "") or ""
+                        ).lower()
                         self.dashboard_item = replacement
                         self.dashboard_telemetry = None
+                        replacement_status = str(
+                            getattr(replacement, "status", "") or ""
+                        ).lower()
+                        if (
+                            replacement_status == "completed"
+                            and previous_status != "completed"
+                        ):
+                            self.dashboard_artifact_status = None
+                            self.dashboard_insights = None
+                        if replacement_status == "completed":
+                            self._start_insight_refresh(replacement)
             else:
                 self.message = f"Could not refresh runs: {result[1]}"
                 self.message_color = (235, 105, 105)
@@ -1363,8 +1462,7 @@ class TrainingMenu(Menu):
         self.setup_review_request = None
         self.message = f"Started {value.job_id}"
         self.message_color = (105, 210, 150)
-        self.view = "runs"
-        self.selected = 2
+        self._activate_run(value, watched_live=True)
         self._refresh_runs(force=True)
 
     def _can_stop_dashboard_job(self):
@@ -1391,6 +1489,8 @@ class TrainingMenu(Menu):
             return
         self.message = "Stopping training safely…"
         self.message_color = self.game.palette.muted
+        job.status = "stopping"
+        self.dashboard_telemetry = None
 
         def stop():
             try:
@@ -1466,8 +1566,8 @@ class TrainingMenu(Menu):
             }
             self._activate_setup_control(aliases.get(key, key))
 
-    def _activate_run(self, value):
-        if value in {"back", "setup"}:
+    def _activate_run(self, value, *, watched_live=False):
+        if value == "back" or value == "setup":
             self.view = "setup"
             self.selected = 1
         else:
@@ -1476,9 +1576,30 @@ class TrainingMenu(Menu):
             self.dashboard_page = 0
             self.dashboard_telemetry = None
             self.dashboard_insights = None
+            self.dashboard_scroll = 0
+            self.dashboard_max_scroll = 0
+            self.dashboard_watching_live = bool(watched_live)
+            self.dashboard_results_opened = False
+            self.dashboard_artifact_status = None
+            self.counter_candidate_key = None
+            self.counter_candidate_scroll = 0
+            self.counter_candidate_keys = ()
+            self.counter_candidate_rects = []
+            self.counter_candidate_viewport = None
+            self.counter_candidate_capacity = 1
+            self.counter_focus = "candidates"
+            self.evolution_selected_deck_id = None
+            self.evolution_generation_filter = None
+            self.evolution_deck_scroll = 0
+            self.evolution_deck_keys = ()
+            self.evolution_deck_rects = []
+            self.evolution_deck_viewport = None
+            self.evolution_focus = "decks"
+            self._close_adoption()
             self._dashboard_last_refresh = -1000
             self.view = "dashboard"
-            self._start_insight_refresh(value)
+            if str(getattr(value, "status", "")).lower() == "completed":
+                self._start_insight_refresh(value)
 
     def _start_insight_refresh(self, item):
         if self._insight_thread is not None and self._insight_thread.is_alive():
@@ -1487,14 +1608,20 @@ class TrainingMenu(Menu):
 
         def analyze():
             try:
+                artifact = self.service.result_artifact_status(item)
+                if not artifact.ready:
+                    self._insight_results.put(
+                        ("artifact", item_key, artifact, None)
+                    )
+                    return
                 insights = (
                     self.service.database_insights(item)
                     if isinstance(item, TrainingRunSummary)
                     else self.service.job_insights(item)
                 )
-                self._insight_results.put(("ok", item_key, insights))
-            except (OSError, RuntimeError, sqlite3.Error) as error:
-                self._insight_results.put(("error", item_key, str(error)))
+                self._insight_results.put(("ok", item_key, artifact, insights))
+            except (OSError, RuntimeError, ValueError, sqlite3.Error) as error:
+                self._insight_results.put(("error", item_key, None, str(error)))
 
         self._insight_thread = threading.Thread(
             target=analyze,
@@ -1505,7 +1632,7 @@ class TrainingMenu(Menu):
 
     def _consume_insight_result(self):
         try:
-            status, item_key, value = self._insight_results.get_nowait()
+            status, item_key, artifact, value = self._insight_results.get_nowait()
         except queue.Empty:
             return
         current_key = getattr(
@@ -1515,9 +1642,16 @@ class TrainingMenu(Menu):
         )
         if item_key != current_key:
             return
+        if artifact is not None:
+            self.dashboard_artifact_status = artifact
         if status == "ok":
             self.dashboard_insights = value
+        elif status == "artifact":
+            self.dashboard_insights = None
         else:
+            self.dashboard_artifact_status = ResultArtifactStatus.invalid(
+                f"Results could not be loaded: {value}"
+            )
             self.dashboard_insights = TrainingInsights(
                 conclusions=(f"Analytics could not be loaded: {value}",)
             )
@@ -1731,7 +1865,20 @@ class TrainingMenu(Menu):
             "Training Runs",
             f"Active and completed experiments · {len(queried)} matches · 10 per page",
         )
-        self.draw_buttons(self.run_buttons)
+        for button in self.run_buttons:
+            size = self.game.layout.font_normal
+            if button.key.startswith("run:"):
+                size = self._fitted_text_size(
+                    button.label,
+                    size,
+                    max(1, button.rect.width - self.game.layout.gap * 2),
+                    minimum=6,
+                )
+            button.draw(
+                self.game.display,
+                pg.font.Font(self.game.font_name, size),
+                self.game.palette,
+            )
 
         search = pg.Rect(
             layout["search"].x,
@@ -1978,6 +2125,22 @@ class TrainingMenu(Menu):
         self.draw_buttons(self.about_buttons)
 
     def _check_dashboard_input(self):
+        if self.adoption_source is not None or self.adoption_receipt is not None:
+            self._check_adoption_input()
+            return
+        destination = self._arena_destination()
+        if destination != ArenaDestination.RESULTS:
+            self._check_progress_input(destination)
+            return
+        if self._dashboard_kind() == TrainingKind.PLAYER_DECK.value:
+            self._check_counter_dashboard_input()
+            return
+        if self._dashboard_kind() == TrainingKind.MATCHUP_EVALUATION.value:
+            self._check_mission_dashboard_input()
+            return
+        if self._dashboard_kind() == TrainingKind.DECK_BUILDER.value:
+            self._check_evolution_dashboard_input()
+            return
         pages = self._dashboard_pages()
         if self.game.BACK_KEY:
             self.view = "runs"
@@ -2009,6 +2172,646 @@ class TrainingMenu(Menu):
         if self.game.START_KEY:
             self.dashboard_page = (self.dashboard_page + 1) % len(pages)
 
+    def _arena_destination(self):
+        item = self.dashboard_item
+        return arena_destination(
+            str(getattr(item, "status", "pending") or "pending"),
+            watched_live=getattr(self, "dashboard_watching_live", False),
+            results_opened=getattr(self, "dashboard_results_opened", False),
+            artifact=getattr(self, "dashboard_artifact_status", None),
+        )
+
+    def _open_dashboard_log(self):
+        item = self.dashboard_item
+        if not isinstance(item, TrainingJob):
+            self.show_lines(
+                "Historical run",
+                (getattr(item, "detail", "No local process log is linked."),),
+            )
+            return
+        lines = self.service.tail(item.log_path, 12)
+        self.show_lines(item.job_id, lines or ("No trainer messages recorded yet",))
+
+    def _check_progress_input(self, destination):
+        if self.game.BACK_KEY:
+            self.view = "runs"
+            self.dashboard_item = None
+            return
+        step = max(48, self.game.layout.target_height)
+        if self.game.UP_KEY:
+            self.dashboard_scroll -= step
+        elif self.game.DOWN_KEY:
+            self.dashboard_scroll += step
+        for event in self.game.events:
+            if event.type == pg.KEYDOWN and event.key == pg.K_PAGEUP:
+                self.dashboard_scroll -= self.game.DISPLAY_H // 2
+            elif event.type == pg.KEYDOWN and event.key == pg.K_PAGEDOWN:
+                self.dashboard_scroll += self.game.DISPLAY_H // 2
+            elif event.type == pg.KEYDOWN and event.key == pg.K_HOME:
+                self.dashboard_scroll = 0
+            elif event.type == pg.KEYDOWN and event.key == pg.K_END:
+                self.dashboard_scroll = self.dashboard_max_scroll
+        if self.game.mouse_wheel:
+            self.dashboard_scroll -= self.game.mouse_wheel * step
+        self.dashboard_scroll = max(
+            0, min(self.dashboard_scroll, self.dashboard_max_scroll)
+        )
+        if self.dashboard_buttons:
+            if self.game.LEFT_KEY:
+                self.dashboard_action = (self.dashboard_action - 1) % len(
+                    self.dashboard_buttons
+                )
+            elif self.game.RIGHT_KEY:
+                self.dashboard_action = (self.dashboard_action + 1) % len(
+                    self.dashboard_buttons
+                )
+        selected = None
+        if self.game.mouse_clicked:
+            selected = next(
+                (
+                    button
+                    for button in self.dashboard_buttons
+                    if button.hit_test(self.game.mouse_position)
+                ),
+                None,
+            )
+        elif self.game.START_KEY and self.dashboard_buttons:
+            selected = self.dashboard_buttons[
+                self.dashboard_action % len(self.dashboard_buttons)
+            ]
+        if selected is None or not selected.enabled:
+            return
+        if selected.key == "back":
+            self.view = "runs"
+            self.dashboard_item = None
+        elif selected.key == "log":
+            self._open_dashboard_log()
+        elif selected.key == "stop":
+            self._stop_dashboard_job()
+        elif selected.key == "open_results":
+            self.dashboard_results_opened = True
+            self.dashboard_scroll = 0
+            self.dashboard_action = 0
+
+    def _check_mission_dashboard_input(self):
+        """Keyboard, wheel, and footer controls shared by mission detail views."""
+        if self.game.BACK_KEY:
+            self.view = "runs"
+            self.dashboard_item = None
+            return
+        scroll_step = max(48, self.game.layout.target_height)
+        if self.game.UP_KEY:
+            self.dashboard_scroll -= scroll_step
+        elif self.game.DOWN_KEY:
+            self.dashboard_scroll += scroll_step
+        if self.game.mouse_wheel:
+            self.dashboard_scroll -= self.game.mouse_wheel * scroll_step
+        self.dashboard_scroll = max(
+            0, min(self.dashboard_scroll, self.dashboard_max_scroll)
+        )
+
+        if self.dashboard_buttons:
+            if self.game.LEFT_KEY:
+                self.dashboard_action = (self.dashboard_action - 1) % len(
+                    self.dashboard_buttons
+                )
+            elif self.game.RIGHT_KEY:
+                self.dashboard_action = (self.dashboard_action + 1) % len(
+                    self.dashboard_buttons
+                )
+            self.dashboard_action %= len(self.dashboard_buttons)
+
+        selected = None
+        if self.game.mouse_clicked:
+            selected = next(
+                (
+                    button
+                    for button in self.dashboard_buttons
+                    if button.hit_test(self.game.mouse_position)
+                ),
+                None,
+            )
+        elif self.game.START_KEY and self.dashboard_buttons:
+            selected = self.dashboard_buttons[self.dashboard_action]
+        if selected is None:
+            return
+        if selected.key == "back":
+            self.view = "runs"
+            self.dashboard_item = None
+        elif selected.key == "stop":
+            self._stop_dashboard_job()
+
+    def _check_counter_dashboard_input(self):
+        if self.game.BACK_KEY:
+            self.view = "runs"
+            self.dashboard_item = None
+            return
+        scroll_step = max(48, self.game.layout.target_height)
+        for event in self.game.events:
+            if event.type != pg.KEYDOWN:
+                continue
+            if event.key == pg.K_TAB:
+                self.counter_focus = (
+                    "footer" if self.counter_focus == "candidates" else "candidates"
+                )
+            elif event.key == pg.K_PAGEUP:
+                self.dashboard_scroll -= max(scroll_step, self.game.DISPLAY_H // 2)
+            elif event.key == pg.K_PAGEDOWN:
+                self.dashboard_scroll += max(scroll_step, self.game.DISPLAY_H // 2)
+            elif event.key == pg.K_HOME:
+                self.dashboard_scroll = 0
+            elif event.key == pg.K_END:
+                self.dashboard_scroll = self.dashboard_max_scroll
+
+        if self.game.mouse_wheel:
+            if (
+                self.counter_candidate_viewport is not None
+                and self.counter_candidate_viewport.contains(self.game.mouse_position)
+            ):
+                max_start = max(
+                    0,
+                    len(self.counter_candidate_keys) - self.counter_candidate_capacity,
+                )
+                self.counter_candidate_scroll = max(
+                    0,
+                    min(
+                        max_start,
+                        self.counter_candidate_scroll - self.game.mouse_wheel,
+                    ),
+                )
+            else:
+                self.dashboard_scroll -= self.game.mouse_wheel * scroll_step
+
+        if self.counter_focus == "candidates" and self.counter_candidate_keys:
+            try:
+                index = self.counter_candidate_keys.index(self.counter_candidate_key)
+            except ValueError:
+                index = 0
+            if self.game.UP_KEY:
+                index = max(0, index - 1)
+            elif self.game.DOWN_KEY:
+                index = min(len(self.counter_candidate_keys) - 1, index + 1)
+            self.counter_candidate_key = self.counter_candidate_keys[index]
+            if index < self.counter_candidate_scroll:
+                self.counter_candidate_scroll = index
+            elif index >= self.counter_candidate_scroll + self.counter_candidate_capacity:
+                self.counter_candidate_scroll = index - self.counter_candidate_capacity + 1
+        elif self.counter_focus == "footer":
+            if self.game.UP_KEY:
+                self.dashboard_scroll -= scroll_step
+            elif self.game.DOWN_KEY:
+                self.dashboard_scroll += scroll_step
+            if self.dashboard_buttons:
+                if self.game.LEFT_KEY:
+                    self.dashboard_action = (self.dashboard_action - 1) % len(
+                        self.dashboard_buttons
+                    )
+                elif self.game.RIGHT_KEY:
+                    self.dashboard_action = (self.dashboard_action + 1) % len(
+                        self.dashboard_buttons
+                    )
+
+        self.dashboard_scroll = max(
+            0, min(self.dashboard_scroll, self.dashboard_max_scroll)
+        )
+        if self.game.mouse_clicked:
+            for key, rect in self.counter_candidate_rects:
+                if rect.contains(self.game.mouse_position):
+                    self.counter_candidate_key = key
+                    self.counter_focus = "candidates"
+                    return
+            for index, button in enumerate(self.dashboard_buttons):
+                if button.hit_test(self.game.mouse_position):
+                    self.dashboard_action = index
+                    if button.key == "back":
+                        self.view = "runs"
+                        self.dashboard_item = None
+                    elif button.key == "stop":
+                        self._stop_dashboard_job()
+                    elif button.key == "adopt":
+                        self._adopt_counter_selected()
+                    return
+        if (
+            self.game.START_KEY
+            and self.counter_focus == "footer"
+            and self.dashboard_buttons
+        ):
+            button = self.dashboard_buttons[self.dashboard_action % len(self.dashboard_buttons)]
+            if button.key == "back":
+                self.view = "runs"
+                self.dashboard_item = None
+            elif button.key == "stop":
+                self._stop_dashboard_job()
+            elif button.key == "adopt":
+                self._adopt_counter_selected()
+
+    def _adopt_counter_selected(self):
+        detail = (
+            self.dashboard_insights.counter
+            if self.dashboard_insights is not None
+            else None
+        )
+        selected = self._counter_selected(detail)
+        if selected is None:
+            return
+        card_ids = tuple(
+            card.card_id
+            for card in selected.deck.cards
+            for _ in range(card.copies)
+        )
+        self._begin_adoption(
+            AdoptableDeck(
+                selected.deck.deck_id,
+                selected.deck.name,
+                card_ids,
+                f"Counter run · {selected.deck.name}",
+            )
+        )
+
+    def _evolution_selected(self, detail: EvolutionPresentation | None):
+        if detail is None or not detail.decks:
+            self.evolution_selected_deck_id = None
+            return None
+        selected = detail.deck(self.evolution_selected_deck_id)
+        if selected is None:
+            self.evolution_selected_deck_id = detail.default_deck_id
+            selected = detail.deck(self.evolution_selected_deck_id)
+        if selected is None:
+            selected = detail.decks[0]
+            self.evolution_selected_deck_id = selected.deck_id
+        return selected
+
+    def _cycle_evolution_filter(self, detail, direction=1):
+        generations = sorted(
+            {deck.generation for deck in detail.decks if deck.generation},
+            reverse=True,
+        )
+        options = [None, *generations]
+        try:
+            index = options.index(self.evolution_generation_filter)
+        except ValueError:
+            index = 0
+        self.evolution_generation_filter = options[(index + direction) % len(options)]
+        self.evolution_deck_scroll = 0
+
+    def _check_evolution_dashboard_input(self):
+        if self.game.BACK_KEY:
+            self.view = "runs"
+            self.dashboard_item = None
+            return
+        pages = self._dashboard_pages()
+        detail = (
+            self.dashboard_insights.evolution
+            if self.dashboard_insights is not None
+            else None
+        )
+        step = max(48, self.game.layout.target_height)
+        action_indices = [
+            index
+            for index, button in enumerate(self.dashboard_buttons)
+            if not button.key.startswith("page:")
+        ]
+        for event in self.game.events:
+            if event.type != pg.KEYDOWN:
+                continue
+            if event.key == pg.K_PAGEUP:
+                self.dashboard_scroll -= self.game.DISPLAY_H // 2
+            elif event.key == pg.K_PAGEDOWN:
+                self.dashboard_scroll += self.game.DISPLAY_H // 2
+            elif event.key == pg.K_HOME:
+                self.dashboard_scroll = 0
+            elif event.key == pg.K_END:
+                self.dashboard_scroll = self.dashboard_max_scroll
+            elif event.key == pg.K_f and detail is not None:
+                self._cycle_evolution_filter(detail)
+            elif (
+                event.key == pg.K_a
+                and self.dashboard_page == 1
+                and detail is not None
+            ):
+                self._activate_evolution_button("adopt", detail)
+            elif event.key == pg.K_TAB:
+                self.evolution_focus = (
+                    "actions" if self.evolution_focus != "actions" else "decks"
+                )
+                if self.evolution_focus == "actions" and action_indices:
+                    self.dashboard_action = action_indices[0]
+        if self.game.LEFT_KEY:
+            if self.evolution_focus == "actions" and action_indices:
+                try:
+                    index = action_indices.index(self.dashboard_action)
+                except ValueError:
+                    index = 0
+                self.dashboard_action = action_indices[(index - 1) % len(action_indices)]
+            else:
+                self.dashboard_page = (self.dashboard_page - 1) % len(pages)
+                self.dashboard_scroll = 0
+        elif self.game.RIGHT_KEY:
+            if self.evolution_focus == "actions" and action_indices:
+                try:
+                    index = action_indices.index(self.dashboard_action)
+                except ValueError:
+                    index = -1
+                self.dashboard_action = action_indices[(index + 1) % len(action_indices)]
+            else:
+                self.dashboard_page = (self.dashboard_page + 1) % len(pages)
+                self.dashboard_scroll = 0
+        if self.game.mouse_wheel:
+            if (
+                self.evolution_deck_viewport is not None
+                and self.evolution_deck_viewport.contains(self.game.mouse_position)
+                and self.evolution_deck_keys
+            ):
+                self.evolution_deck_scroll = max(
+                    0,
+                    min(
+                        max(0, len(self.evolution_deck_keys) - 7),
+                        self.evolution_deck_scroll - self.game.mouse_wheel,
+                    ),
+                )
+            else:
+                self.dashboard_scroll -= self.game.mouse_wheel * step
+        self.dashboard_scroll = max(
+            0, min(self.dashboard_scroll, self.dashboard_max_scroll)
+        )
+        if (
+            self.evolution_focus != "actions"
+            and self.dashboard_page in {1, 2, 3}
+            and self.evolution_deck_keys
+        ):
+            try:
+                index = self.evolution_deck_keys.index(
+                    self.evolution_selected_deck_id
+                )
+            except ValueError:
+                index = 0
+            if self.game.UP_KEY:
+                index = max(0, index - 1)
+            elif self.game.DOWN_KEY:
+                index = min(len(self.evolution_deck_keys) - 1, index + 1)
+            self.evolution_selected_deck_id = self.evolution_deck_keys[index]
+            if index < self.evolution_deck_scroll:
+                self.evolution_deck_scroll = index
+            elif index >= self.evolution_deck_scroll + 7:
+                self.evolution_deck_scroll = index - 6
+        if self.game.mouse_clicked:
+            for key, rect in self.evolution_deck_rects:
+                if rect.contains(self.game.mouse_position):
+                    self.evolution_focus = "decks"
+                    self.evolution_selected_deck_id = key
+                    return
+            for index, button in enumerate(self.dashboard_buttons):
+                if not button.hit_test(self.game.mouse_position) or not button.enabled:
+                    continue
+                self.dashboard_action = index
+                self.evolution_focus = (
+                    "actions" if not button.key.startswith("page:") else "decks"
+                )
+                self._activate_evolution_button(button.key, detail)
+                return
+        if (
+            self.game.START_KEY
+            and self.evolution_focus == "actions"
+            and self.dashboard_buttons
+        ):
+            button = self.dashboard_buttons[
+                self.dashboard_action % len(self.dashboard_buttons)
+            ]
+            if button.enabled:
+                self._activate_evolution_button(button.key, detail)
+
+    def _activate_evolution_button(self, key, detail):
+        if key == "back":
+            self.view = "runs"
+            self.dashboard_item = None
+        elif key == "previous":
+            self.dashboard_page = (self.dashboard_page - 1) % 5
+            self.dashboard_scroll = 0
+        elif key == "next":
+            self.dashboard_page = (self.dashboard_page + 1) % 5
+            self.dashboard_scroll = 0
+        elif key.startswith("page:"):
+            self.dashboard_page = int(key.split(":", 1)[1])
+            self.dashboard_scroll = 0
+        elif key == "filter" and detail is not None:
+            self._cycle_evolution_filter(detail)
+        elif key == "adopt" and detail is not None:
+            selected = self._evolution_selected(detail)
+            if selected is not None:
+                artifact_path = getattr(selected, "player_artifact_path", None)
+                manifest_path = (
+                    str(Path(artifact_path).with_suffix(".player.json"))
+                    if artifact_path
+                    else None
+                )
+                if manifest_path is None:
+                    project_root = Path(__file__).resolve().parents[2]
+                    artifacts = discover_manifest_artifacts(
+                        (
+                            project_root / "neat_ai" / "trained_ai",
+                            project_root / ".ui_training",
+                        ),
+                        selected.card_ids,
+                    )
+                    if artifacts:
+                        manifest_path = str(artifacts[0].manifest_path)
+                self._begin_adoption(
+                    AdoptableDeck(
+                        selected.deck_id,
+                        selected.name,
+                        selected.card_ids,
+                        f"Evolution run DB {detail.training_id} · {selected.name}",
+                        manifest_path,
+                    )
+                )
+
+    def _begin_adoption(self, source: AdoptableDeck):
+        if self._arena_destination() != ArenaDestination.RESULTS:
+            self.message = "Decks can be adopted only from completed results"
+            self.message_color = self.game.palette.danger
+            return
+        self.adoption_source = source
+        suggested = f"{source.source_name} copy"[:32]
+        self.adoption_input = TextInput(suggested, max_length=32, focused=True)
+        self.adoption_error = ""
+        self.adoption_conflict_id = None
+        self.adoption_receipt = None
+        self.adoption_action = 1
+
+    def _close_adoption(self):
+        self.adoption_source = None
+        self.adoption_error = ""
+        self.adoption_conflict_id = None
+        self.adoption_receipt = None
+        self.adoption_buttons = []
+        self.adoption_action = 1
+
+    def _save_adoption(self):
+        if self.adoption_source is None:
+            return
+        try:
+            database = DBUtil()
+            receipt = DeckAdoptionService(database).adopt(
+                self.adoption_source,
+                self.adoption_input.value,
+            )
+        except DeckAdoptionConflict as error:
+            self.adoption_error = str(error)
+            self.adoption_conflict_id = error.existing_deck_id
+            self.adoption_action = 0
+            return
+        except DeckAdoptionError as error:
+            self.adoption_error = str(error)
+            self.adoption_conflict_id = None
+            return
+        self.adoption_receipt = receipt
+        self.adoption_source = None
+        self.adoption_error = ""
+        self.adoption_conflict_id = None
+        self.adoption_action = 0
+        # Refresh user-facing sources only after persistence and verification.
+        self.deck_options = database.get_all_deck_options()
+        self.deck_ids = [deck_id for deck_id, _name in self.deck_options]
+        self.cockpit.deck_ids = tuple(self.deck_ids)
+
+    def _open_adopted_deck(self, deck_id):
+        if not deck_id:
+            return
+        self._close_adoption()
+        self.run_display = False
+        editor = DeckBuilderMenu(self.game, deck_id)
+        self.game.curr_menu = editor
+        editor.previous_menu = self
+        editor.display_menu()
+
+    def _check_adoption_input(self):
+        if self.game.BACK_KEY:
+            self._close_adoption()
+            return
+        if self.adoption_receipt is not None:
+            if self.game.LEFT_KEY or self.game.RIGHT_KEY:
+                self.adoption_action = 1 - self.adoption_action
+        else:
+            for event in self.game.events:
+                if event.type == pg.KEYDOWN and event.key in (
+                    pg.K_RETURN,
+                    pg.K_KP_ENTER,
+                    pg.K_ESCAPE,
+                ):
+                    continue
+                self.adoption_input.handle_event(event)
+            if self.game.LEFT_KEY:
+                self.adoption_action = max(0, self.adoption_action - 1)
+            elif self.game.RIGHT_KEY:
+                self.adoption_action = min(
+                    (2 if self.adoption_conflict_id else 1),
+                    self.adoption_action + 1,
+                )
+        selected = None
+        if self.game.mouse_clicked:
+            selected = next(
+                (
+                    button
+                    for button in self.adoption_buttons
+                    if button.hit_test(self.game.mouse_position)
+                ),
+                None,
+            )
+        elif self.game.START_KEY:
+            if self.adoption_buttons:
+                selected = self.adoption_buttons[
+                    self.adoption_action % len(self.adoption_buttons)
+                ]
+            elif self.adoption_receipt is None:
+                self._save_adoption()
+                return
+        if selected is None:
+            return
+        if selected.key in {"cancel", "back_results"}:
+            self._close_adoption()
+        elif selected.key == "save":
+            self._save_adoption()
+        elif selected.key == "open_existing":
+            self._open_adopted_deck(self.adoption_conflict_id)
+        elif selected.key == "open_editor":
+            self._open_adopted_deck(self.adoption_receipt.deck_id)
+
+    def _draw_adoption_overlay(self):
+        if self.adoption_source is None and self.adoption_receipt is None:
+            return
+        metrics = self.game.layout
+        shade = pg.Surface((self.game.DISPLAY_W, self.game.DISPLAY_H), pg.SRCALPHA)
+        shade.fill((0, 0, 0, 205))
+        self.game.display.blit(shade, (0, 0))
+        panel_spec = metrics.centered_panel(0.76, 0.76)
+        panel = self._draw_dashboard_panel(panel_spec, accent=self.game.palette.accent)
+        x = panel.x + metrics.margin
+        width = panel.width - metrics.margin * 2
+        y = panel.y + metrics.margin
+        self.adoption_buttons = []
+        if self.adoption_receipt is not None:
+            receipt = self.adoption_receipt
+            self.game.draw_text_left("DECK ADDED TO MY DECKS", metrics.font_large, x, y, self.game.palette.text, width)
+            y += metrics.font_large + metrics.gap
+            self.game.draw_text_left(receipt.name, metrics.font_normal, x, y, self.game.palette.success, width)
+            y += metrics.font_normal * 2
+            lines = (
+                f"Fresh user deck ID: {receipt.deck_id}",
+                f"Exact composition preserved: {len(receipt.card_ids)} cards",
+                f"Original source remains unchanged: {receipt.source_id}",
+                "Classification verified: My deck · not AI-generated",
+                (
+                    "Trained AI adopted for this exact composition"
+                    if receipt.player_artifact_path
+                    else "No compatible trained AI was available for this source"
+                ),
+            )
+            for line in lines:
+                self.game.draw_text_left(line, metrics.font_small, x, y, self.game.palette.text, width)
+                y += metrics.font_normal * 2
+            labels = (("back_results", "Back to results"), ("open_editor", "Open in deck editor"))
+        else:
+            source = self.adoption_source
+            self.game.draw_text_left("SAVE A COPY TO MY DECKS", metrics.font_large, x, y, self.game.palette.text, width)
+            y += metrics.font_large + metrics.gap
+            self.game.draw_text_left("The generated training source stays unchanged.", metrics.font_small, x, y, self.game.palette.muted, width)
+            y += metrics.font_normal * 2
+            field = pg.Rect(x, y, width, metrics.target_height)
+            pg.draw.rect(self.game.display, self.game.palette.panel_alt, field, border_radius=7)
+            pg.draw.rect(self.game.display, self.game.palette.accent, field, 2, border_radius=7)
+            self.game.draw_text_left(self.adoption_input.value or "New deck name", metrics.font_normal, field.x + metrics.gap, field.centery, self.game.palette.text if self.adoption_input.value else self.game.palette.muted, field.width - metrics.gap * 2)
+            y = field.bottom + metrics.gap * 2
+            self.game.draw_text_left(f"Source: {source.source_label}", metrics.font_small, x, y, self.game.palette.text, width)
+            y += metrics.font_normal
+            self.game.draw_text_left(f"Composition: {len(source.card_ids)} cards · exact IDs and copy counts", metrics.font_small, x, y, self.game.palette.text, width)
+            y += metrics.font_normal + metrics.gap
+            counts = {}
+            for card_id in source.card_ids:
+                counts[card_id] = counts.get(card_id, 0) + 1
+            composition = " · ".join(f"{card_id} ×{count}" for card_id, count in counts.items())
+            self._draw_wrapped_text(composition, max(9, metrics.font_small - 2), x, y, width, max_lines=4, color=self.game.palette.muted)
+            y += metrics.font_small * 4 + metrics.gap
+            if self.adoption_error:
+                self._draw_wrapped_text(self.adoption_error, metrics.font_small, x, y, width, max_lines=2, color=self.game.palette.danger)
+            labels = [
+                ("cancel", "Cancel"),
+                (
+                    "save",
+                    "Save deck + trained AI"
+                    if source.player_artifact_manifest
+                    else "Save as my deck",
+                ),
+            ]
+            if self.adoption_conflict_id:
+                labels.append(("open_existing", "Open existing deck"))
+        gap = metrics.gap
+        button_width = (width - gap * (len(labels) - 1)) // len(labels)
+        button_y = panel.bottom - metrics.margin - metrics.target_height
+        for index, (key, label) in enumerate(labels):
+            rect = RectSpec(x + index * (button_width + gap), button_y, button_width, metrics.target_height)
+            self.adoption_buttons.append(Button(key, label, rect, selected=index == self.adoption_action, hovered=rect.contains(self.game.mouse_position)))
+        self.draw_buttons(self.adoption_buttons)
+
     def _dashboard_kind(self, insights=None):
         insights = insights or self.dashboard_insights
         if insights and insights.run_kind:
@@ -2019,11 +2822,13 @@ class TrainingMenu(Menu):
         return str((getattr(item, "request", None) or {}).get("kind", ""))
 
     def _dashboard_pages(self, insights=None):
-        if self._dashboard_kind(insights) in {
-            TrainingKind.PLAYER_DECK.value,
-            TrainingKind.MATCHUP_EVALUATION.value,
-        }:
-            return self.PLAYER_DASHBOARD_PAGES
+        kind = self._dashboard_kind(insights)
+        if kind == TrainingKind.MATCHUP_EVALUATION.value:
+            return ("Duel",)
+        if kind == TrainingKind.PLAYER_DECK.value:
+            return ("Counters",)
+        if kind == TrainingKind.DECK_BUILDER.value:
+            return ("Run pulse", "Population", "Matchups", "Composition", "Research")
         return self.BUILDER_DASHBOARD_PAGES
 
     def _dashboard_telemetry(self) -> TrainingTelemetry:
@@ -2874,6 +3679,1914 @@ class TrainingMenu(Menu):
                 label_width - metrics.gap,
             )
 
+    @staticmethod
+    def _matchup_side_colors():
+        return (105, 172, 225), (226, 100, 103), (168, 181, 196)
+
+    @staticmethod
+    def _counter_card_color(color, palette):
+        return {
+            "Red": palette.danger,
+            "Blue": (105, 172, 225),
+            "Black": (190, 176, 215),
+            "Green": palette.success,
+        }.get(color, palette.muted)
+
+    def _draw_mission_footer(self, footer, *, focused=True, allow_adopt=False):
+        labels = [("back", "Back to runs")]
+        if self._can_stop_dashboard_job():
+            labels.append(("stop", "Stop training"))
+        if allow_adopt:
+            labels.append(("adopt", "Adopt selected deck"))
+        gap = self.game.layout.gap
+        button_width = min(
+            260,
+            (footer.width - gap * (len(labels) - 1)) // len(labels),
+        )
+        self.dashboard_buttons = []
+        for index, (key, label) in enumerate(labels):
+            rect = RectSpec(
+                footer.x + index * (button_width + gap),
+                footer.y,
+                button_width,
+                footer.height,
+            )
+            self.dashboard_buttons.append(
+                Button(
+                    key,
+                    label,
+                    rect,
+                    selected=focused and index == self.dashboard_action,
+                    hovered=rect.contains(self.game.mouse_position),
+                )
+            )
+        if self.dashboard_buttons:
+            self.dashboard_action %= len(self.dashboard_buttons)
+            for index, button in enumerate(self.dashboard_buttons):
+                button.selected = focused and index == self.dashboard_action
+        self.draw_buttons(self.dashboard_buttons)
+
+    def _counter_selected(self, detail: CounterPresentation | None):
+        if detail is None or not detail.candidates:
+            self.counter_candidate_key = None
+            return None
+        selected = detail.candidate(self.counter_candidate_key)
+        if selected is None:
+            self.counter_candidate_key = detail.default_candidate_key
+            selected = detail.candidate(self.counter_candidate_key)
+        if selected is None:
+            selected = detail.candidates[0]
+            self.counter_candidate_key = selected.key
+        return selected
+
+    def _draw_counter_deck_panel(
+        self,
+        spec,
+        *,
+        title,
+        deck,
+        accent,
+        provenance,
+        comparison=(),
+    ):
+        panel = self._draw_dashboard_panel(spec, accent=accent)
+        metrics = self.game.layout
+        x = panel.x + metrics.margin
+        width = panel.width - metrics.margin * 2
+        y = panel.y + metrics.margin
+        self.game.draw_text_left(
+            title,
+            max(15, metrics.font_normal - 3),
+            x,
+            y,
+            self.game.palette.text,
+            width,
+        )
+        y += metrics.font_normal
+        self.game.draw_text_left(
+            deck.name,
+            metrics.font_normal,
+            x,
+            y,
+            accent,
+            width,
+        )
+        y += metrics.font_normal
+        self.game.draw_text_left(
+            f"{deck.total_cards} cards · {deck.distinct_cards} distinct",
+            max(9, metrics.font_small - 3),
+            x,
+            y,
+            self.game.palette.muted,
+            width,
+        )
+        y += metrics.font_small
+        self.game.draw_text_left(
+            provenance,
+            max(9, metrics.font_small - 4),
+            x,
+            y,
+            self.game.palette.muted,
+            width,
+        )
+        y += metrics.font_small + metrics.gap * 2
+        if not deck.cards:
+            self._draw_wrapped_text(
+                "Saved composition is unavailable. No current database deck has been substituted.",
+                metrics.font_small,
+                x,
+                y,
+                width,
+                max_lines=3,
+                color=self.game.palette.danger,
+            )
+            y += metrics.font_small * 3 + metrics.gap
+        else:
+            row_height = max(24, metrics.font_small + 7)
+            for card in deck.cards:
+                row = pg.Rect(x, y, width, row_height)
+                pg.draw.rect(
+                    self.game.display,
+                    self.game.palette.panel_alt,
+                    row,
+                    border_radius=6,
+                )
+                color = self._counter_card_color(card.color, self.game.palette)
+                pg.draw.rect(
+                    self.game.display,
+                    color,
+                    (row.x, row.y, max(5, metrics.gap // 2), row.height),
+                    border_radius=5,
+                )
+                self.game.draw_text_left(
+                    card.name,
+                    metrics.font_small,
+                    row.x + metrics.gap,
+                    row.centery,
+                    self.game.palette.text,
+                    max(1, row.width - metrics.gap * 5),
+                )
+                self.game.draw_text_left(
+                    f"×{card.copies}",
+                    metrics.font_small,
+                    row.right - metrics.gap * 3,
+                    row.centery,
+                    color,
+                    metrics.gap * 3,
+                )
+                y += row_height + max(4, metrics.gap // 2)
+        if comparison:
+            y += metrics.gap
+            pg.draw.line(
+                self.game.display,
+                self.game.palette.border,
+                (x, y),
+                (panel.right - metrics.margin, y),
+            )
+            y += metrics.gap * 2
+            self.game.draw_text_left(
+                "COMPOSITION COMPARISON",
+                max(10, metrics.font_small - 2),
+                x,
+                y,
+                self.game.palette.accent,
+                width,
+            )
+            y += metrics.font_normal
+            for line in comparison:
+                self.game.draw_text_left(
+                    line,
+                    max(9, metrics.font_small - 3),
+                    x,
+                    y,
+                    self.game.palette.muted,
+                    width,
+                )
+                y += metrics.font_normal
+
+    def _draw_counter_result_bar(self, panel, candidate, y):
+        metrics = self.game.layout
+        x = panel.x + metrics.margin
+        width = panel.width - metrics.margin * 2
+        segments = counter_bar_segments(candidate)
+        colors = {
+            "counter": self.game.palette.success,
+            "draw": (168, 181, 196),
+            "subject": self.game.palette.danger,
+        }
+        bar = pg.Rect(x, y, width, max(22, metrics.target_height // 2))
+        cursor = bar.x
+        for index, segment in enumerate(segments):
+            segment_width = (
+                bar.right - cursor
+                if index == len(segments) - 1
+                else round(bar.width * segment.ratio)
+            )
+            if segment_width > 0:
+                segment_rect = pg.Rect(cursor, bar.y, segment_width, bar.height)
+                pg.draw.rect(self.game.display, colors[segment.key], segment_rect)
+                if segment.inline_label:
+                    self.game.draw_text(
+                        f"{segment.ratio * 100:.1f}%",
+                        max(9, metrics.font_small - 4),
+                        segment_rect.centerx,
+                        segment_rect.centery,
+                        self.game.palette.background,
+                    )
+            cursor += segment_width
+        pg.draw.rect(self.game.display, self.game.palette.border, bar, 1, border_radius=5)
+        external = [segment for segment in segments if not segment.inline_label]
+        if external:
+            labels = {
+                "counter": "Counter",
+                "draw": "Draw",
+                "subject": "Selected deck",
+            }
+            slot = width // len(external)
+            for index, segment in enumerate(external):
+                self.game.draw_text_left(
+                    f"{labels[segment.key]} {segment.ratio * 100:.1f}%",
+                    max(9, metrics.font_small - 4),
+                    x + index * slot,
+                    bar.bottom + metrics.font_small,
+                    colors[segment.key],
+                    slot,
+                )
+        return bar.bottom + (metrics.font_normal if external else metrics.gap)
+
+    def _draw_counter_result_panel(
+        self, spec, detail, selected, telemetry, run_identity
+    ):
+        panel = self._draw_dashboard_panel(spec, accent=self.game.palette.accent)
+        metrics = self.game.layout
+        x = panel.x + metrics.margin
+        width = panel.width - metrics.margin * 2
+        y = panel.y + metrics.margin
+        self.game.draw_text_left(
+            "HEAD-TO-HEAD RESULT",
+            max(15, metrics.font_normal - 3),
+            x,
+            y,
+            self.game.palette.text,
+            width,
+        )
+        y += metrics.font_normal
+        self.game.draw_text_left(
+            f"Run · {run_identity}",
+            max(9, metrics.font_small - 4),
+            x,
+            y,
+            self.game.palette.muted,
+            width,
+        )
+        y += metrics.font_small + metrics.gap
+        if selected is None:
+            self.game.draw_text_left(
+                "No counter decks evaluated yet",
+                metrics.font_normal,
+                x,
+                y,
+                self.game.palette.accent,
+                width,
+            )
+            y += metrics.font_normal
+            self._draw_wrapped_text(
+                "The first genuine candidate set appears after a counter generation completes.",
+                metrics.font_small,
+                x,
+                y,
+                width,
+                max_lines=3,
+                color=self.game.palette.muted,
+            )
+            y += metrics.font_small * 3 + metrics.gap
+        elif not selected.valid:
+            self.game.draw_text_left(
+                selected.deck.name,
+                metrics.font_normal,
+                x,
+                y,
+                self.game.palette.text,
+                width,
+            )
+            y += metrics.font_normal
+            self._draw_wrapped_text(
+                f"Result unavailable: {selected.issue}",
+                metrics.font_small,
+                x,
+                y,
+                width,
+                max_lines=3,
+                color=self.game.palette.danger,
+            )
+            y += metrics.font_small * 3 + metrics.gap
+        else:
+            rate = selected.counter_win_rate
+            self.game.draw_text_left(
+                f"Counter win rate {rate * 100:.1f}% · vs {detail.subject.name}",
+                metrics.font_normal,
+                x,
+                y,
+                self.game.palette.accent,
+                width,
+            )
+            y += metrics.font_normal
+            self.game.draw_text_left(
+                f"{selected.deck.name} · {selected.games:,} seat-balanced games",
+                max(10, metrics.font_small - 2),
+                x,
+                y,
+                self.game.palette.muted,
+                width,
+            )
+            y += metrics.font_normal
+            if selected.exploratory:
+                self._draw_wrapped_text(
+                    "Exploratory sample · below 1,000-game comparison target",
+                    max(10, metrics.font_small - 2),
+                    x,
+                    y,
+                    width,
+                    max_lines=2,
+                    color=self.game.palette.danger,
+                )
+                y += metrics.font_small * 2
+            self.game.draw_text_left(
+                f"Counter {selected.counter_wins}  ·  Draws {selected.draws}  ·  {detail.subject.name} {selected.subject_wins}",
+                max(9, metrics.font_small - 3),
+                x,
+                y,
+                self.game.palette.text,
+                width,
+            )
+            y += metrics.font_normal
+            y = self._draw_counter_result_bar(panel, selected, y)
+            self.game.draw_text_left(
+                "This is the selected candidate's sample, not the pooled population.",
+                max(9, metrics.font_small - 4),
+                x,
+                y,
+                self.game.palette.muted,
+                width,
+            )
+            y += metrics.font_normal
+
+        pg.draw.line(
+            self.game.display,
+            self.game.palette.border,
+            (x, y),
+            (panel.right - metrics.margin, y),
+        )
+        y += metrics.gap * 2
+        workload = detail.workload if detail is not None else None
+        self.game.draw_text_left(
+            "RUN DEPTH", metrics.font_normal, x, y, self.game.palette.text, width
+        )
+        y += metrics.font_normal + metrics.gap
+        if workload is None:
+            return
+        controller_games = workload.controller_population_size ** 2
+        facts = (
+            (
+                "Counter generations",
+                f"{workload.completed_counter_generations} / {workload.requested_counter_generations}",
+            ),
+            (
+                "Controller generations",
+                f"~{workload.completed_controller_generations_estimate} / {workload.requested_controller_generations}",
+            ),
+            (
+                "Controller populations",
+                f"2 × {workload.controller_population_size} · ~{controller_games} learning games/gen",
+            ),
+            (
+                "Final legal candidates",
+                f"{workload.final_candidate_count} actual · {workload.builder_population_size} configured pop",
+            ),
+            (
+                "Validation work",
+                f"{workload.recorded_validation_games:,} recorded / {workload.planned_validation_games:,} planned",
+            ),
+            (
+                "Controller learning",
+                f"~{workload.completed_learning_games_estimate:,} / ~{workload.planned_learning_games:,}",
+            ),
+            (
+                "Overall simulations",
+                f"~{workload.completed_total_estimate:,} / ~{workload.planned_total_games:,}",
+            ),
+        )
+        label_size = max(9, metrics.font_small - 6)
+        value_size = max(10, metrics.font_small - 4)
+        row_height = max(22, metrics.font_small + 3)
+        for label, value in facts:
+            self.game.draw_text_left(
+                label,
+                label_size,
+                x,
+                y,
+                self.game.palette.muted,
+                width * 38 // 100,
+            )
+            self.game.draw_text_left(
+                value,
+                value_size,
+                x + width * 40 // 100,
+                y,
+                self.game.palette.text,
+                width * 60 // 100,
+            )
+            y += row_height
+        pooled_total = (
+            detail.pooled_counter_wins
+            + detail.pooled_draws
+            + detail.pooled_subject_wins
+        )
+        if pooled_total:
+            self.game.draw_text_left(
+                f"Pooled final population: counters {detail.pooled_counter_wins}, draws {detail.pooled_draws}, subject {detail.pooled_subject_wins}",
+                max(9, metrics.font_small - 5),
+                x,
+                y,
+                self.game.palette.muted,
+                width,
+            )
+
+    def _draw_counter_candidates_panel(self, spec, detail, selected):
+        panel = self._draw_dashboard_panel(spec, accent=self.game.palette.success)
+        metrics = self.game.layout
+        x = panel.x + metrics.margin
+        width = panel.width - metrics.margin * 2
+        y = panel.y + metrics.margin
+        self.game.draw_text_left(
+            "FINAL-GENERATION COUNTER CANDIDATES",
+            max(15, metrics.font_normal - 3),
+            x,
+            y,
+            self.game.palette.text,
+            width,
+        )
+        y += metrics.font_normal
+        self.game.draw_text_left(
+            "Tab focuses footer · Up/Down selects · wheel scrolls this list",
+            max(9, metrics.font_small - 4),
+            x,
+            y,
+            self.game.palette.muted,
+            width,
+        )
+        y += metrics.font_small + metrics.gap
+        list_view = RectSpec(
+            x,
+            y,
+            width,
+            max(1, panel.bottom - metrics.margin * 2 - metrics.font_small * 2 - y),
+        )
+        self.counter_candidate_viewport = list_view
+        self.counter_candidate_rects = []
+        self.counter_candidate_keys = tuple(item.key for item in detail.candidates)
+        if not detail.candidates:
+            self.game.draw_text(
+                "No legal candidates recorded yet",
+                metrics.font_small,
+                list_view.center[0],
+                list_view.center[1],
+                self.game.palette.muted,
+            )
+            self.counter_candidate_capacity = 1
+            return
+        row_height = max(42, metrics.target_height)
+        row_gap = max(4, metrics.gap // 2)
+        capacity = max(1, (list_view.height + row_gap) // (row_height + row_gap))
+        self.counter_candidate_capacity = capacity
+        max_start = max(0, len(detail.candidates) - capacity)
+        self.counter_candidate_scroll = min(self.counter_candidate_scroll, max_start)
+        visible = detail.candidates[
+            self.counter_candidate_scroll : self.counter_candidate_scroll + capacity
+        ]
+        previous_clip = self.game.display.get_clip()
+        list_clip = pg.Rect(list_view.x, list_view.y, list_view.width, list_view.height)
+        self.game.display.set_clip(list_clip.clip(previous_clip))
+        for offset, candidate in enumerate(visible):
+            rect = RectSpec(
+                list_view.x,
+                list_view.y + offset * (row_height + row_gap),
+                list_view.width - (6 if len(detail.candidates) > capacity else 0),
+                row_height,
+            )
+            self.counter_candidate_rects.append((candidate.key, rect))
+            selected_row = selected is not None and candidate.key == selected.key
+            pg_rect = pg.Rect(rect.x, rect.y, rect.width, rect.height)
+            pg.draw.rect(
+                self.game.display,
+                self.game.palette.selected if selected_row else self.game.palette.panel_alt,
+                pg_rect,
+                border_radius=7,
+            )
+            pg.draw.rect(
+                self.game.display,
+                self.game.palette.accent if selected_row else self.game.palette.border,
+                pg_rect,
+                2 if selected_row else 1,
+                border_radius=7,
+            )
+            self.game.draw_text_left(
+                candidate.deck.name,
+                max(10, metrics.font_small - 2),
+                rect.x + metrics.gap,
+                rect.center[1],
+                self.game.palette.text,
+                rect.width * 55 // 100,
+            )
+            rate = (
+                f"{candidate.counter_win_rate * 100:.1f}% · {candidate.games:,} games"
+                if candidate.counter_win_rate is not None
+                else "Result unavailable"
+            )
+            self.game.draw_text_left(
+                rate,
+                max(9, metrics.font_small - 3),
+                rect.x + rect.width * 57 // 100,
+                rect.center[1],
+                self.game.palette.accent if selected_row else self.game.palette.muted,
+                rect.width * 41 // 100,
+            )
+        self.game.display.set_clip(previous_clip)
+        if len(detail.candidates) > capacity:
+            track = pg.Rect(list_view.right - 4, list_view.y, 4, list_view.height)
+            thumb_height = max(24, round(track.height * capacity / len(detail.candidates)))
+            travel = track.height - thumb_height
+            top = track.y + round(travel * self.counter_candidate_scroll / max_start)
+            pg.draw.rect(self.game.display, self.game.palette.disabled, track)
+            pg.draw.rect(
+                self.game.display,
+                self.game.palette.success,
+                (track.x, top, track.width, thumb_height),
+                border_radius=2,
+            )
+        self._draw_wrapped_text(
+            "Top-ranked among tested candidates is not universally superior; ranking a population adds selection bias.",
+            max(9, metrics.font_small - 5),
+            x,
+            panel.bottom - metrics.margin - metrics.font_small * 2,
+            width,
+            max_lines=2,
+            color=self.game.palette.muted,
+        )
+
+    def _draw_counter_dashboard(self, telemetry, detail):
+        self.draw_background()
+        item = self.dashboard_item
+        status = str(getattr(item, "status", telemetry.status) or "pending").upper()
+        progress = (
+            f" · GEN {telemetry.generation}/{telemetry.total_generations}"
+            if telemetry.total_generations > 0 and status == "RUNNING"
+            else ""
+        )
+        self.draw_title(
+            "Counter hunt / compositions first",
+            f"Training Arena · {status}{progress}",
+        )
+        if isinstance(item, TrainingRunSummary):
+            run_identity = f"{item.run_id} · {item.title}"
+        else:
+            request = getattr(item, "request", None) or {}
+            run_identity = str(
+                request.get("run_label")
+                or getattr(item, "job_id", "Training run")
+            )
+        selected = self._counter_selected(detail)
+        subject_rows = len(detail.subject.cards) if detail else 1
+        counter_rows = len(selected.deck.cards) if selected else 1
+        layout = counter_dashboard_layout(
+            self.game.layout,
+            subject_rows=subject_rows,
+            counter_rows=counter_rows,
+            scroll=self.dashboard_scroll,
+        )
+        self.dashboard_max_scroll = layout.max_scroll
+        self.dashboard_scroll = min(self.dashboard_scroll, layout.max_scroll)
+        self.game.display.set_clip(
+            pg.Rect(
+                layout.viewport.x,
+                layout.viewport.y,
+                layout.viewport.width,
+                layout.viewport.height,
+            )
+        )
+        if detail is None:
+            self._draw_empty_insights(layout.viewport, "Loading counter evidence…")
+        else:
+            absent = (
+                max(0, detail.subject.total_cards - selected.shared_cards)
+                if selected is not None
+                else detail.subject.total_cards
+            )
+            comparison = (
+                (
+                    f"Shares {selected.shared_cards} card copies",
+                    f"{absent} selected-deck copies absent",
+                )
+                if selected is not None
+                else ("No evaluated counter is available for comparison",)
+            )
+            self._draw_counter_deck_panel(
+                layout.subject,
+                title="YOUR SELECTED DECK",
+                deck=detail.subject,
+                accent=(105, 172, 225),
+                provenance="saved training snapshot",
+                comparison=comparison,
+            )
+            self._draw_counter_result_panel(
+                layout.result, detail, selected, telemetry, run_identity
+            )
+            self._draw_counter_candidates_panel(
+                layout.candidates, detail, selected
+            )
+            counter_deck = (
+                selected.deck
+                if selected is not None
+                else CounterDeckSnapshot("", "No counter selected", ())
+            )
+            self._draw_counter_deck_panel(
+                layout.counter,
+                title="SELECTED COUNTER",
+                deck=counter_deck,
+                accent=self.game.palette.accent,
+                provenance="generated snapshot",
+            )
+        self.game.display.set_clip(None)
+        self._draw_dashboard_scrollbar(layout.viewport)
+        self._draw_mission_footer(
+            layout.footer,
+            focused=self.counter_focus == "footer",
+            allow_adopt=selected is not None,
+        )
+
+    def _draw_matchup_deck(self, panel, deck, side, y, color):
+        metrics = self.game.layout
+        x = panel.x + metrics.margin
+        width = panel.width - metrics.margin * 2
+        self.game.draw_text_left(
+            f"DECK {side}", metrics.font_small, x, y, color, width
+        )
+        y += metrics.font_normal
+        self.game.draw_text_left(
+            deck.name or deck.deck_id or f"Deck {side}",
+            metrics.font_normal,
+            x,
+            y,
+            self.game.palette.text,
+            width,
+        )
+        y += metrics.font_normal
+        self.game.draw_text_left(
+            f"ID {deck.deck_id or 'unavailable'}",
+            max(10, metrics.font_small - 3),
+            x,
+            y,
+            self.game.palette.muted,
+            width,
+        )
+        y += metrics.font_small + metrics.gap
+        if not deck.composition_available:
+            self.game.draw_text_left(
+                "Composition unavailable",
+                metrics.font_small,
+                x,
+                y,
+                self.game.palette.danger,
+                width,
+            )
+            return y + metrics.font_small + metrics.gap * 2
+        if not deck.cards:
+            self.game.draw_text_left(
+                "No cards in the current saved deck",
+                metrics.font_small,
+                x,
+                y,
+                self.game.palette.muted,
+                width,
+            )
+            return y + metrics.font_small + metrics.gap * 2
+        color_map = {
+            "Red": self.game.palette.danger,
+            "Blue": (105, 172, 225),
+            "Black": (190, 176, 215),
+            "Green": self.game.palette.success,
+        }
+        line_height = max(18, metrics.font_small + 3)
+        for card in deck.cards:
+            self.game.draw_text_left(
+                f"{card.copies}×  {card.name}",
+                metrics.font_small,
+                x,
+                y,
+                self.game.palette.text,
+                max(1, width * 68 // 100),
+            )
+            self.game.draw_text_left(
+                card.color,
+                max(10, metrics.font_small - 3),
+                x + width * 70 // 100,
+                y,
+                color_map.get(card.color, self.game.palette.muted),
+                max(1, width * 30 // 100),
+            )
+            y += line_height
+        return y + metrics.gap
+
+    def _draw_matchup_decks_panel(self, spec, detail, run_identity):
+        panel = self._draw_dashboard_panel(spec, accent=self._matchup_side_colors()[0])
+        metrics = self.game.layout
+        x = panel.x + metrics.margin
+        width = panel.width - metrics.margin * 2
+        y = panel.y + metrics.margin
+        self.game.draw_text_left(
+            "THE TWO FIXED DECKS",
+            max(15, metrics.font_normal - 3),
+            x,
+            y,
+            self.game.palette.text,
+            width,
+        )
+        y += metrics.font_normal
+        self.game.draw_text_left(
+            run_identity,
+            max(10, metrics.font_small - 3),
+            x,
+            y,
+            self.game.palette.muted,
+            width,
+        )
+        y += metrics.font_small + metrics.gap * 2
+        color_a, color_b, _ = self._matchup_side_colors()
+        y = self._draw_matchup_deck(panel, detail.deck_a, "A", y, color_a)
+        pg.draw.line(
+            self.game.display,
+            self.game.palette.border,
+            (x, y),
+            (panel.right - metrics.margin, y),
+        )
+        y += metrics.gap * 2
+        y = self._draw_matchup_deck(panel, detail.deck_b, "B", y, color_b)
+        self._draw_wrapped_text(
+            "Compositions are current database records, not training-time snapshots.",
+            max(9, metrics.font_small - 4),
+            x,
+            y + metrics.gap,
+            width,
+            max_lines=2,
+            color=self.game.palette.muted,
+        )
+
+    def _draw_matchup_checkpoint_row(self, panel, row, y, final=False):
+        metrics = self.game.layout
+        color_a, color_b, draw_color = self._matchup_side_colors()
+        x = panel.x + metrics.margin
+        width = panel.width - metrics.margin * 2
+        height = max(68, metrics.target_height + metrics.gap * 2)
+        rect = pg.Rect(x, y, width, height)
+        pg.draw.rect(self.game.display, self.game.palette.panel_alt, rect, border_radius=9)
+        pg.draw.rect(
+            self.game.display,
+            self.game.palette.accent if final else self.game.palette.border,
+            rect,
+            2 if final else 1,
+            border_radius=9,
+        )
+        self.game.draw_text_left(
+            f"Gen {row.generation} · {row.games} games",
+            metrics.font_small,
+            rect.x + metrics.gap,
+            rect.y + metrics.font_small,
+            self.game.palette.text,
+            rect.width - metrics.gap * 2,
+        )
+        if not row.valid:
+            self.game.draw_text_left(
+                row.issue,
+                max(10, metrics.font_small - 2),
+                rect.x + metrics.gap,
+                rect.centery + metrics.gap,
+                self.game.palette.danger,
+                rect.width - metrics.gap * 2,
+            )
+            return rect.bottom + metrics.gap
+        rates = row.rates
+        labels = (
+            (f"A {row.deck_a_wins} · {rates[0] * 100:.1f}%", color_a),
+            (f"Draw {row.draws} · {rates[1] * 100:.1f}%", draw_color),
+            (f"B {row.deck_b_wins} · {rates[2] * 100:.1f}%", color_b),
+        )
+        label_y = rect.y + metrics.font_small * 2 + metrics.gap
+        for index, (label, color) in enumerate(labels):
+            self.game.draw_text_left(
+                label,
+                max(10, metrics.font_small - 2),
+                rect.x + metrics.gap + index * (rect.width - metrics.gap * 2) // 3,
+                label_y,
+                color,
+                (rect.width - metrics.gap * 2) // 3,
+            )
+        bar = pg.Rect(
+            rect.x + metrics.gap,
+            rect.bottom - metrics.gap - max(10, metrics.target_height // 4),
+            rect.width - metrics.gap * 2,
+            max(10, metrics.target_height // 4),
+        )
+        cursor = bar.x
+        for index, (ratio, color) in enumerate(zip(rates, (color_a, draw_color, color_b))):
+            segment_width = bar.right - cursor if index == 2 else round(bar.width * ratio)
+            if segment_width:
+                pg.draw.rect(
+                    self.game.display,
+                    color,
+                    (cursor, bar.y, segment_width, bar.height),
+                )
+            cursor += segment_width
+        pg.draw.rect(self.game.display, self.game.palette.border, bar, 1, border_radius=5)
+        return rect.bottom + metrics.gap
+
+    def _draw_matchup_checkpoints_panel(self, spec, detail):
+        panel = self._draw_dashboard_panel(spec, accent=self.game.palette.accent)
+        metrics = self.game.layout
+        x = panel.x + metrics.margin
+        width = panel.width - metrics.margin * 2
+        y = panel.y + metrics.margin
+        self.game.draw_text_left(
+            "SEAT-BALANCED CHECKPOINT OUTCOMES",
+            max(15, metrics.font_normal - 3),
+            x,
+            y,
+            self.game.palette.text,
+            width,
+        )
+        y += metrics.font_normal
+        self.game.draw_text_left(
+            "Every percentage uses all games in that checkpoint.",
+            max(10, metrics.font_small - 2),
+            x,
+            y,
+            self.game.palette.muted,
+            width,
+        )
+        y += metrics.font_small + metrics.gap * 2
+        if not detail.summary_available:
+            self.game.draw_text_left(
+                "Evaluation pending · no checkpoint summary yet",
+                metrics.font_small,
+                x,
+                y,
+                self.game.palette.accent,
+                width,
+            )
+            return
+        if not detail.checkpoints:
+            self.game.draw_text_left(
+                "No readable checkpoint evidence",
+                metrics.font_small,
+                x,
+                y,
+                self.game.palette.danger,
+                width,
+            )
+            return
+        for row in detail.checkpoints:
+            y = self._draw_matchup_checkpoint_row(
+                panel,
+                row,
+                y,
+                final=(row is detail.final_checkpoint),
+            )
+        if detail.next_checkpoint_generation is not None:
+            self.game.draw_text_left(
+                f"Next planned checkpoint: generation {detail.next_checkpoint_generation} · pending",
+                max(10, metrics.font_small - 2),
+                x,
+                y + metrics.gap,
+                self.game.palette.accent,
+                width,
+            )
+
+    def _draw_matchup_reading_panel(self, spec, detail, telemetry):
+        panel = self._draw_dashboard_panel(spec, accent=self.game.palette.success)
+        metrics = self.game.layout
+        x = panel.x + metrics.margin
+        width = panel.width - metrics.margin * 2
+        y = panel.y + metrics.margin
+        color_a, color_b, draw_color = self._matchup_side_colors()
+        self.game.draw_text_left(
+            "FINAL READING", metrics.font_normal, x, y, self.game.palette.text, width
+        )
+        y += metrics.font_normal + metrics.gap
+        final = detail.final_checkpoint
+        if final is None:
+            self.game.draw_text_left(
+                "Final checkpoint pending",
+                metrics.font_normal,
+                x,
+                y,
+                self.game.palette.accent,
+                width,
+            )
+            y += metrics.font_normal
+            self._draw_wrapped_text(
+                "Only a valid checkpoint at the requested final generation is treated as final.",
+                max(10, metrics.font_small - 2),
+                x,
+                y,
+                width,
+                max_lines=3,
+                color=self.game.palette.muted,
+            )
+            y += metrics.font_small * 3 + metrics.gap
+        else:
+            rates = final.rates
+            self.game.draw_text_left(
+                f"Generation {final.generation} · {final.games} games",
+                max(10, metrics.font_small - 2),
+                x,
+                y,
+                self.game.palette.muted,
+                width,
+            )
+            y += metrics.font_normal
+            for label, color in (
+                (f"Deck A · {rates[0] * 100:.1f}% ({final.deck_a_wins}/{final.games})", color_a),
+                (f"Deck B · {rates[2] * 100:.1f}% ({final.deck_b_wins}/{final.games})", color_b),
+                (f"Draws · {rates[1] * 100:.1f}% ({final.draws}/{final.games})", draw_color),
+            ):
+                self.game.draw_text_left(label, metrics.font_small, x, y, color, width)
+                y += metrics.font_normal
+            if final.games < COMPARISON_TARGET:
+                self._draw_wrapped_text(
+                    "Exploratory sample · below 1,000-game comparison target",
+                    max(9, metrics.font_small - 4),
+                    x,
+                    y,
+                    width,
+                    max_lines=2,
+                    color=self.game.palette.danger,
+                )
+                y += metrics.font_small * 2
+            baseline = next(
+                (row for row in detail.checkpoints if row.generation == 1 and row.valid),
+                None,
+            )
+            if baseline is not None and baseline is not final:
+                change = (rates[0] - baseline.rates[0]) * 100
+                self.game.draw_text_left(
+                    f"Deck A: {change:+.1f} points from gen 1",
+                    max(10, metrics.font_small - 2),
+                    x,
+                    y,
+                    color_a,
+                    width,
+                )
+                y += metrics.font_normal
+
+        pg.draw.line(
+            self.game.display,
+            self.game.palette.border,
+            (x, y),
+            (panel.right - metrics.margin, y),
+        )
+        y += metrics.gap * 2
+        workload = detail.workload
+        self.game.draw_text_left(
+            "RUN DEPTH", metrics.font_normal, x, y, self.game.palette.text, width
+        )
+        y += metrics.font_normal + metrics.gap
+        planned_checks = len(workload.planned_checkpoint_generations)
+        facts = (
+            ("Controller populations", "2 evolving"),
+            ("Genomes / pop / gen", str(workload.population_size or "Unavailable")),
+            ("Learning games / genome / gen", str(workload.games_per_genome_per_generation or "Unavailable")),
+            ("Distinct learning games / gen", f"~{workload.learning_games_per_generation:,}"),
+            ("Learning gens complete", f"{workload.completed_generations} / {workload.requested_generations}"),
+            ("Checkpoint plan (games)", f"{planned_checks} × {workload.games_per_checkpoint}"),
+            ("Checkpoint evidence", f"{workload.recorded_checkpoints} · {workload.recorded_evaluation_games:,} games"),
+            ("Learning workload", f"~{workload.planned_learning_games:,} planned"),
+            ("Evaluation workload", f"{workload.planned_evaluation_games:,} planned"),
+            ("Overall workload", f"~{workload.planned_total_games:,} planned"),
+            ("Completed estimate", f"~{workload.completed_total_estimate:,} games"),
+        )
+        label_size = max(9, metrics.font_small - 7)
+        value_size = max(10, metrics.font_small - 5)
+        row_height = max(22, metrics.font_small + 3)
+        for label, value in facts:
+            self.game.draw_text_left(
+                label,
+                label_size,
+                x,
+                y,
+                self.game.palette.muted,
+                max(1, width * 56 // 100),
+            )
+            self.game.draw_text_left(
+                value,
+                value_size,
+                x + width * 58 // 100,
+                y,
+                self.game.palette.text,
+                max(1, width * 42 // 100),
+            )
+            y += row_height
+        self._draw_wrapped_text(
+            "Learning totals are configuration-derived estimates. Checkpoint trials are fresh, seat-balanced games and are not learning games.",
+            label_size,
+            x,
+            y,
+            width,
+            max_lines=4,
+            color=self.game.palette.accent,
+        )
+
+    def _draw_dashboard_scrollbar(self, viewport):
+        if self.dashboard_max_scroll <= 0:
+            return
+        track = pg.Rect(viewport.right - 4, viewport.y, 4, viewport.height)
+        total = viewport.height + self.dashboard_max_scroll
+        thumb_height = max(28, round(viewport.height * viewport.height / total))
+        travel = viewport.height - thumb_height
+        top = viewport.y + round(
+            travel * self.dashboard_scroll / self.dashboard_max_scroll
+        )
+        pg.draw.rect(self.game.display, self.game.palette.disabled, track, border_radius=2)
+        pg.draw.rect(
+            self.game.display,
+            self.game.palette.accent,
+            (track.x, top, track.width, thumb_height),
+            border_radius=2,
+        )
+
+    def _draw_progress_footer(self, footer, destination):
+        labels = [("back", "Back to runs"), ("log", "View log")]
+        if destination == ArenaDestination.PROGRESS and self._can_stop_dashboard_job():
+            labels.append(("stop", "Stop training"))
+        if destination == ArenaDestination.COMPLETION_HANDOFF:
+            artifact = self.dashboard_artifact_status
+            labels.append(
+                (
+                    "open_results",
+                    f"Open {mission_result_label(self._dashboard_kind())}",
+                )
+            )
+        gap = self.game.layout.gap
+        width = min(
+            330,
+            (footer.width - gap * (len(labels) - 1)) // max(1, len(labels)),
+        )
+        self.dashboard_buttons = []
+        for index, (key, label) in enumerate(labels):
+            enabled = not (
+                key == "open_results"
+                and not (
+                    self.dashboard_artifact_status is not None
+                    and self.dashboard_artifact_status.ready
+                    and self.dashboard_insights is not None
+                )
+            )
+            rect = RectSpec(
+                footer.x + index * (width + gap),
+                footer.y,
+                width,
+                footer.height,
+            )
+            self.dashboard_buttons.append(
+                Button(
+                    key,
+                    label,
+                    rect,
+                    enabled=enabled,
+                    selected=index == self.dashboard_action,
+                    hovered=rect.contains(self.game.mouse_position),
+                    destructive=key == "stop",
+                )
+            )
+        if self.dashboard_buttons:
+            self.dashboard_action %= len(self.dashboard_buttons)
+            for index, button in enumerate(self.dashboard_buttons):
+                button.selected = index == self.dashboard_action
+        self.draw_buttons(self.dashboard_buttons)
+
+    def _draw_training_progress(self, telemetry, destination):
+        self.draw_background()
+        item = self.dashboard_item
+        kind = self._dashboard_kind()
+        status = str(getattr(item, "status", telemetry.status) or "pending").lower()
+        identity = (
+            f"{item.run_id} · {item.title}"
+            if isinstance(item, TrainingRunSummary)
+            else getattr(item, "job_id", "Training run")
+        )
+        if destination == ArenaDestination.PROGRESS:
+            title = "Training in progress" if status != "stopping" else "Stopping training"
+            subtitle = f"{mission_progress_name(kind)} · {identity}"
+        elif destination == ArenaDestination.COMPLETION_HANDOFF:
+            title = "Training complete"
+            subtitle = f"{mission_progress_name(kind)} · {identity}"
+        else:
+            title = "Training did not complete"
+            subtitle = f"{mission_progress_name(kind)} · {identity} · {status.upper()}"
+        self.draw_title(title, subtitle)
+        layout = training_progress_layout(
+            self.game.layout,
+            scroll=self.dashboard_scroll,
+        )
+        self.dashboard_max_scroll = layout.max_scroll
+        self.dashboard_scroll = min(self.dashboard_scroll, layout.max_scroll)
+        viewport_rect = pg.Rect(
+            layout.viewport.x,
+            layout.viewport.y,
+            layout.viewport.width,
+            layout.viewport.height,
+        )
+        self.game.display.set_clip(viewport_rect)
+        metrics = self.game.layout
+        progress = overall_progress(telemetry)
+        status_color = (
+            self.game.palette.success
+            if destination == ArenaDestination.COMPLETION_HANDOFF
+            and self.dashboard_artifact_status is not None
+            and self.dashboard_artifact_status.ready
+            else self.game.palette.danger
+            if destination == ArenaDestination.COMPLETION_HANDOFF
+            and self.dashboard_artifact_status is not None
+            and self.dashboard_artifact_status.state == "invalid"
+            else self.game.palette.danger
+            if destination == ArenaDestination.TERMINAL
+            else self.game.palette.accent
+        )
+
+        hero = self._draw_dashboard_panel(layout.hero, accent=status_color)
+        radius = max(38, min(70, hero.height // 3))
+        center = (hero.x + metrics.margin + radius, hero.centery)
+        ring = pg.Rect(center[0] - radius, center[1] - radius, radius * 2, radius * 2)
+        pg.draw.arc(self.game.display, self.game.palette.disabled, ring, 0, math.tau, 10)
+        if progress is None:
+            angle = (pg.time.get_ticks() % 1800) / 1800 * math.tau
+            pg.draw.arc(
+                self.game.display,
+                status_color,
+                ring,
+                angle,
+                angle + math.pi * 0.65,
+                10,
+            )
+            ring_text = "…"
+        else:
+            pg.draw.arc(
+                self.game.display,
+                status_color,
+                ring,
+                -math.pi / 2,
+                -math.pi / 2 + math.tau * progress,
+                10,
+            )
+            ring_text = f"{round(progress * 100)}%"
+        self.game.draw_text(
+            ring_text, metrics.font_large, center[0], center[1], status_color
+        )
+        hero_x = center[0] + radius + metrics.margin
+        hero_width = max(1, hero.right - metrics.margin - hero_x)
+        if destination == ArenaDestination.PROGRESS:
+            eyebrow = (
+                f"Generation {telemetry.generation} / {telemetry.total_generations}"
+                if telemetry.total_generations
+                else "Waiting for measured work counters"
+            )
+            heading = f"Current phase: {self._phase_label(telemetry.phase)}"
+            note = "Mission results and deck adoption remain locked until authoritative completion."
+        elif destination == ArenaDestination.COMPLETION_HANDOFF:
+            artifact = self.dashboard_artifact_status
+            eyebrow = "Authoritative job status: completed"
+            heading = (
+                "The run finished and its result artifact is ready"
+                if artifact is not None and artifact.ready
+                else "Results are unavailable"
+                if artifact is not None and artifact.state == "invalid"
+                else "Preparing results…"
+            )
+            note = (
+                artifact.message
+                if artifact is not None
+                else "Verifying the mission result artifact in the background"
+            )
+        else:
+            eyebrow = f"Stopped at generation {telemetry.generation} of {telemetry.total_generations or '?'}"
+            heading = "No completed result is available"
+            note = "Partial logs and artifacts remain available for diagnosis; finished-result analysis stays locked."
+        self.game.draw_text_left(
+            eyebrow,
+            metrics.font_small,
+            hero_x,
+            hero.y + metrics.margin,
+            self.game.palette.muted,
+            hero_width,
+        )
+        self.game.draw_text_left(
+            heading,
+            metrics.font_normal,
+            hero_x,
+            hero.y + metrics.margin + metrics.font_normal + metrics.gap,
+            self.game.palette.text,
+            hero_width,
+        )
+        self._draw_wrapped_text(
+            note,
+            metrics.font_small,
+            hero_x,
+            hero.y + metrics.margin + metrics.font_normal * 3,
+            hero_width,
+            max_lines=3,
+            color=self.game.palette.muted,
+        )
+
+        levels_panel = self._draw_dashboard_panel(layout.levels, accent=(105, 172, 225))
+        x = levels_panel.x + metrics.margin
+        width = levels_panel.width - metrics.margin * 2
+        y = levels_panel.y + metrics.margin
+        self.game.draw_text_left("REPORTED PROGRESS", metrics.font_normal, x, y, self.game.palette.text, width)
+        y += metrics.font_normal + metrics.gap
+        levels = progress_levels(kind, telemetry)
+        if not levels:
+            self._draw_wrapped_text(
+                "The trainer has not emitted a trustworthy completed/total counter yet.",
+                metrics.font_small,
+                x,
+                y,
+                width,
+                max_lines=3,
+                color=self.game.palette.muted,
+            )
+        for label, value, ratio in levels:
+            self.game.draw_text_left(label, metrics.font_small, x, y, self.game.palette.text, width)
+            y += metrics.font_small
+            self.game.draw_text_left(value, max(9, metrics.font_small - 3), x, y, self.game.palette.muted, width)
+            y += metrics.font_small
+            bar = pg.Rect(x, y, width, max(9, metrics.gap))
+            if ratio is None:
+                pg.draw.rect(self.game.display, self.game.palette.disabled, bar, border_radius=5)
+                marker = max(12, bar.width // 5)
+                offset = (pg.time.get_ticks() // 12) % max(1, bar.width + marker) - marker
+                pg.draw.rect(
+                    self.game.display,
+                    self.game.palette.hover,
+                    (bar.x + offset, bar.y, marker, bar.height),
+                    border_radius=5,
+                )
+            else:
+                self._draw_dashboard_bar(bar, ratio, status_color)
+            y += bar.height + metrics.gap * 2
+
+        phase_panel = self._draw_dashboard_panel(layout.phase, accent=self.game.palette.accent)
+        x = phase_panel.x + metrics.margin
+        width = phase_panel.width - metrics.margin * 2
+        y = phase_panel.y + metrics.margin
+        self.game.draw_text_left("CURRENT PHASE", metrics.font_normal, x, y, self.game.palette.text, width)
+        y += metrics.font_normal + metrics.gap
+        self.game.draw_text_left(
+            self._phase_label(telemetry.phase),
+            metrics.font_normal,
+            x,
+            y,
+            status_color,
+            width,
+        )
+        y += metrics.font_normal + metrics.gap
+        phase_explanation = {
+            TrainingKind.PLAYER_DECK.value: "Counter generation, persistent controller learning, and candidate validation appear only when each level is reported.",
+            TrainingKind.MATCHUP_EVALUATION.value: "Controller learning and checkpoint evaluation are distinct phases; no checkpoint outcome appears here.",
+            TrainingKind.DECK_BUILDER.value: "Outer deck pairings are reported. Exact progress inside nested controller learning is not streamed.",
+        }.get(kind, "Only trainer-reported work is shown.")
+        self._draw_wrapped_text(
+            phase_explanation,
+            metrics.font_small,
+            x,
+            y,
+            width,
+            max_lines=6,
+            color=self.game.palette.muted,
+        )
+
+        timing_panel = self._draw_dashboard_panel(layout.timing, accent=(105, 172, 225))
+        x = timing_panel.x + metrics.margin
+        width = timing_panel.width - metrics.margin * 2
+        y = timing_panel.y + metrics.margin
+        self.game.draw_text_left("TIME AND COMPUTE", metrics.font_normal, x, y, self.game.palette.text, width)
+        y += metrics.font_normal + metrics.gap * 2
+        facts = (
+            ("Elapsed", self._duration_label(telemetry.elapsed_seconds)),
+            (
+                "Estimated remaining",
+                eta_label(telemetry, self._duration_label)
+                if destination == ArenaDestination.PROGRESS
+                else "—",
+            ),
+            ("Workers", str(telemetry.workers or "Not reported")),
+        )
+        for label, value in facts:
+            self.game.draw_text_left(label, metrics.font_small, x, y, self.game.palette.muted, width // 2)
+            self.game.draw_text_left(value, metrics.font_small, x + width // 2, y, self.game.palette.text, width // 2)
+            y += metrics.font_normal * 2
+        self._draw_wrapped_text(
+            "ETA is shown only from fresh trainer evidence; otherwise it remains Estimating…",
+            max(9, metrics.font_small - 2),
+            x,
+            y,
+            width,
+            max_lines=4,
+            color=self.game.palette.muted,
+        )
+
+        events_panel = self._draw_dashboard_panel(layout.events, accent=self.game.palette.success)
+        x = events_panel.x + metrics.margin
+        width = events_panel.width - metrics.margin * 2
+        y = events_panel.y + metrics.margin
+        self.game.draw_text_left("LATEST RUN EVENTS", metrics.font_normal, x, y, self.game.palette.text, width)
+        y += metrics.font_normal + metrics.gap
+        events = telemetry.recent_events
+        if not events:
+            self.game.draw_text_left(
+                "Waiting for timestamped trainer events…",
+                metrics.font_small,
+                x,
+                y,
+                self.game.palette.muted,
+                width,
+            )
+        for timestamp, event in events[-5:]:
+            self.game.draw_text_left(
+                f"{timestamp or '—'}  {event}",
+                max(10, metrics.font_small - 2),
+                x,
+                y,
+                self.game.palette.text,
+                width,
+            )
+            y += metrics.font_normal
+
+        self.game.display.set_clip(None)
+        self._draw_dashboard_scrollbar(layout.viewport)
+        self._draw_progress_footer(layout.footer, destination)
+
+    def _draw_matchup_dashboard(self, telemetry, detail):
+        self.draw_background()
+        item = self.dashboard_item
+        run_identity = getattr(item, "job_id", "Training run")
+        status = str(getattr(item, "status", telemetry.status) or "pending").upper()
+        progress = (
+            f" · GEN {telemetry.generation}/{telemetry.total_generations}"
+            if telemetry.total_generations > 0 and status == "RUNNING"
+            else ""
+        )
+        self.draw_title(
+            "Deck duel / checkpoint study",
+            f"Training Arena · {status}{progress}",
+        )
+        deck_rows = (
+            len(detail.deck_a.cards) + len(detail.deck_b.cards) if detail else 2
+        )
+        checkpoint_rows = len(detail.checkpoints) if detail else 1
+        layout = matchup_dashboard_layout(
+            self.game.layout,
+            deck_rows=deck_rows,
+            checkpoint_rows=checkpoint_rows,
+            scroll=self.dashboard_scroll,
+        )
+        self.dashboard_max_scroll = layout.max_scroll
+        self.dashboard_scroll = min(self.dashboard_scroll, self.dashboard_max_scroll)
+        self.game.display.set_clip(
+            pg.Rect(
+                layout.viewport.x,
+                layout.viewport.y,
+                layout.viewport.width,
+                layout.viewport.height,
+            )
+        )
+        if detail is None:
+            self._draw_empty_insights(layout.viewport, "Loading matchup evidence…")
+        else:
+            self._draw_matchup_decks_panel(layout.decks, detail, run_identity)
+            self._draw_matchup_checkpoints_panel(layout.checkpoints, detail)
+            self._draw_matchup_reading_panel(layout.reading, detail, telemetry)
+        self.game.display.set_clip(None)
+        self._draw_dashboard_scrollbar(layout.viewport)
+        self._draw_mission_footer(layout.footer)
+
+    def _draw_evolution_navigation(self, layout, detail):
+        pages = self._dashboard_pages()
+        self.dashboard_buttons = []
+        if layout.mode == "wide":
+            panel = self._draw_dashboard_panel(layout.navigation, accent=self.game.palette.border)
+            self.game.draw_text_left(
+                "DECK EVOLUTION",
+                self.game.layout.font_small,
+                panel.x + self.game.layout.gap,
+                panel.y + self.game.layout.margin,
+                self.game.palette.accent,
+                panel.width - self.game.layout.gap * 2,
+            )
+            y = panel.y + self.game.layout.margin + self.game.layout.font_normal * 2
+            for index, label in enumerate(pages):
+                rect = RectSpec(
+                    panel.x + self.game.layout.gap,
+                    y,
+                    panel.width - self.game.layout.gap * 2,
+                    self.game.layout.target_height,
+                )
+                self.dashboard_buttons.append(
+                    Button(
+                        f"page:{index}",
+                        f"0{index + 1}  {label}",
+                        rect,
+                        selected=index == self.dashboard_page,
+                        hovered=rect.contains(self.game.mouse_position),
+                    )
+                )
+                y += self.game.layout.target_height + self.game.layout.gap
+            y = max(y + self.game.layout.gap, panel.bottom - self.game.layout.target_height * 4)
+            self.game.draw_text_left(
+                f"RUN DB {detail.training_id}",
+                max(9, self.game.layout.font_small - 2),
+                panel.x + self.game.layout.gap,
+                y,
+                (105, 172, 225),
+                panel.width - self.game.layout.gap * 2,
+            )
+            self.game.draw_text_left(
+                detail.run_label,
+                max(9, self.game.layout.font_small - 2),
+                panel.x + self.game.layout.gap,
+                y + self.game.layout.font_normal,
+                self.game.palette.text,
+                panel.width - self.game.layout.gap * 2,
+            )
+        else:
+            panel = self._draw_dashboard_panel(layout.navigation, accent=self.game.palette.border)
+            gap = max(3, self.game.layout.gap // 2)
+            width = (panel.width - gap * 6) // 5
+            compact_labels = ("Pulse", "Decks", "Match", "Cards", "Study")
+            for index, label in enumerate(compact_labels):
+                rect = RectSpec(
+                    panel.x + gap + index * (width + gap),
+                    panel.y + self.game.layout.gap,
+                    width,
+                    panel.height - self.game.layout.gap * 2,
+                )
+                self.dashboard_buttons.append(
+                    Button(
+                        f"page:{index}",
+                        f"{index + 1} {label}",
+                        rect,
+                        selected=index == self.dashboard_page,
+                        hovered=rect.contains(self.game.mouse_position),
+                    )
+                )
+        self.draw_buttons(self.dashboard_buttons)
+
+    def _draw_evolution_footer(self, footer, detail, selected):
+        labels = [("back", "Back to runs"), ("previous", "Previous"), ("next", "Next")]
+        if self.dashboard_page == 1:
+            filter_name = (
+                "All generations"
+                if self.evolution_generation_filter is None
+                else f"Generation {self.evolution_generation_filter}"
+            )
+            if self.game.DISPLAY_W < 900:
+                labels.extend((("filter", "Filter"), ("adopt", "Adopt")))
+            else:
+                labels.extend(
+                    (("filter", f"Filter: {filter_name}"), ("adopt", "Adopt selected deck"))
+                )
+        gap = self.game.layout.gap
+        width = (footer.width - gap * (len(labels) - 1)) // len(labels)
+        footer_buttons = []
+        first_footer_index = len(self.dashboard_buttons)
+        for index, (key, label) in enumerate(labels):
+            rect = RectSpec(
+                footer.x + index * (width + gap), footer.y, width, footer.height
+            )
+            footer_buttons.append(
+                Button(
+                    key,
+                    label,
+                    rect,
+                    enabled=key != "adopt" or bool(selected and selected.card_ids),
+                    selected=(
+                        self.evolution_focus == "actions"
+                        and first_footer_index + index == self.dashboard_action
+                    ),
+                    hovered=rect.contains(self.game.mouse_position),
+                )
+            )
+        self.dashboard_buttons.extend(footer_buttons)
+        self.draw_buttons(footer_buttons)
+
+    def _draw_evolution_run_pulse(self, content, detail):
+        metrics = self.game.layout
+        x, width = content.x, content.width
+        y = content.y
+        first, final = detail.first_generation, detail.final_generation
+        hero = self._draw_dashboard_panel(
+            RectSpec(x, y, width, 165), accent=self.game.palette.success
+        )
+        self.game.draw_text_left("COMPLETED RUN EVIDENCE", metrics.font_normal, hero.x + metrics.margin, hero.y + metrics.margin, self.game.palette.text, hero.width - metrics.margin * 2)
+        generation_text = (
+            f"{final.generation} / {detail.requested_outer_generations or final.generation} outer generations"
+            if final else "No generation rows"
+        )
+        self.game.draw_text_left(generation_text, metrics.font_large, hero.x + metrics.margin, hero.y + metrics.margin + metrics.font_normal * 2, self.game.palette.success, hero.width - metrics.margin * 2)
+        self.game.draw_text_left(
+            f"{detail.coverage.scored_pairings:,} observed outer pairings · these are not individual games",
+            metrics.font_small,
+            hero.x + metrics.margin,
+            hero.bottom - metrics.margin,
+            self.game.palette.muted,
+            hero.width - metrics.margin * 2,
+        )
+        y = hero.bottom + metrics.gap
+        left, right = metrics.columns(RectSpec(x, y, width, 300), (0.53, 0.47))
+        generation_panel = self._draw_dashboard_panel(left, accent=(105, 172, 225))
+        self.game.draw_text_left("GENERATION WORK", metrics.font_normal, generation_panel.x + metrics.margin, generation_panel.y + metrics.margin, self.game.palette.text, generation_panel.width - metrics.margin * 2)
+        chart = pg.Rect(generation_panel.x + metrics.margin, generation_panel.y + metrics.margin + metrics.font_normal * 2, generation_panel.width - metrics.margin * 2, generation_panel.height - metrics.margin * 3 - metrics.font_normal * 2)
+        max_count = max((row.contenders for row in detail.generations), default=1)
+        if detail.generations:
+            slot = max(3, chart.width // len(detail.generations))
+            for index, row in enumerate(detail.generations):
+                height = round(chart.height * row.contenders / max_count)
+                bar = pg.Rect(chart.x + index * slot + 2, chart.bottom - height, max(2, slot - 4), height)
+                pg.draw.rect(self.game.display, (105, 172, 225), bar, border_radius=3)
+        evidence = self._draw_dashboard_panel(right, accent=self.game.palette.accent)
+        self.game.draw_text_left("EVIDENCE READINESS", metrics.font_normal, evidence.x + metrics.margin, evidence.y + metrics.margin, self.game.palette.text, evidence.width - metrics.margin * 2)
+        facts = (
+            ("Genome rows", f"{detail.coverage.genome_rows:,} recorded"),
+            ("Outer matchup rows", f"{detail.coverage.scored_pairings:,} scored"),
+            ("Card compositions", f"{detail.coverage.stored_compositions:,} stored deck lists"),
+            ("Fixed benchmark", "Not recorded"),
+            ("Live inner-loop detail", "Not streamed per pairing"),
+        )
+        fy = evidence.y + metrics.margin + metrics.font_normal * 2
+        for label, value in facts:
+            self.game.draw_text_left(label, max(9, metrics.font_small - 2), evidence.x + metrics.margin, fy, self.game.palette.muted, evidence.width // 2)
+            self.game.draw_text_left(value, max(9, metrics.font_small - 2), evidence.x + evidence.width // 2, fy, self.game.palette.text, evidence.width // 2 - metrics.margin)
+            fy += metrics.font_normal * 2
+        y += 300 + metrics.gap
+        guard = self._draw_dashboard_panel(RectSpec(x, y, width, 155), accent=self.game.palette.danger)
+        self.game.draw_text_left("READ THIS CORRECTLY", metrics.font_normal, guard.x + metrics.margin, guard.y + metrics.margin, self.game.palette.text, guard.width - metrics.margin * 2)
+        self._draw_wrapped_text(
+            "Completion measures executed work and evidence coverage. It does not prove that decks improved. Relative fitness compares contemporaries whose opponents changed each generation.",
+            metrics.font_small,
+            guard.x + metrics.margin,
+            guard.y + metrics.margin + metrics.font_normal * 2,
+            guard.width - metrics.margin * 2,
+            max_lines=4,
+            color=self.game.palette.muted,
+        )
+        if detail.issues:
+            y = guard.bottom + metrics.gap
+            issue_height = max(
+                100,
+                metrics.font_normal * 2
+                + min(3, len(detail.issues)) * metrics.font_normal * 2,
+            )
+            issue_panel = self._draw_dashboard_panel(
+                RectSpec(x, y, width, issue_height),
+                accent=self.game.palette.danger,
+            )
+            self.game.draw_text_left(
+                "HISTORICAL DATA LIMITATIONS",
+                metrics.font_small,
+                issue_panel.x + metrics.margin,
+                issue_panel.y + metrics.margin,
+                self.game.palette.danger,
+                issue_panel.width - metrics.margin * 2,
+            )
+            issue_y = issue_panel.y + metrics.margin + metrics.font_normal * 2
+            for issue in detail.issues[:3]:
+                self._draw_wrapped_text(
+                    f"• {issue}",
+                    max(9, metrics.font_small - 2),
+                    issue_panel.x + metrics.margin,
+                    issue_y,
+                    issue_panel.width - metrics.margin * 2,
+                    max_lines=2,
+                    color=self.game.palette.text,
+                )
+                issue_y += metrics.font_normal * 2
+
+    def _draw_evolution_fitness_chart(self, panel, detail):
+        metrics = self.game.layout
+        self.game.draw_text_left("RELATIVE FITNESS ENVELOPE", metrics.font_normal, panel.x + metrics.margin, panel.y + metrics.margin, self.game.palette.text, panel.width - metrics.margin * 2)
+        self.game.draw_text_left("Generation-local score range · not absolute deck quality", max(9, metrics.font_small - 2), panel.x + metrics.margin, panel.y + metrics.margin + metrics.font_normal, self.game.palette.muted, panel.width - metrics.margin * 2)
+        chart = pg.Rect(panel.x + metrics.margin, panel.y + metrics.margin + metrics.font_normal * 3, panel.width - metrics.margin * 2, panel.height - metrics.margin * 2 - metrics.font_normal * 3)
+        rows = detail.generations
+        if len(rows) < 2:
+            self.game.draw_text("Insufficient generation history", metrics.font_small, chart.centerx, chart.centery, self.game.palette.muted)
+            return
+        low = min(row.worst for row in rows)
+        high = max(row.best for row in rows)
+        span = max(1.0, high - low)
+        def points(attribute):
+            return [
+                (
+                    chart.x + round(index * chart.width / (len(rows) - 1)),
+                    chart.bottom - round((getattr(row, attribute) - low) / span * chart.height),
+                )
+                for index, row in enumerate(rows)
+            ]
+        pg.draw.lines(self.game.display, self.game.palette.success, False, points("best"), 3)
+        pg.draw.lines(self.game.display, self.game.palette.danger, False, points("worst"), 3)
+        zero_y = chart.bottom - round((0 - low) / span * chart.height)
+        if chart.y <= zero_y <= chart.bottom:
+            pg.draw.line(self.game.display, self.game.palette.accent, (chart.x, zero_y), (chart.right, zero_y), 1)
+
+    def _draw_evolution_deck_browser(self, panel, detail, selected):
+        metrics = self.game.layout
+        decks = sorted(
+            (
+                deck for deck in detail.decks
+                if self.evolution_generation_filter is None
+                or deck.generation == self.evolution_generation_filter
+            ),
+            key=lambda deck: (
+                deck.generation,
+                deck.relative_fitness if deck.relative_fitness is not None else float("-inf"),
+                deck.deck_id,
+            ),
+            reverse=True,
+        )
+        self.evolution_deck_keys = tuple(deck.deck_id for deck in decks)
+        if selected is not None and selected.deck_id not in self.evolution_deck_keys and decks:
+            selected = decks[0]
+            self.evolution_selected_deck_id = selected.deck_id
+        x = panel.x + metrics.margin
+        width = panel.width - metrics.margin * 2
+        y = panel.y + metrics.margin
+        self.game.draw_text_left("GENERATED DECKS", metrics.font_normal, x, y, self.game.palette.text, width)
+        y += metrics.font_normal
+        filter_name = "all generations" if self.evolution_generation_filter is None else f"generation {self.evolution_generation_filter}"
+        self.game.draw_text_left(f"{len(decks)} stored · {filter_name} · F changes filter", max(9, metrics.font_small - 2), x, y, self.game.palette.muted, width)
+        y += metrics.font_normal + metrics.gap
+        view = RectSpec(x, y, width, max(1, panel.bottom - metrics.margin - y))
+        self.evolution_deck_viewport = view
+        capacity = max(1, min(7, view.height // max(44, metrics.target_height)))
+        max_start = max(0, len(decks) - capacity)
+        self.evolution_deck_scroll = min(self.evolution_deck_scroll, max_start)
+        visible = decks[self.evolution_deck_scroll:self.evolution_deck_scroll + capacity]
+        self.evolution_deck_rects = []
+        row_height = max(42, metrics.target_height)
+        old_clip = self.game.display.get_clip()
+        self.game.display.set_clip(pg.Rect(view.x, view.y, view.width, view.height).clip(old_clip))
+        for index, deck in enumerate(visible):
+            rect = RectSpec(view.x, view.y + index * row_height, view.width - 6, row_height - 4)
+            self.evolution_deck_rects.append((deck.deck_id, rect))
+            chosen = selected is not None and deck.deck_id == selected.deck_id
+            pg.draw.rect(self.game.display, self.game.palette.selected if chosen else self.game.palette.panel_alt, pg.Rect(rect.x, rect.y, rect.width, rect.height), border_radius=7)
+            pg.draw.rect(self.game.display, self.game.palette.accent if chosen else self.game.palette.border, pg.Rect(rect.x, rect.y, rect.width, rect.height), 2 if chosen else 1, border_radius=7)
+            self.game.draw_text_left(deck.name, max(10, metrics.font_small - 2), rect.x + metrics.gap, rect.center[1], self.game.palette.text, rect.width * 65 // 100)
+            score = "unscored" if deck.relative_fitness is None else f"{deck.relative_fitness:+.1f} relative"
+            self.game.draw_text_left(score, max(9, metrics.font_small - 3), rect.x + rect.width * 66 // 100, rect.center[1], self.game.palette.success if (deck.relative_fitness or 0) >= 0 else self.game.palette.danger, rect.width * 32 // 100)
+        self.game.display.set_clip(old_clip)
+
+    def _draw_evolution_composition_panel(self, panel, selected):
+        metrics = self.game.layout
+        x = panel.x + metrics.margin
+        width = panel.width - metrics.margin * 2
+        y = panel.y + metrics.margin
+        self.game.draw_text_left("SELECTED DECK COMPOSITION", metrics.font_normal, x, y, self.game.palette.text, width)
+        y += metrics.font_normal
+        if selected is None:
+            self.game.draw_text_left("No generated deck selected", metrics.font_small, x, y + metrics.gap, self.game.palette.muted, width)
+            return
+        self.game.draw_text_left(f"{selected.name} · generation {selected.generation} · exact stored card IDs", max(9, metrics.font_small - 2), x, y, self.game.palette.muted, width)
+        y += metrics.font_normal + metrics.gap
+        if not selected.cards:
+            self._draw_wrapped_text(
+                "No recoverable card composition was stored for this historical deck. Adoption is disabled.",
+                metrics.font_small,
+                x,
+                y,
+                width,
+                max_lines=3,
+                color=self.game.palette.danger,
+            )
+            return
+        for card in selected.cards:
+            row = pg.Rect(x, y, width, max(24, metrics.font_small + 7))
+            pg.draw.rect(self.game.display, self.game.palette.panel_alt, row, border_radius=5)
+            color = self._counter_card_color(card.color, self.game.palette)
+            pg.draw.rect(self.game.display, color, (row.x, row.y, 5, row.height), border_radius=4)
+            self.game.draw_text_left(card.name, metrics.font_small, row.x + metrics.gap, row.centery, self.game.palette.text, row.width - 80)
+            self.game.draw_text_left(f"×{card.copies}", metrics.font_small, row.right - 55, row.centery, color, 50)
+            y += row.height + 4
+
+    def _draw_evolution_population(self, content, detail, selected):
+        metrics = self.game.layout
+        chart_height = 260
+        chart_panel = self._draw_dashboard_panel(RectSpec(content.x, content.y, content.width, chart_height), accent=(105, 172, 225))
+        self._draw_evolution_fitness_chart(chart_panel, detail)
+        y = content.y + chart_height + metrics.gap
+        remaining = content.bottom - y
+        if content.width >= 850:
+            left, right = metrics.columns(RectSpec(content.x, y, content.width, remaining), (0.43, 0.57))
+        else:
+            half = max(420, (remaining - metrics.gap) // 2)
+            left = RectSpec(content.x, y, content.width, half)
+            right = RectSpec(content.x, left.bottom + metrics.gap, content.width, half)
+        browser = self._draw_dashboard_panel(left, accent=self.game.palette.accent)
+        composition = self._draw_dashboard_panel(right, accent=self.game.palette.success)
+        self._draw_evolution_deck_browser(browser, detail, selected)
+        self._draw_evolution_composition_panel(composition, selected)
+
+    def _draw_evolution_matchups(self, content, detail, selected):
+        metrics = self.game.layout
+        panel = self._draw_dashboard_panel(content, accent=self.game.palette.accent)
+        x = panel.x + metrics.margin
+        width = panel.width - metrics.margin * 2
+        y = panel.y + metrics.margin
+        self.game.draw_text_left("LOCAL MATCHUPS", metrics.font_normal, x, y, self.game.palette.text, width)
+        y += metrics.font_normal
+        self.game.draw_text_left(
+            f"Selected: {selected.name if selected else 'none'} · scores are deck-relative fitness, never win rates",
+            metrics.font_small, x, y, self.game.palette.muted, width,
+        )
+        y += metrics.font_normal + metrics.gap
+        rows = detail.deck_matchups(selected.deck_id if selected else None)
+        if not rows:
+            self.game.draw_text_left("No scheduled pairing rows for this deck", metrics.font_small, x, y, self.game.palette.muted, width)
+        for row in rows:
+            rect = pg.Rect(x, y, width, max(38, metrics.target_height - 4))
+            pg.draw.rect(self.game.display, self.game.palette.panel_alt, rect, border_radius=6)
+            self.game.draw_text_left(row.opponent_name, metrics.font_small, rect.x + metrics.gap, rect.centery, self.game.palette.text, rect.width * 65 // 100)
+            color = self.game.palette.success if row.relative_score >= 0 else self.game.palette.danger
+            self.game.draw_text_left(f"{row.relative_score:+.1f} relative fitness", metrics.font_small, rect.x + rect.width * 66 // 100, rect.centery, color, rect.width * 32 // 100)
+            y += rect.height + 5
+        y += metrics.gap
+        self._draw_wrapped_text(
+            "Observed match_dbt scores have no W/D/L denominator. Run a separate 1,000-game Duel evaluation for a stable head-to-head comparison.",
+            metrics.font_small, x, y, width, max_lines=4, color=self.game.palette.accent,
+        )
+
+    def _draw_evolution_composition(self, content, detail, selected):
+        metrics = self.game.layout
+        top_height = max(440, len(detail.card_signals) * 46 + 80)
+        signals_panel = self._draw_dashboard_panel(RectSpec(content.x, content.y, content.width, top_height), accent=(105, 172, 225))
+        x = signals_panel.x + metrics.margin
+        width = signals_panel.width - metrics.margin * 2
+        y = signals_panel.y + metrics.margin
+        self.game.draw_text_left("CARD ADOPTION · FIRST VS FINAL GENERATION", metrics.font_normal, x, y, self.game.palette.text, width)
+        y += metrics.font_normal + metrics.gap
+        if not detail.card_signals:
+            self._draw_wrapped_text(
+                "No recoverable deck compositions are available for first-versus-final card analysis.",
+                metrics.font_small,
+                x,
+                y,
+                width,
+                max_lines=3,
+                color=self.game.palette.danger,
+            )
+            return
+        for signal in detail.card_signals:
+            first = signal.first_presence / max(1, signal.first_total)
+            final = signal.final_presence / max(1, signal.final_total)
+            self.game.draw_text_left(signal.name, max(9, metrics.font_small - 2), x, y, self.game.palette.text, width * 28 // 100)
+            self.game.draw_text_left(f"{signal.first_presence}/{signal.first_total} → {signal.final_presence}/{signal.final_total} decks", max(9, metrics.font_small - 3), x + width * 30 // 100, y, self.game.palette.muted, width * 38 // 100)
+            self.game.draw_text_left(f"mean copies when present {signal.first_mean_copies_when_present:.2f} → {signal.final_mean_copies_when_present:.2f}", max(9, metrics.font_small - 4), x + width * 68 // 100, y, self.game.palette.accent, width * 32 // 100)
+            y += metrics.font_normal + 6
+            bar = pg.Rect(x + width * 30 // 100, y - 8, width * 35 // 100, 6)
+            self._draw_dashboard_bar(bar, final, self.game.palette.success if final >= first else self.game.palette.danger)
+        note_y = signals_panel.bottom - metrics.margin * 2
+        self.game.draw_text_left("Stored deck lists show composition presence—not draw, play, or ability-use frequency.", max(9, metrics.font_small - 2), x, note_y, self.game.palette.muted, width)
+
+    def _draw_evolution_research(self, content, detail):
+        metrics = self.game.layout
+        intro = self._draw_dashboard_panel(RectSpec(content.x, content.y, content.width, 150), accent=self.game.palette.accent)
+        self.game.draw_text_left("THE HONEST SPLIT", metrics.font_normal, intro.x + metrics.margin, intro.y + metrics.margin, self.game.palette.text, intro.width - metrics.margin * 2)
+        self._draw_wrapped_text("The Arena keeps bounded, run-scoped evidence live. Controller-level, multi-seed, uncertainty, and causal analyses belong in cached notebooks or raw SQL.", metrics.font_small, intro.x + metrics.margin, intro.y + metrics.margin + metrics.font_normal * 2, intro.width - metrics.margin * 2, max_lines=4, color=self.game.palette.muted)
+        y = intro.bottom + metrics.gap
+        columns = metrics.columns(RectSpec(content.x, y, content.width, 360), (0.34, 0.33, 0.33)) if content.width >= 850 else (
+            RectSpec(content.x, y, content.width, 240),
+            RectSpec(content.x, y + 250, content.width, 240),
+            RectSpec(content.x, y + 500, content.width, 240),
+        )
+        groups = (
+            ("ARENA · AVAILABLE NOW", self.game.palette.success, ("Run completion and integrity", "Population score spread", "Stored composition shifts", "Relative local matchup scores", "Source and denominators")),
+            ("NOTEBOOK / PRECOMPUTE", self.game.palette.accent, ("Controller learning curves", "Held-out W/D/L aggregation", "Composition-aware archetypes", "Multi-seed replication tests", "Uncertainty and sensitivity")),
+            ("NOT LOGGED FOR THIS RUN", self.game.palette.danger, ("Drawn-card win rate", "Played-card win rate", "Ability-use causal effects", "Turn-level timing effects", "Dragon-specific outcome paths")),
+        )
+        for spec, (title, color, rows) in zip(columns, groups):
+            panel = self._draw_dashboard_panel(spec, accent=color)
+            x = panel.x + metrics.margin
+            yy = panel.y + metrics.margin
+            self.game.draw_text_left(title, metrics.font_small, x, yy, color, panel.width - metrics.margin * 2)
+            yy += metrics.font_normal * 2
+            for row in rows:
+                self.game.draw_text_left(f"■  {row}", max(9, metrics.font_small - 2), x, yy, self.game.palette.text, panel.width - metrics.margin * 2)
+                yy += metrics.font_normal * 2
+
+    def _draw_evolution_dashboard(self, telemetry, detail):
+        self.draw_background()
+        if detail is None:
+            self._draw_mission_placeholder(telemetry, TrainingKind.DECK_BUILDER.value)
+            return
+        pages = self._dashboard_pages()
+        self.dashboard_page %= len(pages)
+        title = pages[self.dashboard_page].lower()
+        self.draw_title(
+            f"Deck evolution / {title}",
+            f"Completed run DB {detail.training_id} · relative evidence, not absolute quality",
+        )
+        compact = self.game.DISPLAY_W < 1050
+        pulse_height = 650 + (150 if detail.issues else 0)
+        heights = (pulse_height, 1180 if compact else 900, max(720, 150 + len(detail.deck_matchups(self.evolution_selected_deck_id)) * 45), max(760, len(detail.card_signals) * 46 + 110), 820 if compact else 560)
+        layout = evolution_dashboard_layout(
+            self.game.layout,
+            content_height=heights[self.dashboard_page],
+            scroll=self.dashboard_scroll,
+        )
+        self.dashboard_max_scroll = layout.max_scroll
+        self.dashboard_scroll = min(self.dashboard_scroll, layout.max_scroll)
+        selected = self._evolution_selected(detail)
+        self._draw_evolution_navigation(layout, detail)
+        self.game.display.set_clip(pg.Rect(layout.viewport.x, layout.viewport.y, layout.viewport.width, layout.viewport.height))
+        self.evolution_deck_rects = []
+        self.evolution_deck_viewport = None
+        if self.dashboard_page == 0:
+            self._draw_evolution_run_pulse(layout.content, detail)
+        elif self.dashboard_page == 1:
+            self._draw_evolution_population(layout.content, detail, selected)
+        elif self.dashboard_page == 2:
+            self._draw_evolution_matchups(layout.content, detail, selected)
+        elif self.dashboard_page == 3:
+            self._draw_evolution_composition(layout.content, detail, selected)
+        else:
+            self._draw_evolution_research(layout.content, detail)
+        self.game.display.set_clip(None)
+        self._draw_dashboard_scrollbar(layout.viewport)
+        self._draw_evolution_footer(layout.footer, detail, selected)
+
+    def _draw_mission_placeholder(self, telemetry, kind):
+        self.draw_background()
+        mission = {
+            TrainingKind.PLAYER_DECK.value: "Counter-deck training",
+            TrainingKind.DECK_BUILDER.value: "General deck evolution",
+        }.get(kind, "Training mission")
+        item = self.dashboard_item
+        identity = getattr(item, "job_id", getattr(item, "run_id", "Training run"))
+        status = str(getattr(item, "status", telemetry.status) or "pending")
+        progress = (
+            f" · GEN {telemetry.generation}/{telemetry.total_generations}"
+            if telemetry.total_generations > 0 and status == "running"
+            else ""
+        )
+        self.draw_title(
+            "Training Arena",
+            f"{mission} · {status.upper()}{progress}",
+        )
+        metrics = self.game.layout
+        footer = RectSpec(
+            metrics.margin,
+            metrics.height - metrics.margin - metrics.target_height,
+            metrics.width - metrics.margin * 2,
+            metrics.target_height,
+        )
+        content = RectSpec(
+            metrics.margin,
+            metrics.margin + metrics.font_large + metrics.font_small + metrics.gap * 3,
+            metrics.width - metrics.margin * 2,
+            max(1, footer.y - metrics.gap - (metrics.margin + metrics.font_large + metrics.font_small + metrics.gap * 3)),
+        )
+        panel = self._draw_dashboard_panel(content, accent=self.game.palette.accent)
+        self.game.draw_text(
+            mission,
+            metrics.font_large,
+            panel.centerx,
+            panel.centery - metrics.font_large,
+            self.game.palette.text,
+        )
+        self.game.draw_text(
+            identity,
+            metrics.font_small,
+            panel.centerx,
+            panel.centery,
+            self.game.palette.muted,
+        )
+        self.game.draw_text(
+            "Detailed view coming next",
+            metrics.font_normal,
+            panel.centerx,
+            panel.centery + metrics.font_large,
+            self.game.palette.accent,
+        )
+        self.dashboard_scroll = 0
+        self.dashboard_max_scroll = 0
+        self._draw_mission_footer(footer)
+
     def draw_training_dashboard(
         self,
         telemetry: TrainingTelemetry | None = None,
@@ -2883,6 +5596,25 @@ class TrainingMenu(Menu):
         self.draw_background()
         telemetry = telemetry or self._dashboard_telemetry()
         insights = insights or self.dashboard_insights
+        kind = self._dashboard_kind(insights)
+        destination = self._arena_destination()
+        if destination != ArenaDestination.RESULTS:
+            self._draw_training_progress(telemetry, destination)
+            return
+        if kind == TrainingKind.PLAYER_DECK.value:
+            detail = insights.counter if insights is not None else None
+            self._draw_counter_dashboard(telemetry, detail)
+            self._draw_adoption_overlay()
+            return
+        if kind == TrainingKind.MATCHUP_EVALUATION.value:
+            detail = insights.matchup if insights is not None else None
+            self._draw_matchup_dashboard(telemetry, detail)
+            return
+        if kind == TrainingKind.DECK_BUILDER.value:
+            detail = insights.evolution if insights is not None else None
+            self._draw_evolution_dashboard(telemetry, detail)
+            self._draw_adoption_overlay()
+            return
         item = self.dashboard_item
         title = (
             f"{item.run_id} · {item.title}"

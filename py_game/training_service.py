@@ -13,6 +13,21 @@ from dataclasses import asdict, dataclass, replace
 from enum import Enum
 from pathlib import Path
 
+from py_game.counter_presentation import (
+    CounterPresentation,
+    load_counter_presentation,
+)
+from py_game.evolution_presentation import (
+    EvolutionPresentation,
+    load_evolution_presentation,
+)
+from py_game.matchup_presentation import (
+    MatchupPresentation,
+    load_matchup_presentation,
+)
+from py_game.training_lifecycle import ResultArtifactStatus
+from utils.database_utils import DBUtil
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 TRAIN_DB_PATH = PROJECT_ROOT / "train.db"
@@ -37,7 +52,7 @@ class TrainingRequest:
     evaluator_generations: int = 50
     workers: int = 12
     holdout_seed_pairs: int = 20
-    evaluation_games: int = 100
+    evaluation_games: int = 1_000
 
     def validate(self) -> None:
         if not isinstance(self.run_label, str) or not self.run_label.strip():
@@ -144,6 +159,8 @@ class TrainingTelemetry:
     eta_seconds: float | None = None
     elapsed_seconds: float | None = None
     checkpoint_generation: int = 0
+    recent_events: tuple[tuple[str, str], ...] = ()
+    telemetry_age_seconds: float | None = None
 
 
 @dataclass(frozen=True)
@@ -177,6 +194,9 @@ class TrainingInsights:
     top_counter_win_rate: float | None = None
     opponent_count: int = 0
     conclusions: tuple[str, ...] = ()
+    matchup: MatchupPresentation | None = None
+    counter: CounterPresentation | None = None
+    evolution: EvolutionPresentation | None = None
 
 
 def shared_card_count(first: tuple[str, ...], second: tuple[str, ...]) -> int:
@@ -231,6 +251,13 @@ def select_diverse_matchups(
 def _safe_label(label: str) -> str:
     cleaned = re.sub(r"[^A-Za-z0-9_.-]+", "-", label.strip()).strip("-")
     return cleaned or "training-run"
+
+
+def _summary_int(value, default=0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
 
 
 def build_command(request: TrainingRequest) -> list[str]:
@@ -515,6 +542,8 @@ class TrainingService:
         eta_seconds = None
         elapsed_seconds = None
         checkpoint_generation = 0
+        recent_events = []
+        latest_event_time = None
 
         events = self._structured_events(getattr(job, "telemetry_path", ""))
         for event in events:
@@ -544,6 +573,23 @@ class TrainingService:
             checkpoint_generation = int(
                 event.get("checkpoint_generation", checkpoint_generation) or 0
             )
+            timestamp = str(event.get("timestamp") or "")
+            shown_time = ""
+            if timestamp:
+                try:
+                    parsed = dt.datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+                    latest_event_time = parsed
+                    shown_time = parsed.astimezone().strftime("%H:%M")
+                except ValueError:
+                    shown_time = timestamp[:5]
+            event_name = str(event.get("event") or "progress").replace("_", " ")
+            event_phase = str(event.get("phase") or "").replace("_", " ")
+            detail = event_phase or event_name
+            if event.get("completed") is not None and event.get("total") is not None:
+                detail += f" · {int(event.get('completed') or 0):,}/{int(event.get('total') or 0):,}"
+            elif event_name == "generation completed" and event.get("generation"):
+                detail += f" · generation {int(event['generation'])} complete"
+            recent_events.append((shown_time, detail.capitalize()))
 
         generation_pattern = re.compile(r"generation\s*:?\s*(\d+)", re.I)
         round_pattern = re.compile(
@@ -604,6 +650,21 @@ class TrainingService:
         elif not phase:
             phase = "completed" if job.status == "completed" else "training"
 
+        telemetry_age_seconds = None
+        if latest_event_time is not None:
+            now = dt.datetime.now(latest_event_time.tzinfo)
+            telemetry_age_seconds = max(0.0, (now - latest_event_time).total_seconds())
+        elif getattr(job, "telemetry_path", ""):
+            try:
+                modified = dt.datetime.fromtimestamp(
+                    Path(job.telemetry_path).stat().st_mtime
+                )
+                telemetry_age_seconds = max(
+                    0.0, (dt.datetime.now() - modified).total_seconds()
+                )
+            except OSError:
+                pass
+
         return TrainingTelemetry(
             status=job.status,
             phase=phase,
@@ -619,6 +680,8 @@ class TrainingService:
             eta_seconds=eta_seconds,
             elapsed_seconds=elapsed_seconds,
             checkpoint_generation=checkpoint_generation,
+            recent_events=tuple(recent_events[-6:]),
+            telemetry_age_seconds=telemetry_age_seconds,
         )
 
     def job_database_run_id(self, job: TrainingJob) -> int | None:
@@ -645,7 +708,7 @@ class TrainingService:
         if not TRAIN_DB_PATH.exists():
             return []
         connection = sqlite3.connect(
-            f"file:{TRAIN_DB_PATH}?mode=ro&immutable=1",
+            f"file:{TRAIN_DB_PATH}?mode=ro",
             uri=True,
             timeout=2.0,
         )
@@ -735,9 +798,9 @@ class TrainingService:
         return summaries
 
     @staticmethod
-    def _immutable_connection(path: Path):
+    def _read_only_connection(path: Path):
         connection = sqlite3.connect(
-            f"file:{path}?mode=ro&immutable=1",
+            f"file:{path}?mode=ro",
             uri=True,
             timeout=3.0,
         )
@@ -769,7 +832,7 @@ class TrainingService:
         if missing:
             decks_path = PROJECT_ROOT / "utils" / "decks.db"
             if decks_path.exists():
-                deck_connection = self._immutable_connection(decks_path)
+                deck_connection = self._read_only_connection(decks_path)
                 try:
                     placeholders = ",".join("?" for _ in missing)
                     rows = deck_connection.execute(
@@ -798,7 +861,7 @@ class TrainingService:
         all_card_ids = {card for cards in deck_cards.values() for card in cards}
         cards_path = PROJECT_ROOT / "utils" / "cards.db"
         if all_card_ids and cards_path.exists():
-            card_connection = self._immutable_connection(cards_path)
+            card_connection = self._read_only_connection(cards_path)
             try:
                 placeholders = ",".join("?" for _ in all_card_ids)
                 for row in card_connection.execute(
@@ -815,12 +878,12 @@ class TrainingService:
         }
         return named_cards, deck_names
 
-    def database_insights(self, run: TrainingRunSummary) -> TrainingInsights:
+    def _legacy_database_insights(self, run: TrainingRunSummary) -> TrainingInsights:
         match = re.search(r"(\d+)$", run.run_id)
         if not match or not TRAIN_DB_PATH.exists():
             return TrainingInsights(conclusions=("No database analytics are available.",))
         training_id = int(match.group(1))
-        connection = self._immutable_connection(TRAIN_DB_PATH)
+        connection = self._read_only_connection(TRAIN_DB_PATH)
         try:
             generation_rows = connection.execute(
                 """
@@ -940,6 +1003,217 @@ class TrainingService:
             conclusions=tuple(conclusions),
         )
 
+    def database_evolution(
+        self, run: TrainingRunSummary | int
+    ) -> EvolutionPresentation:
+        training_id = (
+            int(run)
+            if isinstance(run, int)
+            else int(re.search(r"(\d+)$", run.run_id).group(1))
+        )
+        return load_evolution_presentation(
+            TRAIN_DB_PATH,
+            PROJECT_ROOT / "utils" / "cards.db",
+            training_id,
+        )
+
+    def database_insights(self, run: TrainingRunSummary) -> TrainingInsights:
+        """Build lightweight completed-run evidence from bounded run tables."""
+        try:
+            evolution = self.database_evolution(run)
+        except (AttributeError, OSError, ValueError, sqlite3.Error) as error:
+            return TrainingInsights(
+                run_kind=TrainingKind.DECK_BUILDER.value,
+                subject=run.title,
+                conclusions=(f"Run-scoped evidence is unavailable: {error}",),
+            )
+        generation_scores = tuple(
+            (
+                row.generation,
+                row.worst,
+                row.average,
+                row.best,
+                row.contenders,
+            )
+            for row in evolution.generations
+        )
+        selected = evolution.deck(evolution.default_deck_id)
+        selected_matchups = evolution.deck_matchups(evolution.default_deck_id)
+        selected_cards = selected.card_ids if selected else ()
+
+        def matchup(item):
+            opponent = evolution.deck(item.opponent_id)
+            opponent_cards = opponent.card_ids if opponent else ()
+            return MatchupInsight(
+                selected.name if selected else (evolution.default_deck_id or "Deck"),
+                item.opponent_name,
+                item.relative_score,
+                item.generation,
+                shared_card_count(selected_cards, opponent_cards),
+                selected_cards,
+                opponent_cards,
+            )
+
+        favorable = tuple(matchup(item) for item in selected_matchups[:2])
+        difficult = tuple(matchup(item) for item in selected_matchups[-2:])
+        top_cards = tuple(
+            (
+                signal.name,
+                signal.final_presence / max(1, signal.final_total) * 100,
+                signal.final_presence,
+            )
+            for signal in evolution.card_signals[:6]
+        )
+        conclusions = []
+        if evolution.first_generation and evolution.final_generation:
+            conclusions.append(
+                "Relative score spread changed from "
+                f"{evolution.first_generation.spread:.1f} to "
+                f"{evolution.final_generation.spread:.1f}; this is population "
+                "differentiation, not absolute quality improvement."
+            )
+        conclusions.extend(
+            (
+                "Matchup values are generation-local relative fitness scores, not win rates.",
+                "A fixed benchmark was not recorded; deeper controller analysis belongs in the run notebook or raw SQL.",
+            )
+        )
+        return TrainingInsights(
+            run_kind=TrainingKind.DECK_BUILDER.value,
+            subject=f"{evolution.run_label} · DB {evolution.training_id}",
+            generation_scores=generation_scores,
+            favorable_matchups=favorable,
+            difficult_matchups=difficult,
+            top_cards=top_cards,
+            total_matches=evolution.coverage.scored_pairings,
+            distinct_decks=evolution.coverage.stored_decks,
+            eligible_matchups=len(selected_matchups),
+            conclusions=tuple(conclusions),
+            evolution=evolution,
+        )
+
+    def result_artifact_status(
+        self, item: TrainingJob | TrainingRunSummary
+    ) -> ResultArtifactStatus:
+        """Verify enough completed evidence exists before exposing result screens."""
+        status = str(getattr(item, "status", "") or "").lower()
+        if status != "completed":
+            return ResultArtifactStatus.invalid(
+                "Finished results are unavailable because this run did not complete"
+            )
+        kind = (
+            item.run_kind
+            if isinstance(item, TrainingRunSummary)
+            else str((item.request or {}).get("kind", ""))
+        )
+        if kind == TrainingKind.DECK_BUILDER.value:
+            if isinstance(item, TrainingRunSummary):
+                match = re.search(r"(\d+)$", item.run_id)
+                training_id = int(match.group(1)) if match else None
+            else:
+                training_id = self.job_database_run_id(item)
+            if training_id is None:
+                return ResultArtifactStatus.waiting(
+                    "Preparing results… waiting for the training database run ID"
+                )
+            if not TRAIN_DB_PATH.exists():
+                return ResultArtifactStatus.invalid("Training database is unavailable")
+            try:
+                connection = self._read_only_connection(TRAIN_DB_PATH)
+                row = connection.execute(
+                    """
+                    SELECT t.end_date,
+                           (SELECT COUNT(*) FROM genome g WHERE g.training_id=t.id),
+                           (SELECT COUNT(*) FROM ai_training_decks d WHERE d.training_id=t.id)
+                    FROM training t WHERE t.id=?
+                    """,
+                    (training_id,),
+                ).fetchone()
+            except sqlite3.Error as error:
+                return ResultArtifactStatus.invalid(
+                    f"Could not verify Evolution results: {error}"
+                )
+            finally:
+                if "connection" in locals():
+                    connection.close()
+            if row is None or row["end_date"] is None:
+                return ResultArtifactStatus.waiting(
+                    "Preparing results… the training database is not finalized"
+                )
+            if int(row[1] or 0) <= 0 or int(row[2] or 0) <= 0:
+                return ResultArtifactStatus.invalid(
+                    "Evolution finished without stored genomes or deck compositions"
+                )
+            return ResultArtifactStatus.available("Evolution evidence verified")
+
+        path = Path(getattr(item, "summary_path", ""))
+        if not path.exists() or path.stat().st_size == 0:
+            return ResultArtifactStatus.waiting(
+                "Preparing results… waiting for the completed summary"
+            )
+        try:
+            summary = json.loads(path.read_text())
+        except (OSError, ValueError, json.JSONDecodeError):
+            return ResultArtifactStatus.waiting(
+                "Preparing results… the summary is still unreadable"
+            )
+        if not isinstance(summary, dict):
+            return ResultArtifactStatus.invalid("The completed summary has an invalid format")
+        if kind == TrainingKind.PLAYER_DECK.value:
+            rows = summary.get("counter_matchups")
+            if not isinstance(rows, list) or not rows:
+                return ResultArtifactStatus.invalid(
+                    "The completed counter run contains no candidate results"
+                )
+            valid = any(
+                isinstance(row, dict)
+                and isinstance(row.get("cards"), list)
+                and row.get("cards")
+                and _summary_int(row.get("games"), 0) > 0
+                and sum(
+                    _summary_int(row.get(key), 0)
+                    for key in ("counter_wins", "draws", "subject_wins")
+                )
+                == _summary_int(row.get("games"), 0)
+                for row in rows
+            )
+            return (
+                ResultArtifactStatus.available("Counter candidate results verified")
+                if valid
+                else ResultArtifactStatus.invalid(
+                    "Counter candidates are missing a valid composition or W/D/L sample"
+                )
+            )
+        if kind == TrainingKind.MATCHUP_EVALUATION.value:
+            requested = _summary_int(
+                (getattr(item, "request", None) or {}).get(
+                    "evaluator_generations"
+                ),
+                0,
+            )
+            rows = summary.get("skill_evaluations") or ()
+            valid_final = False
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                generation = _summary_int(row.get("generation"), 0)
+                games = _summary_int(row.get("games"), 0)
+                outcomes = sum(
+                    _summary_int(row.get(key), 0)
+                    for key in ("deck_1_wins", "draws", "deck_2_wins")
+                )
+                if generation == requested and games > 0 and outcomes == games:
+                    valid_final = True
+                    break
+            return (
+                ResultArtifactStatus.available("Final Duel checkpoint verified")
+                if valid_final
+                else ResultArtifactStatus.invalid(
+                    "The completed Duel summary has no valid final checkpoint"
+                )
+            )
+        return ResultArtifactStatus.invalid("Unknown training mission")
+
     def job_insights(self, job: TrainingJob) -> TrainingInsights:
         kind = str((job.request or {}).get("kind", ""))
         if kind == TrainingKind.DECK_BUILDER.value:
@@ -963,21 +1237,59 @@ class TrainingService:
             summary = {}
         is_counter = kind == TrainingKind.PLAYER_DECK.value
         is_matchup = kind == TrainingKind.MATCHUP_EVALUATION.value
+        telemetry = self.job_telemetry(job)
+        counter = (
+            load_counter_presentation(
+                job,
+                DBUtil().load_card,
+                completed_counter_generations=telemetry.generation,
+            )
+            if is_counter
+            else None
+        )
+        matchup = None
+        if is_matchup:
+            deck_database = DBUtil()
+
+            def expected_card_count(deck_id):
+                row = deck_database.conn_decks.execute(
+                    "SELECT CASE WHEN signature IS NULL OR signature = '' "
+                    "THEN id ELSE signature END FROM decks WHERE id = ?",
+                    (deck_id,),
+                ).fetchone()
+                if row is None:
+                    return None
+                return int(
+                    deck_database.conn_decks.execute(
+                        "SELECT COUNT(*) FROM deck_lines WHERE signature = ?",
+                        (row[0],),
+                    ).fetchone()[0]
+                )
+
+            matchup = load_matchup_presentation(
+                job,
+                deck_database.load_deck,
+                completed_generations=telemetry.generation,
+                expected_card_count=expected_card_count,
+            )
         evaluation = summary.get("evaluation") or {}
-        wins = int(evaluation.get("ai_wins", 0) or 0)
-        draws = int(evaluation.get("draws", 0) or 0)
-        losses = int(evaluation.get("random_wins", 0) or 0)
+        wins = _summary_int(
+            evaluation.get("deck_1_wins", evaluation.get("ai_wins", 0))
+        )
+        draws = _summary_int(evaluation.get("draws", 0))
+        losses = _summary_int(
+            evaluation.get("deck_2_wins", evaluation.get("random_wins", 0))
+        )
         skill_evaluations = tuple(
             (
-                int(item.get("generation", 0) or 0),
-                int(item.get("ai_wins", 0) or 0),
-                int(item.get("draws", 0) or 0),
-                int(item.get("random_wins", 0) or 0),
+                _summary_int(item.get("generation", 0)),
+                _summary_int(item.get("deck_1_wins", item.get("ai_wins", 0))),
+                _summary_int(item.get("draws", 0)),
+                _summary_int(item.get("deck_2_wins", item.get("random_wins", 0))),
             )
             for item in (summary.get("skill_evaluations") or ())
             if isinstance(item, dict)
         )
-        telemetry = self.job_telemetry(job)
         generation_scores = tuple(
             (
                 generation,
@@ -1080,6 +1392,8 @@ class TrainingService:
             top_counter_win_rate=top_counter_rate,
             opponent_count=len(final_counters),
             conclusions=tuple(conclusions),
+            matchup=matchup,
+            counter=counter,
         )
 
     @staticmethod

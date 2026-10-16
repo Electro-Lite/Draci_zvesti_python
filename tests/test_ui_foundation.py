@@ -113,19 +113,19 @@ class TrainingCockpitStateTests(unittest.TestCase):
         self._fixed_run_tokens(state)
         self.assertEqual(
             state.value("run_label"),
-            "counter_balanced_260925-14_Blue_AB12",
+            "counter_balanced_260925-14_Blue",
         )
 
         state.switch(TrainingKind.MATCHUP_EVALUATION)
         self.assertEqual(
             state.value("run_label"),
-            "matchup_balanced_260925-14_Blue-vs-Queen_AB12",
+            "matchup_balanced_260925-14_Blue-vs-Queen",
         )
 
         state.switch(TrainingKind.DECK_BUILDER)
         self.assertEqual(
             state.value("run_label"),
-            "deck-builder_balanced_260925-14_AB12",
+            "deck-builder_balanced_260925-14",
         )
 
     def test_automatic_run_name_tracks_configuration_until_user_renames_it(self):
@@ -135,7 +135,7 @@ class TrainingCockpitStateTests(unittest.TestCase):
         state.apply_preset(0)
         self.assertEqual(
             state.value("run_label"),
-            "counter_quick_260925-14_Queen_AB12",
+            "counter_quick_260925-14_Queen",
         )
 
         state.set_value("run_label", "queen-counter-baseline")
@@ -314,7 +314,11 @@ class LanMenuStateTests(unittest.TestCase):
     def _menu(self):
         with (
             patch("py_game.menu.lan_menu.discover_local_ip", return_value="192.168.1.5"),
-            patch.object(DBUtil, "get_all_deck_ids", return_value=["deck-1"]),
+            patch.object(
+                DBUtil,
+                "get_all_deck_options",
+                return_value=[("deck-1", "Friendly deck")],
+            ),
         ):
             return LanMenu(self._game())
 
@@ -325,6 +329,8 @@ class LanMenuStateTests(unittest.TestCase):
         menu.lobby = HostLobbyController("Host", lambda _deck: True)
 
         waiting = menu._rows()
+        self.assertIn("Friendly deck", waiting[0])
+        self.assertNotIn("deck-1", waiting[0])
         self.assertIn("192.168.1.5:47777", waiting[2])
         self.assertIn("Waiting for player", waiting[3])
         self.assertFalse(menu._enabled()[4])

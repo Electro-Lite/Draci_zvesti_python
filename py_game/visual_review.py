@@ -16,6 +16,7 @@ os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 import pygame as pg
 
 from py_game.deck_editor import DeckBuilderMenu
+from py_game.deck_adoption import AdoptableDeck
 from py_game.game import Game
 from py_game.menu.basic_play_menu import BasicPlayMenu
 from py_game.menu.deck_menu import DeckMenu
@@ -23,6 +24,30 @@ from py_game.menu.lan_menu import LanMenu
 from py_game.menu.main_menu import MainMenu
 from py_game.menu.options_menu import OptionsMenu
 from py_game.menu.training_menu import TrainingMenu
+from py_game.counter_presentation import (
+    CounterCandidate,
+    CounterCardRow,
+    CounterDeckSnapshot,
+    CounterPresentation,
+    CounterWorkload,
+)
+from py_game.matchup_presentation import (
+    MatchupCardRow,
+    MatchupCheckpoint,
+    MatchupDeck,
+    MatchupPresentation,
+    MatchupWorkload,
+)
+from py_game.evolution_presentation import (
+    EvolutionCardRow,
+    EvolutionCardSignal,
+    EvolutionCoverage,
+    EvolutionDeck,
+    EvolutionGeneration,
+    EvolutionMatchup,
+    EvolutionPresentation,
+)
+from py_game.training_lifecycle import ResultArtifactStatus
 from py_game.network.lobby import HostLobbyController
 from py_game.training_service import (
     MatchupInsight,
@@ -319,6 +344,12 @@ def _sample_training_dashboard():
         phase_progress=0.39,
         eta_seconds=1840,
         elapsed_seconds=1260,
+        recent_events=(
+            ("10:43", "Outer generation 14 started"),
+            ("10:44", "Candidate compositions persisted"),
+            ("10:46", "Deck pairing queue · 37/60"),
+        ),
+        telemetry_age_seconds=8,
         fitness_history=((1, 22.0), (3, 41.0), (6, 38.0), (9, 76.0), (12, 93.0), (14, 128.4)),
     )
     first_cards = ("Lučištník", "Panoš", "Strážce", "Alchymista", "Rytíř", "Vědma")
@@ -355,10 +386,232 @@ def _sample_training_dashboard():
     return job, telemetry, insights
 
 
+def _sample_evolution_dashboard():
+    # //placeholder: deterministic completed-run evidence for visual review only.
+    job = TrainingJob(
+        job_id="evolution_balanced_260926-16_70",
+        request={"kind": TrainingKind.DECK_BUILDER.value},
+        command=[],
+        created_at="2026-09-26T16:00:00",
+        status="completed",
+        pid=None,
+        log_path="training.log",
+        progress_path="progress.log",
+        summary_path="summary.json",
+    )
+    telemetry = TrainingTelemetry(
+        status="completed",
+        phase="completed",
+        generation=4,
+        total_generations=4,
+        elapsed_seconds=2840,
+    )
+    card_specs = (
+        ("archer", "Lučištník", "Blue"),
+        ("page", "Panoš", "Red"),
+        ("guard", "Strážce", "Blue"),
+        ("alchemist", "Alchymista", "Black"),
+        ("knight", "Rytíř", "Red"),
+        ("seer", "Vědma", "Blue"),
+        ("smith", "Kovář", "Black"),
+        ("priest", "Kněz", "Blue"),
+    )
+    decks = []
+    for generation in range(1, 5):
+        for index in range(1, 7):
+            chosen = tuple(
+                card_specs[(index + offset + generation) % len(card_specs)]
+                for offset in range(5)
+            )
+            cards = tuple(EvolutionCardRow(card_id, name, color, 2) for card_id, name, color in chosen)
+            card_ids = tuple(card.card_id for card in cards for _ in range(card.copies))
+            decks.append(
+                EvolutionDeck(
+                    f"T70_Gen{generation}_ID{index}",
+                    f"Generation {generation} · candidate {index}",
+                    generation,
+                    -18.0 + generation * 17.0 + index * 3.4,
+                    f"signature-{generation}-{index}",
+                    card_ids,
+                    cards,
+                )
+            )
+    default = decks[-1]
+    opponents = tuple(
+        EvolutionMatchup(
+            deck.deck_id,
+            deck.name,
+            deck.generation,
+            22.0 - index * 6.5,
+        )
+        for index, deck in enumerate(decks[-7:-1])
+    )
+    signals = tuple(
+        EvolutionCardSignal(
+            card_id,
+            name,
+            2 + index % 3,
+            6,
+            3 + (index + 1) % 3,
+            6,
+            1.2 + index * 0.1,
+            1.4 + index * 0.08,
+        )
+        for index, (card_id, name, _color) in enumerate(card_specs)
+    )
+    detail = EvolutionPresentation(
+        training_id=70,
+        run_label="Balanced evolution study",
+        seed=104729,
+        requested_outer_generations=4,
+        requested_inner_generations=25,
+        generations=tuple(
+            EvolutionGeneration(
+                generation,
+                -24.0 + generation * 7,
+                8.0 + generation * 11,
+                35.0 + generation * 15,
+                6,
+                6,
+                15,
+            )
+            for generation in range(1, 5)
+        ),
+        decks=tuple(decks),
+        matchups=((default.deck_id, opponents),),
+        card_signals=signals,
+        coverage=EvolutionCoverage(24, 24, 24, 60),
+        default_deck_id=default.deck_id,
+    )
+    return job, telemetry, TrainingInsights(
+        run_kind=TrainingKind.DECK_BUILDER.value,
+        subject="Balanced evolution study · DB 70",
+        evolution=detail,
+    )
+
+
+def _unlock_results(menu):
+    menu.dashboard_artifact_status = ResultArtifactStatus.available()
+    menu.dashboard_results_opened = True
+
+
+def _sample_matchup_dashboard():
+    # //placeholder: deterministic review data; runtime uses the selected job summary and decks.db.
+    job = TrainingJob(
+        job_id="matchup_balanced_260925-14_blue-vs-queen_AB12",
+        request={
+            "kind": TrainingKind.MATCHUP_EVALUATION.value,
+            "deck_id": "starter-blue",
+            "opponent_deck_id": "killer-queen",
+            "evaluator_generations": 40,
+            "evaluation_games": 100,
+        },
+        command=[],
+        created_at="2026-09-25T14:00:00",
+        status="completed",
+        pid=None,
+        log_path="training.log",
+        progress_path="progress.log",
+        summary_path="summary.json",
+    )
+    telemetry = TrainingTelemetry(
+        status="completed",
+        phase="completed",
+        generation=40,
+        total_generations=40,
+        phase_progress=1.0,
+    )
+    deck_a = MatchupDeck(
+        "starter-blue",
+        "Starter Blue",
+        tuple(
+            MatchupCardRow(card_id, name, color, 2)
+            for card_id, name, color in (
+                ("archer", "Lucisnik", "Blue"),
+                ("paladin", "Paladin", "Blue"),
+                ("page", "Panos", "Red"),
+                ("footman", "Pesak", "Black"),
+                ("guard", "Strazny", "Blue"),
+            )
+        ),
+        True,
+    )
+    deck_b = MatchupDeck(
+        "killer-queen",
+        "Killer Queen",
+        (
+            MatchupCardRow("novice", "Novic", "Black", 4),
+            MatchupCardRow("killer", "Zabijak", "Red", 4),
+            MatchupCardRow("ascetic", "Asketa", "Blue", 2),
+        ),
+        True,
+    )
+    checkpoints = tuple(
+        MatchupCheckpoint(generation, 100, wins, draws, losses, True)
+        for generation, wins, draws, losses in (
+            (1, 38, 12, 50),
+            (10, 45, 13, 42),
+            (25, 49, 14, 37),
+            (40, 53, 14, 33),
+        )
+    )
+    workload = MatchupWorkload(
+        population_size=15,
+        requested_generations=40,
+        completed_generations=40,
+        games_per_genome_per_generation=15,
+        learning_games_per_generation=225,
+        planned_learning_games=9000,
+        completed_learning_games_estimate=9000,
+        planned_checkpoint_generations=(1, 10, 25, 40),
+        recorded_checkpoints=4,
+        games_per_checkpoint=100,
+        planned_evaluation_games=400,
+        recorded_evaluation_games=400,
+    )
+    detail = MatchupPresentation(
+        deck_a,
+        deck_b,
+        checkpoints,
+        workload,
+        40,
+        checkpoints[-1],
+        None,
+        True,
+    )
+    insights = TrainingInsights(
+        run_kind=TrainingKind.MATCHUP_EVALUATION.value,
+        subject=deck_a.name,
+        opponent=deck_b.name,
+        matchup=detail,
+    )
+    return job, telemetry, insights
+
+
+def _training_matchup_duel(game, output, size):
+    menu = TrainingMenu(game)
+    menu.refresh_layout()
+    menu.dashboard_item, telemetry, insights = _sample_matchup_dashboard()
+    _unlock_results(menu)
+    menu.draw_training_dashboard(telemetry, insights)
+    _save(game, output, "training-matchup-duel", size)
+
+
+def _training_matchup_duel_bottom(game, output, size):
+    menu = TrainingMenu(game)
+    menu.refresh_layout()
+    menu.dashboard_item, telemetry, insights = _sample_matchup_dashboard()
+    _unlock_results(menu)
+    menu.dashboard_scroll = 100_000
+    menu.draw_training_dashboard(telemetry, insights)
+    _save(game, output, "training-matchup-duel-bottom", size)
+
+
 def _training_dashboard_page(game, output, size, page, name):
     menu = TrainingMenu(game)
     menu.refresh_layout()
-    menu.dashboard_item, telemetry, insights = _sample_training_dashboard()
+    menu.dashboard_item, telemetry, insights = _sample_evolution_dashboard()
+    _unlock_results(menu)
     menu.dashboard_page = page
     menu.draw_training_dashboard(telemetry, insights)
     _save(game, output, name, size)
@@ -377,7 +630,49 @@ def _training_matchups(game, output, size):
 
 
 def _training_conclusions(game, output, size):
-    _training_dashboard_page(game, output, size, 3, "training-conclusions")
+    _training_dashboard_page(game, output, size, 4, "training-conclusions")
+
+
+def _training_progress(game, output, size):
+    menu = TrainingMenu(game)
+    menu.refresh_layout()
+    menu.dashboard_item, telemetry, insights = _sample_training_dashboard()
+    menu.dashboard_watching_live = True
+    menu.draw_training_dashboard(telemetry, insights)
+    _save(game, output, "training-progress", size)
+
+
+def _training_completion_handoff(game, output, size):
+    menu = TrainingMenu(game)
+    menu.refresh_layout()
+    menu.dashboard_item, telemetry, insights = _sample_matchup_dashboard()
+    menu.dashboard_insights = insights
+    menu.dashboard_watching_live = True
+    menu.dashboard_artifact_status = ResultArtifactStatus.available(
+        "Final Duel checkpoint verified"
+    )
+    menu.draw_training_dashboard(telemetry, insights)
+    _save(game, output, "training-completion-handoff", size)
+
+
+def _training_evolution_adopt(game, output, size):
+    menu = TrainingMenu(game)
+    menu.refresh_layout()
+    menu.dashboard_item, telemetry, insights = _sample_evolution_dashboard()
+    menu.dashboard_insights = insights
+    menu.dashboard_page = 1
+    _unlock_results(menu)
+    selected = insights.evolution.deck(insights.evolution.default_deck_id)
+    menu._begin_adoption(
+        AdoptableDeck(
+            selected.deck_id,
+            selected.name,
+            selected.card_ids,
+            f"Evolution run DB {insights.evolution.training_id} · {selected.name}",
+        )
+    )
+    menu.draw_training_dashboard(telemetry, insights)
+    _save(game, output, "training-evolution-adopt", size)
 
 
 def _sample_player_dashboard():
@@ -403,6 +698,88 @@ def _sample_player_dashboard():
         phase_progress=1.0,
         elapsed_seconds=512.0,
         fitness_history=((1, 18.0), (7, 46.0), (14, 72.0), (21, 101.0), (28, 127.0), (35, 146.2)),
+    )
+    subject = CounterDeckSnapshot(
+        "starter-blue",
+        "Starter Blue",
+        tuple(
+            CounterCardRow(card_id, name, color, 2)
+            for card_id, name, color in (
+                ("archer", "Lucisnik", "Blue"),
+                ("paladin", "Paladin", "Blue"),
+                ("page", "Panos", "Red"),
+                ("footman", "Pesak", "Black"),
+                ("guard", "Strazny", "Blue"),
+            )
+        ),
+    )
+    selected_deck = CounterDeckSnapshot(
+        "counter-g1-8",
+        "Counter G1 #8",
+        (
+            CounterCardRow("fanatic", "Draci Fanatik", "Black", 4),
+            CounterCardRow("footman", "Pesak", "Black", 2),
+            CounterCardRow("ascetic", "Asketa", "Blue", 1),
+            CounterCardRow("dummy", "Dummy", "Black", 1),
+            CounterCardRow("innos", "Innosuv Fanatik", "Red", 1),
+            CounterCardRow("archer", "Lucisnik", "Blue", 1),
+            CounterCardRow("novice", "Novic", "Red", 1),
+            CounterCardRow("paladin", "Paladin", "Blue", 1),
+        ),
+    )
+    candidates = tuple(
+        CounterCandidate(
+            key=f"counter-g1-{index}",
+            builder_id=str(index),
+            deck=(
+                selected_deck
+                if index == 8
+                else CounterDeckSnapshot(
+                    f"counter-g1-{index}",
+                    f"Counter G1 #{index}",
+                    selected_deck.cards,
+                )
+            ),
+            generation=1,
+            games=20,
+            counter_wins=16 if index in (1, 8) else max(4, 16 - index // 2),
+            draws=2,
+            subject_wins=2 if index in (1, 8) else min(14, 2 + index // 2),
+            counter_fitness=79.0 if index == 8 else 78.0 - index,
+            shared_cards=4,
+            valid=True,
+        )
+        for index in range(1, 21)
+    )
+    workload = CounterWorkload(
+        builder_population_size=20,
+        controller_population_size=15,
+        requested_counter_generations=1,
+        completed_counter_generations=1,
+        requested_controller_generations=10,
+        completed_controller_generations_estimate=10,
+        games_per_candidate=20,
+        final_candidate_count=20,
+        planned_validation_games=400,
+        recorded_validation_games=400,
+        planned_learning_games=2250,
+        completed_learning_games_estimate=2250,
+    )
+    detail = CounterPresentation(
+        subject=subject,
+        candidates=tuple(
+            sorted(
+                candidates,
+                key=lambda item: (item.counter_win_rate, item.counter_fitness),
+                reverse=True,
+            )
+        ),
+        default_candidate_key="counter-g1-8",
+        workload=workload,
+        pooled_subject_wins=170,
+        pooled_draws=51,
+        pooled_counter_wins=179,
+        summary_available=True,
     )
     insights = TrainingInsights(
         run_kind=TrainingKind.PLAYER_DECK.value,
@@ -433,6 +810,7 @@ def _sample_player_dashboard():
             "Top counter Counter G5 #17 won 72.0% against the selected deck.",
             "Controller populations persisted while counter decks evolved.",
         ),
+        counter=detail,
     )
     return job, telemetry, insights
 
@@ -441,6 +819,7 @@ def _training_player_page(game, output, size, page, name):
     menu = TrainingMenu(game)
     menu.refresh_layout()
     menu.dashboard_item, telemetry, insights = _sample_player_dashboard()
+    _unlock_results(menu)
     menu.dashboard_page = page
     menu.draw_training_dashboard(telemetry, insights)
     _save(game, output, name, size)
@@ -456,6 +835,17 @@ def _training_player_evaluation(game, output, size):
 
 def _training_player_conclusions(game, output, size):
     _training_player_page(game, output, size, 3, "training-player-conclusions")
+
+
+def _training_counter_bottom(game, output, size):
+    menu = TrainingMenu(game)
+    menu.refresh_layout()
+    menu.dashboard_item, telemetry, insights = _sample_player_dashboard()
+    _unlock_results(menu)
+    menu.dashboard_scroll = 100_000
+    menu.counter_candidate_scroll = 14
+    menu.draw_training_dashboard(telemetry, insights)
+    _save(game, output, "training-counter-bottom", size)
 
 
 def _training_quit_warning(game, output, size):
@@ -498,31 +888,36 @@ def _training_about_recommendations(game, output, size):
 
 
 def _sample_gameplay_state():
-    # //placeholder: deterministic review-only cards; runtime loads real database cards.
+    # Deterministic review state using actual repository card art and live-stat examples.
+    examples = (
+        ("Pesak_1", "Pesak", 2, 1, "BLUE", 1, 1),
+        ("Novic_1", "Novic", 2, 1, "RED", 1, 1),
+        ("Lucisnik_1", "Lucisnik", 1, 1, "BLUE", 0, 0),
+        ("Paladin_1", "Paladin", 2, 2, "BLUE", 1, 1),
+        ("Strazny_1", "Strazny", 1, 1, "BLUE", 1, 1),
+    )
     cards = [
         {
-            "id": f"card-{index}",
-            "name": f"Card {index + 1}",
-            "hp": index + 1,
-            "dmg": 5 - index,
+            "id": card_id,
+            "name": name,
+            "hp": hp,
+            "dmg": dmg,
+            "color": color,
+            "mana_bonus": {"dmg": bonus_dmg, "hp": bonus_hp},
             "owner": "local",
-            "ability_name": "Tactical shift" if index == 0 else "",
-            "ability_description": (
-                "Move an allied card to a legal adjacent position."
-                if index == 0
-                else ""
-            ),
+            "ability_name": "Go Before 1" if name == "Strazny" else "",
+            "ability_description": "Moves this card one slot forward." if name == "Strazny" else "",
         }
-        for index in range(5)
+        for card_id, name, hp, dmg, color, bonus_dmg, bonus_hp in examples
     ]
     return {
         "status": "playing",
         "round": 3,
         "mana": "BLUE",
         "turn": "local",
-        "local": {"score": 1, "deck_count": 5, "graveyard_count": 2, "hand": cards},
-        "opponent": {"score": 1, "deck_count": 4, "graveyard_count": 3, "hand_count": 5},
-        "board": [cards[0], None, cards[1], None, None, cards[2]],
+        "local": {"id": 1, "score": 1, "deck_count": 5, "graveyard_count": 2, "hand": cards},
+        "opponent": {"id": 2, "score": 1, "deck_count": 4, "graveyard_count": 3, "hand_count": 5},
+        "board": [{**cards[0], "hp": 3, "dmg": 3}, None, {**cards[1], "owner": "opponent"}, None, None, cards[2]],
         "dragon": None,
         "dragon_deck_count": 2,
         "winner": None,
@@ -535,6 +930,11 @@ def _gameplay(game, output, size):
     game.current_legal_indices = [1, 3, 4]
     game.draw_match_state(state, "position")
     _save(game, output, "gameplay", size)
+
+
+def _hotseat_handoff(game, output, size):
+    game.draw_hotseat_handoff(2)
+    _save(game, output, "hotseat-private-handoff", size)
 
 
 def _gameplay_tooltip(game, output, size):
@@ -557,7 +957,7 @@ def _gameplay_play_or_pass(game, output, size):
 
 def _gameplay_ability_staged(game, output, size):
     state = _sample_gameplay_state()
-    staged = state["local"]["hand"].pop(0)
+    staged = state["local"]["hand"].pop(-1)
     state["board"][1] = staged
     game.draw_match_state(state, "use_ability")
     _save(game, output, "gameplay-ability-staged", size)
@@ -576,23 +976,25 @@ def _gameplay_target_staged(game, output, size):
 def _battle_state(phase):
     state = _sample_gameplay_state()
     dragon = {
-        "id": "dragon-red",
-        "name": "Crimson Wyrm",
+        "id": "dragon_red_1",
+        "name": "Red Dragon",
         "hp": 7 if phase != "dragon_defeated" else 0,
         "max_hp": 12,
         "dmg": 3,
         "owner": "opponent",
+        "color": "RED",
+        "mana_bonus": {"dmg": 0, "hp": 0},
         "ability_name": "Scorch the Line",
         "ability_description": "Burns fragile challengers before combat.",
     }
     challenger = dict(state["board"][0])
-    challenger.update({"name": "Moon Vanguard", "hp": 3, "max_hp": 5, "dmg": 4})
+    challenger.update({"hp": 3, "max_hp": 5, "dmg": 4})
     state["board"][0] = challenger
     messages = {
-        "reveal": "Crimson Wyrm enters the battle",
-        "impact": "Moon Vanguard and Crimson Wyrm exchange blows",
-        "card_defeated": "Moon Vanguard was defeated; board effects recalculate",
-        "dragon_defeated": "Crimson Wyrm was defeated",
+        "reveal": "Red Dragon enters the battle",
+        "impact": "Pesak and Red Dragon exchange blows",
+        "card_defeated": "Pesak was defeated; board effects recalculate",
+        "dragon_defeated": "Red Dragon was defeated",
     }
     if phase == "card_defeated":
         challenger["hp"] = 0
@@ -711,19 +1113,26 @@ def generate(output: Path, sizes=REVIEW_SIZES) -> list[Path]:
         _training_review,
         _training_runs,
         _training_runs_filter,
+        _training_progress,
+        _training_completion_handoff,
+        _training_evolution_adopt,
         _training_dashboard,
+        _training_matchup_duel,
+        _training_matchup_duel_bottom,
         _training_performance,
         _training_matchups,
         _training_conclusions,
         _training_player_learning,
         _training_player_evaluation,
         _training_player_conclusions,
+        _training_counter_bottom,
         _training_quit_warning,
         _training_about_player,
         _training_about_matchup,
         _training_about_builder,
         _training_about_recommendations,
         _gameplay,
+        _hotseat_handoff,
         _gameplay_tooltip,
         _gameplay_play_or_pass,
         _gameplay_ability_staged,
