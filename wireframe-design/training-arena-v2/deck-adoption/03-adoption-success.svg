@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+<rect width="1600" height="900" fill="#0d1219"/>
+<rect x="0" y="0" width="1600" height="6" rx="0" fill="#ecb14b"/>
+<text x="42" y="37" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start" fill="#ecb14b">DRACI ZVESTI  /  TRAINING ARENA</text>
+<text x="42" y="82" font-family="DejaVu Sans, sans-serif" font-size="34" font-weight="700" text-anchor="start" fill="#eff3f7">Deck added to My decks</text>
+<text x="42" y="113" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="400" text-anchor="start" fill="#a8b6c5">The training artifact was preserved; the new copy is now a normal player deck.</text>
+<rect x="1355" y="36" width="203" height="37" rx="8" fill="#382e1e" stroke="#ecb14b"/>
+<text x="1457" y="61" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="middle" fill="#ecb14b">SAVED</text>
+<path d="M42 835 L1558 835" stroke="#45586a"/>
+<text x="42" y="868" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="start" fill="#a8b6c5">Design-only example · displayed values are illustrative unless explicitly marked observed.</text>
+<rect x="236" y="175" width="1128" height="573" rx="12" fill="#18212b" stroke="#45586a"/>
+<rect x="236" y="175" width="5" height="573" rx="2" fill="#5bc684"/>
+<text x="258" y="207" font-family="DejaVu Sans, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#eff3f7">My Blue Counter</text>
+<text x="258" y="233" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" fill="#a8b6c5">User deck · newly assigned deck ID · 12 cards</text>
+<text x="285" y="296" font-family="DejaVu Sans, sans-serif" font-size="56" font-weight="700" text-anchor="start" fill="#5bc684">✓</text>
+<text x="371" y="285" font-family="DejaVu Sans, sans-serif" font-size="25" font-weight="700" text-anchor="start" fill="#eff3f7">Ready to edit and use</text>
+<text x="371" y="323" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="400" text-anchor="start" fill="#a8b6c5">This deck now appears in user-deck lists and relevant deck pickers.</text>
+<path d="M282 366 L1316 366" stroke="#45586a"/>
+<text x="284" y="414" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" fill="#a8b6c5">Original source</text>
+<text x="1316" y="414" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="end" fill="#eff3f7">Counter candidate #3 · unchanged</text>
+<text x="284" y="454" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" fill="#a8b6c5">New classification</text>
+<text x="1316" y="454" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="end" fill="#5bc684">My deck · not AI-generated</text>
+<rect x="282" y="600" width="395" height="55" rx="8" fill="#23313f" stroke="#6da9df"/>
+<text x="479.5" y="635" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700" text-anchor="middle" fill="#6da9df">Back to results</text>
+<rect x="810" y="600" width="505" height="55" rx="8" fill="#47351d" stroke="#ecb14b"/>
+<text x="1062.5" y="635" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700" text-anchor="middle" fill="#ecb14b">Open in deck editor  →</text>
+</svg>

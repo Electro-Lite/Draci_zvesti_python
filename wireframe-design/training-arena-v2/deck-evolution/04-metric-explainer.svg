@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+<rect width="1600" height="900" fill="#0d1219"/>
+<rect x="0" y="0" width="1600" height="6" rx="0" fill="#ecb14b"/>
+<text x="42" y="37" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="2">DRACI ZVESTI  /  TRAINING ARENA</text>
+<text x="42" y="83" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="35" font-weight="700" text-anchor="start" letter-spacing="0">Metric explainer / presence lift</text>
+<text x="43" y="113" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="400" text-anchor="start" letter-spacing="0">A layered explanation: plain English, formula, sample, and research caveat.</text>
+<rect x="1364" y="37" width="194" height="35" rx="8" fill="#382e1e" stroke="#ecb14b" stroke-width="1"/>
+<text x="1461.0" y="59.05" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">EVOLUTION DETAIL</text>
+<rect x="1385" y="86" width="173" height="31" rx="8" fill="#202c38" stroke="#6da9df" stroke-width="1"/>
+<text x="1471.5" y="105.7" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="middle" letter-spacing="0">EXAMPLE DATA</text>
+<rect x="166" y="151" width="1268" height="674" rx="13" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="166" y="151" width="5" height="674" rx="2" fill="#ecb14b"/>
+<text x="188" y="182" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Card presence lift</text>
+<text x="188" y="206" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Deck evolution · one run · one outer-generation group</text>
+<rect x="192" y="227" width="161" height="40" rx="8" fill="#47351d" stroke="#ecb14b" stroke-width="1"/>
+<text x="272.5" y="252.25" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">Beginner</text>
+<rect x="366" y="227" width="161" height="40" rx="8" fill="#202c38" stroke="#a8b6c5" stroke-width="1"/>
+<text x="446.5" y="252.25" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">Research</text>
+<rect x="192" y="295" width="570" height="198" rx="9" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="217" y="334" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">In plain language</text>
+<text x="217" y="370" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="400" text-anchor="start" letter-spacing="0">Do decks containing this card score better</text>
+<text x="217" y="400" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="400" text-anchor="start" letter-spacing="0">than the typical deck from the same period?</text>
+<text x="217" y="448" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">It compares deck lists, not cards played in games.</text>
+<rect x="781" y="295" width="626" height="198" rx="9" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="806" y="334" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Research definition</text>
+<text x="806" y="380" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="700" text-anchor="start" letter-spacing="0">presence lift = mean(score | card present)</text>
+<text x="959" y="414" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="700" text-anchor="start" letter-spacing="0">− mean(score | same-gen decks)</text>
+<text x="806" y="459" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">Report pick rate, sample sizes, run ID, and interval.</text>
+<rect x="192" y="515" width="590" height="261" rx="9" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="217" y="553" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Example evidence panel</text>
+<text x="217" y="595" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="700" text-anchor="start" letter-spacing="0">Card: Draci Fanatik</text>
+<text x="217" y="628" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="400" text-anchor="start" letter-spacing="0">Pick rate: 90%  ·  Lift: +8.4 fitness points</text>
+<text x="217" y="660" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">With card: 18 decks  ·  Total: 20 decks</text>
+<text x="217" y="699" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">Scope: this run, final outer generation</text>
+<rect x="801" y="515" width="606" height="261" rx="9" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="826" y="553" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">What you can conclude</text>
+<text x="826" y="594" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">Association with stronger deck lists in this scope.</text>
+<text x="826" y="637" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="700" text-anchor="start" letter-spacing="0">What you cannot conclude</text>
+<text x="826" y="672" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">The card caused wins or was drawn / played well.</text>
+<text x="826" y="707" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">Near-universal inclusion leaves a small absence group.</text>
+<rect x="192" y="780" width="320" height="39" rx="8" fill="#202c38" stroke="#6da9df" stroke-width="1"/>
+<text x="352.0" y="804.4" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="middle" letter-spacing="0">←  Back to investigation</text>
+<path d="M42 844 L1558 844" stroke="#45586a" stroke-width="1"/>
+<text x="42" y="875" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Example values are invented; the formulas and interpretation follow the analysis guide.</text>
+<text x="1558" y="875" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="end" letter-spacing="0">EXPLAINER / PRESENCE LIFT</text>
+</svg>

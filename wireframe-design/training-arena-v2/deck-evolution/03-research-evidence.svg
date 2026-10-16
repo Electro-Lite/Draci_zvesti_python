@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+<rect width="1600" height="900" fill="#0d1219"/>
+<rect x="0" y="0" width="1600" height="6" rx="0" fill="#ecb14b"/>
+<text x="42" y="37" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="2">DRACI ZVESTI  /  TRAINING ARENA</text>
+<text x="42" y="83" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="35" font-weight="700" text-anchor="start" letter-spacing="0">Deck evolution / research evidence</text>
+<text x="43" y="113" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="400" text-anchor="start" letter-spacing="0">Run-scoped definitions, denominators, comparisons, and limitations for academic review.</text>
+<rect x="1364" y="37" width="194" height="35" rx="8" fill="#382e1e" stroke="#ecb14b" stroke-width="1"/>
+<text x="1461.0" y="59.05" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">EVOLUTION METHODS</text>
+<rect x="1385" y="86" width="173" height="31" rx="8" fill="#202c38" stroke="#6da9df" stroke-width="1"/>
+<text x="1471.5" y="105.7" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="middle" letter-spacing="0">EXAMPLE DATA</text>
+<rect x="42" y="151" width="1516" height="58" rx="9" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<text x="64" y="188" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="700" text-anchor="start" letter-spacing="0">Scope: DB 84  ·  seed 104729  ·  final outer-generation group</text>
+<rect x="1263" y="162" width="271" height="36" rx="8" fill="#202c38" stroke="#6da9df" stroke-width="1"/>
+<text x="1398.5" y="184.9" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="middle" letter-spacing="0">Change scope  ▾</text>
+<rect x="42" y="228" width="355" height="296" rx="13" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="42" y="228" width="5" height="296" rx="2" fill="#6da9df"/>
+<text x="64" y="259" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Population shift</text>
+<text x="64" y="283" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Best is not the median</text>
+<text x="66" y="317" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="27" font-weight="700" text-anchor="start" letter-spacing="0">Best +22</text>
+<text x="66" y="358" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="25" font-weight="700" text-anchor="start" letter-spacing="0">Median +7</text>
+<text x="66" y="399" fill="#e26467" font-family="DejaVu Sans, sans-serif" font-size="23" font-weight="700" text-anchor="start" letter-spacing="0">Worst −13</text>
+<path d="M66 424 L373 424" stroke="#45586a" stroke-width="1"/>
+<text x="66" y="456" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">n = 20 final-gen decks</text>
+<text x="66" y="488" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Spread is evidence of uneven quality.</text>
+<rect x="414" y="228" width="355" height="296" rx="13" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="414" y="228" width="5" height="296" rx="2" fill="#5bc684"/>
+<text x="436" y="259" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Composition-aware diversity</text>
+<text x="436" y="283" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Not exact signatures alone</text>
+<text x="438" y="319" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="43" font-weight="700" text-anchor="start" letter-spacing="0">5.2</text>
+<text x="438" y="349" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">effective archetypes</text>
+<text x="438" y="395" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">38% viable share</text>
+<text x="438" y="441" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">Similarity kernel discounts decks</text>
+<text x="438" y="468" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">differing by one card replacement.</text>
+<rect x="786" y="228" width="355" height="296" rx="13" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="786" y="228" width="5" height="296" rx="2" fill="#ecb14b"/>
+<text x="808" y="259" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Meta-weighted performance</text>
+<text x="808" y="283" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Against common local opponents</text>
+<text x="810" y="310" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">Raw average</text>
+<text x="1109" y="310" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="21" font-weight="700" text-anchor="end" letter-spacing="0">+17</text>
+<rect x="810" y="326" width="299" height="14" rx="7" fill="#354353"/>
+<rect x="810" y="326" width="221" height="14" rx="7" fill="#ecb14b"/>
+<text x="810" y="381" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">Meta-weighted</text>
+<text x="1109" y="381" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="21" font-weight="700" text-anchor="end" letter-spacing="0">+11</text>
+<rect x="810" y="397" width="299" height="14" rx="7" fill="#354353"/>
+<rect x="810" y="397" width="155" height="14" rx="7" fill="#6da9df"/>
+<text x="810" y="458" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">Common opponents reduce this</text>
+<text x="810" y="482" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">candidate&#x27;s apparent advantage.</text>
+<rect x="1158" y="228" width="400" height="296" rx="13" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="1158" y="228" width="5" height="296" rx="2" fill="#e26467"/>
+<text x="1180" y="259" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Matchup polarization</text>
+<text x="1180" y="283" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Balance is more than one champion</text>
+<text x="1182" y="320" fill="#e26467" font-family="DejaVu Sans, sans-serif" font-size="39" font-weight="700" text-anchor="start" letter-spacing="0">31%</text>
+<text x="1182" y="353" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">close-matchup share</text>
+<text x="1182" y="399" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="700" text-anchor="start" letter-spacing="0">Mean |score|  9.6</text>
+<text x="1182" y="450" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">Lower absolute score means</text>
+<text x="1182" y="477" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">more even matchups.</text>
+<rect x="42" y="544" width="1516" height="281" rx="13" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="42" y="544" width="5" height="281" rx="2" fill="#6da9df"/>
+<text x="64" y="575" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Evidence ledger</text>
+<text x="64" y="599" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">For every claim: measurement, denominator, scope, and interpretation limit</text>
+<text x="65" y="631" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">QUESTION</text>
+<text x="407" y="631" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">MEASURE</text>
+<text x="755" y="631" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">SAMPLE / SCOPE</text>
+<text x="1158" y="631" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">LIMIT</text>
+<rect x="63" y="631" width="1472" height="33" rx="5" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="65" y="652" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="600" text-anchor="start" letter-spacing="0">Did deck quality rise?</text>
+<text x="407" y="652" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Best / median / worst fitness</text>
+<text x="755" y="652" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">20 decks × 10 outer generations</text>
+<text x="1158" y="652" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Fitness alone is not user win rate</text>
+<rect x="63" y="669" width="1472" height="33" rx="5" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="65" y="690" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="600" text-anchor="start" letter-spacing="0">Did the meta narrow?</text>
+<text x="407" y="690" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Effective archetypes; viable share</text>
+<text x="755" y="690" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Final generation, one seed</text>
+<text x="1158" y="690" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Archetype grouping choice matters</text>
+<rect x="63" y="707" width="1472" height="33" rx="5" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="65" y="728" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="600" text-anchor="start" letter-spacing="0">Is a card overused?</text>
+<text x="407" y="728" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Presence lift; pick rate</text>
+<text x="755" y="728" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">18 / 20 final decks with card</text>
+<text x="1158" y="728" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Presence does not imply card play</text>
+<rect x="63" y="745" width="1472" height="33" rx="5" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="65" y="766" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="600" text-anchor="start" letter-spacing="0">Are pairings balanced?</text>
+<text x="407" y="766" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Mean |score|; close-matchup rate</text>
+<text x="755" y="766" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Held-out local pairings</text>
+<text x="1158" y="766" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Intervals are descriptive here</text>
+<path d="M42 844 L1558 844" stroke="#45586a" stroke-width="1"/>
+<text x="42" y="875" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Example numbers are illustrative; metric definitions follow analysis notebooks.</text>
+<text x="1558" y="875" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="end" letter-spacing="0">EVOLUTION / RESEARCH EVIDENCE</text>
+</svg>

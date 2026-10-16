@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+<rect width="1600" height="900" fill="#0d1219"/>
+<rect x="0" y="0" width="1600" height="7" rx="0" fill="#ecb14b"/>
+<text x="42" y="38" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700" text-anchor="start" letter-spacing="2">DRACI ZVESTI  /  AI TRAINING</text>
+<text x="42" y="88" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="38" font-weight="700" text-anchor="start" letter-spacing="0">Arena B / Run timeline</text>
+<text x="43" y="119" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="400" text-anchor="start" letter-spacing="0">Live operation with explicit phases and mission context</text>
+<rect x="1414" y="39" width="142" height="34" rx="9" fill="#392d1e" stroke="#ecb14b" stroke-width="1"/>
+<text x="1485.0" y="60.55" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">CONCEPT ARENA B</text>
+<rect x="1394" y="91" width="162" height="34" rx="9" fill="#202c38" stroke="#6da9df" stroke-width="1"/>
+<text x="1475.0" y="112.2" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="middle" letter-spacing="0">SAMPLE DATA</text>
+<rect x="42" y="151" width="1516" height="71" rx="12" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<text x="63" y="184" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="23" font-weight="700" text-anchor="start" letter-spacing="0">Counter-deck training</text>
+<text x="63" y="207" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">UI 05  ·  counter-study-05  ·  Starter Blue  vs  evolved counter decks</text>
+<rect x="1354" y="168" width="180" height="38" rx="9" fill="#202c38" stroke="#ecb14b" stroke-width="1"/>
+<text x="1444.0" y="192.25" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">RUNNING</text>
+<rect x="42" y="240" width="343" height="581" rx="14" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="42" y="240" width="5" height="581" rx="2" fill="#6da9df"/>
+<text x="65" y="272" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Run stages</text>
+<text x="65" y="296" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Current work is highlighted</text>
+<rect x="65" y="298" width="296" height="76" rx="8" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="83" y="325" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start" letter-spacing="0">01</text>
+<text x="120" y="325" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="500" text-anchor="start" letter-spacing="0">Controller training</text>
+<text x="120" y="353" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">EARLIER IN CYCLE</text>
+<rect x="65" y="403" width="296" height="76" rx="8" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="83" y="430" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start" letter-spacing="0">02</text>
+<text x="120" y="430" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="500" text-anchor="start" letter-spacing="0">Candidate decks</text>
+<text x="120" y="458" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">EARLIER IN CYCLE</text>
+<rect x="65" y="508" width="296" height="76" rx="8" fill="#3d321f" stroke="#ecb14b" stroke-width="1"/>
+<text x="83" y="535" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start" letter-spacing="0">03</text>
+<text x="120" y="535" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="700" text-anchor="start" letter-spacing="0">Validation games</text>
+<text x="120" y="563" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">IN PROGRESS</text>
+<rect x="65" y="613" width="296" height="76" rx="8" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="83" y="640" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start" letter-spacing="0">04</text>
+<text x="120" y="640" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="500" text-anchor="start" letter-spacing="0">Select counters</text>
+<text x="120" y="668" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">NEXT IN CYCLE</text>
+<rect x="404" y="240" width="744" height="354" rx="14" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="404" y="240" width="5" height="354" rx="2" fill="#ecb14b"/>
+<text x="427" y="272" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Current activity</text>
+<text x="427" y="296" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Persistent controllers face a changing counter pool.</text>
+<text x="432" y="341" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="29" font-weight="700" text-anchor="start" letter-spacing="0">Cycle 4 / 5 · 62 / 100 trials</text>
+<text x="432" y="380" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="400" text-anchor="start" letter-spacing="0">Counter controller: generation 32 / 40</text>
+<rect x="432" y="423" width="688" height="22" rx="10" fill="#2b3540"/>
+<rect x="432" y="423" width="427" height="22" rx="10" fill="#ecb14b"/>
+<text x="432" y="479" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="0">Current stage · illustrative 62%</text>
+<text x="432" y="532" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="0">RUN PROGRESS</text>
+<text x="1121" y="532" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="end" letter-spacing="0">Overall run phase shown separately  →</text>
+<rect x="1167" y="240" width="391" height="354" rx="14" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="1167" y="240" width="5" height="354" rx="2" fill="#5bc684"/>
+<text x="1190" y="272" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Live signals</text>
+<text x="1190" y="296" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Only currently available telemetry</text>
+<text x="1191" y="324" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">STATUS</text>
+<text x="1191" y="350" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Running</text>
+<path d="M1191 361 L1534 361" stroke="#45586a" stroke-width="1"/>
+<text x="1191" y="386" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">CYCLE / CHECKPOINT</text>
+<text x="1191" y="412" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">4 / 5</text>
+<path d="M1191 423 L1534 423" stroke="#45586a" stroke-width="1"/>
+<text x="1191" y="448" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">LATEST SIGNAL</text>
+<text x="1191" y="474" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">62 / 100 trials</text>
+<path d="M1191 485 L1534 485" stroke="#45586a" stroke-width="1"/>
+<text x="1191" y="510" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">ELAPSED</text>
+<text x="1191" y="536" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">18 min</text>
+<rect x="404" y="612" width="744" height="209" rx="14" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="404" y="612" width="5" height="209" rx="2" fill="#6da9df"/>
+<text x="427" y="644" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Progress history</text>
+<text x="427" y="668" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Best recorded signal; not a final verdict</text>
+<path d="M432 687.0 L1119 687.0" stroke="#324252" stroke-width="1"/>
+<path d="M432 705.75 L1119 705.75" stroke="#324252" stroke-width="1"/>
+<path d="M432 724.5 L1119 724.5" stroke="#324252" stroke-width="1"/>
+<path d="M432 743.25 L1119 743.25" stroke="#324252" stroke-width="1"/>
+<path d="M432 762.0 L1119 762.0" stroke="#324252" stroke-width="1"/>
+<text x="425" y="691" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="end" letter-spacing="0">56%</text>
+<text x="425" y="766" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="end" letter-spacing="0">48%</text>
+<polyline points="432.0,687.0 775.5,715.1 1119.0,762.0" fill="none" stroke="#ecb14b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="432.0" cy="687.0" r="5" fill="#ecb14b" stroke="#0d1219" stroke-width="2"/>
+<circle cx="775.5" cy="715.1" r="5" fill="#ecb14b" stroke="#0d1219" stroke-width="2"/>
+<circle cx="1119.0" cy="762.0" r="5" fill="#ecb14b" stroke="#0d1219" stroke-width="2"/>
+<text x="432" y="791" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">1</text>
+<text x="1119" y="791" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="end" letter-spacing="0">3</text>
+<text x="775.5" y="791" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="middle" letter-spacing="0">generation</text>
+<rect x="1167" y="612" width="391" height="209" rx="14" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="1167" y="612" width="5" height="209" rx="2" fill="#ecb14b"/>
+<text x="1190" y="644" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Controls &amp; provenance</text>
+<text x="1190" y="668" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Safe actions remain visible</text>
+<rect x="1191" y="684" width="343" height="43" rx="9" fill="#202c38" stroke="#e26467" stroke-width="1"/>
+<text x="1362.5" y="710.75" fill="#e26467" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">Stop training…</text>
+<text x="1191" y="759" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">Telemetry updated moments ago</text>
+<text x="1191" y="785" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="start" letter-spacing="0">Final evidence appears after evaluation</text>
+<path d="M42 839 L1558 839" stroke="#45586a" stroke-width="1"/>
+<rect x="42" y="849" width="216" height="37" rx="9" fill="#202c38" stroke="#a8b6c5" stroke-width="1"/>
+<text x="150.0" y="872.4" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="middle" letter-spacing="0">←  Back to runs</text>
+<text x="1558" y="873" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="end" letter-spacing="0">B · LIVE TIMELINE</text>
+</svg>

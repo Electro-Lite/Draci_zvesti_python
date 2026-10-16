@@ -1,5 +1,7 @@
 # AI training workbench design
 
+For the **Training Arena**, start with the [current implementation handoff guide](training-arena-v2/HANDOFF_GUIDE.md). It separates a shared [in-progress screen](training-arena-v2/run-progress/README.md) from finished mission-specific results and [deck adoption](training-arena-v2/deck-adoption/README.md). The previous generic Arena studies are preserved in [archive/arena-v1](archive/arena-v1/).
+
 The implemented direction is the full-window **Training workbench** described
 in [COCKPIT_SPEC.md](COCKPIT_SPEC.md) and [HANDOFF_PROMPT.md](HANDOFF_PROMPT.md).
 

@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+<rect width="1600" height="900" fill="#0d1219"/>
+<rect x="0" y="0" width="1600" height="6" rx="0" fill="#ecb14b"/>
+<text x="42" y="37" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="2">DRACI ZVESTI  /  TRAINING ARENA</text>
+<text x="42" y="82" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="35" font-weight="700" text-anchor="start" letter-spacing="0">Training complete</text>
+<text x="43" y="113" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="400" text-anchor="start" letter-spacing="0">Counter-deck lab · Starter Blue · run counter-lab-42</text>
+<rect x="1364" y="36" width="194" height="37" rx="8" fill="#382e1e" stroke="#ecb14b" stroke-width="1"/>
+<text x="1461" y="61" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">READY TO OPEN RESULTS</text>
+<path d="M42 834 L1558 834" stroke="#45586a" stroke-width="1"/>
+<rect x="42" y="151" width="1516" height="211" rx="13" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="42" y="151" width="5" height="211" rx="2" fill="#5bc684"/>
+<text x="64" y="183" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="21" font-weight="700" text-anchor="start" letter-spacing="0">The run finished and its result artifact is ready</text>
+<circle cx="150" cy="267" r="64" fill="none" stroke="#5bc684" stroke-width="14"/>
+<text x="150" y="277" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="28" font-weight="700" text-anchor="middle" letter-spacing="0">100%</text>
+<text x="266" y="210" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">One-time handoff · reopening this run goes straight to Counter results</text>
+<text x="266" y="264" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="25" font-weight="700" text-anchor="start" letter-spacing="0">5 / 5 counter generations complete</text>
+<text x="266" y="302" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="400" text-anchor="start" letter-spacing="0">Output verified · candidate ranking and compositions available</text>
+<rect x="42" y="381" width="895" height="310" rx="13" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="42" y="381" width="5" height="310" rx="2" fill="#6da9df"/>
+<text x="64" y="413" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="21" font-weight="700" text-anchor="start" letter-spacing="0">Finished work</text>
+<text x="64" y="438" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Progress facts only; head-to-head analysis lives in Counter results</text>
+<text x="66" y="476" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="400" text-anchor="start" letter-spacing="0">Counter generations</text>
+<text x="910" y="476" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700" text-anchor="end" letter-spacing="0">5 / 5</text>
+<text x="66" y="526" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="400" text-anchor="start" letter-spacing="0">Controller generations</text>
+<text x="910" y="526" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700" text-anchor="end" letter-spacing="0">40 / 40</text>
+<text x="66" y="576" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="400" text-anchor="start" letter-spacing="0">Validation games</text>
+<text x="910" y="576" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700" text-anchor="end" letter-spacing="0">Recorded in completed summary</text>
+<text x="66" y="626" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="400" text-anchor="start" letter-spacing="0">Elapsed</text>
+<text x="910" y="626" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700" text-anchor="end" letter-spacing="0">2h 03m</text>
+<rect x="955" y="381" width="603" height="310" rx="13" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="955" y="381" width="5" height="310" rx="2" fill="#ecb14b"/>
+<text x="977" y="413" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="21" font-weight="700" text-anchor="start" letter-spacing="0">What next?</text>
+<text x="977" y="438" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Results open only on your action</text>
+<text x="981" y="480" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="400" text-anchor="start" letter-spacing="0">Inspect candidates, outcomes and both</text>
+<text x="981" y="511" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="400" text-anchor="start" letter-spacing="0">complete deck compositions.</text>
+<rect x="981" y="558" width="551" height="65" rx="8" fill="#47351d" stroke="#ecb14b" stroke-width="1"/>
+<text x="1256.5" y="596.5" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="700" text-anchor="middle" letter-spacing="0">Open Counter results  →</text>
+<rect x="42" y="728" width="260" height="57" rx="8" fill="#23313f" stroke="#6da9df" stroke-width="1"/>
+<text x="172.0" y="762.5" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="700" text-anchor="middle" letter-spacing="0">Back to runs</text>
+<rect x="318" y="728" width="260" height="57" rx="8" fill="#23313f" stroke="#a8b6c5" stroke-width="1"/>
+<text x="448.0" y="762.5" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="700" text-anchor="middle" letter-spacing="0">View log</text>
+<text x="42" y="867" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">For finished runs selected from Runs, skip this handoff and open the mission result directly.</text>
+<text x="1558" y="867" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="end" letter-spacing="0">PROGRESS / DESIGN STUDY</text>
+</svg>

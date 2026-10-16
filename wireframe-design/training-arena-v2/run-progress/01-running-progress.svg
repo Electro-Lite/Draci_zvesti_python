@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+<rect width="1600" height="900" fill="#0d1219"/>
+<rect x="0" y="0" width="1600" height="6" rx="0" fill="#ecb14b"/>
+<text x="42" y="37" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="2">DRACI ZVESTI  /  TRAINING ARENA</text>
+<text x="42" y="82" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="35" font-weight="700" text-anchor="start" letter-spacing="0">Training in progress</text>
+<text x="43" y="113" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="400" text-anchor="start" letter-spacing="0">Counter-deck lab · Starter Blue · run counter-lab-42</text>
+<rect x="1364" y="36" width="194" height="37" rx="8" fill="#382e1e" stroke="#ecb14b" stroke-width="1"/>
+<text x="1461" y="61" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">RUNNING · EXAMPLE</text>
+<path d="M42 834 L1558 834" stroke="#45586a" stroke-width="1"/>
+<rect x="42" y="151" width="1516" height="164" rx="13" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="42" y="151" width="5" height="164" rx="2" fill="#5bc684"/>
+<text x="64" y="183" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="21" font-weight="700" text-anchor="start" letter-spacing="0">Overall run</text>
+<text x="245" y="198" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Counter generation 3 of 5 · phase: testing generated candidates</text>
+<circle cx="145" cy="245" r="55" fill="none" stroke="#344352" stroke-width="13"/>
+<circle cx="145" cy="245" r="55" fill="none" stroke="#5bc684" stroke-width="13" stroke-dasharray="201 346" transform="rotate(-90 145 245)"/>
+<text x="145" y="251" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="28" font-weight="700" text-anchor="middle" letter-spacing="0">58%</text>
+<text x="245" y="232" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="23" font-weight="700" text-anchor="start" letter-spacing="0">Current phase: validate counter candidates</text>
+<text x="245" y="265" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">Results and deck adoption stay locked until the run completes.</text>
+<rect x="1030" y="229" width="484" height="20" rx="10" fill="#23313f"/>
+<rect x="1030" y="229" width="283" height="20" rx="10" fill="#5bc684"/>
+<text x="1030" y="275" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Overall estimate · based on completed work</text>
+<rect x="42" y="333" width="504" height="313" rx="13" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="42" y="333" width="5" height="313" rx="2" fill="#6da9df"/>
+<text x="64" y="365" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="21" font-weight="700" text-anchor="start" letter-spacing="0">Three levels of progress</text>
+<text x="64" y="390" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Show only levels with real telemetry</text>
+<text x="64" y="434" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="600" text-anchor="start" letter-spacing="0">Counter generations</text>
+<text x="520" y="434" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="600" text-anchor="end" letter-spacing="0">2 complete · now 3 / 5</text>
+<rect x="64" y="446" width="456" height="13" rx="6" fill="#23313f"/>
+<rect x="64" y="446" width="266" height="13" rx="6" fill="#ecb14b"/>
+<text x="64" y="509" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="600" text-anchor="start" letter-spacing="0">Persistent controller training</text>
+<text x="520" y="509" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="600" text-anchor="end" letter-spacing="0">40 / 40 generations</text>
+<rect x="64" y="521" width="456" height="13" rx="6" fill="#23313f"/>
+<rect x="64" y="521" width="456" height="13" rx="6" fill="#6da9df"/>
+<text x="64" y="584" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="600" text-anchor="start" letter-spacing="0">Current candidate validation</text>
+<text x="520" y="584" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="600" text-anchor="end" letter-spacing="0">18,420 / 20,000 games</text>
+<rect x="64" y="596" width="456" height="13" rx="6" fill="#23313f"/>
+<rect x="64" y="596" width="420" height="13" rx="6" fill="#5bc684"/>
+<rect x="564" y="333" width="492" height="313" rx="13" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="564" y="333" width="5" height="313" rx="2" fill="#ecb14b"/>
+<text x="586" y="365" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="21" font-weight="700" text-anchor="start" letter-spacing="0">Current phase</text>
+<text x="586" y="390" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">One evolving run, several distinct kinds of work</text>
+<rect x="586" y="407" width="448" height="41" rx="7" fill="#23313f" stroke="#45586a" stroke-width="1"/>
+<text x="602" y="433" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">Generate candidate decks</text>
+<text x="1015" y="433" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="700" text-anchor="end" letter-spacing="0">DONE</text>
+<rect x="586" y="459" width="448" height="41" rx="7" fill="#23313f" stroke="#45586a" stroke-width="1"/>
+<text x="602" y="485" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">Train both controller populations</text>
+<text x="1015" y="485" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="700" text-anchor="end" letter-spacing="0">DONE</text>
+<rect x="586" y="511" width="448" height="41" rx="7" fill="#23313f" stroke="#45586a" stroke-width="1"/>
+<text x="602" y="537" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">Validate candidate decks</text>
+<text x="1015" y="537" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="700" text-anchor="end" letter-spacing="0">RUNNING</text>
+<rect x="586" y="563" width="448" height="41" rx="7" fill="#23313f" stroke="#45586a" stroke-width="1"/>
+<text x="602" y="589" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">Save generation summary</text>
+<text x="1015" y="589" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="700" text-anchor="end" letter-spacing="0">WAITING</text>
+<rect x="1074" y="333" width="484" height="313" rx="13" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="1074" y="333" width="5" height="313" rx="2" fill="#6da9df"/>
+<text x="1096" y="365" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="21" font-weight="700" text-anchor="start" letter-spacing="0">Time and compute</text>
+<text x="1096" y="390" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">ETA is conditional, never a promise</text>
+<text x="1098" y="434" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">Elapsed</text>
+<text x="1530" y="434" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="700" text-anchor="end" letter-spacing="0">1h 14m</text>
+<text x="1098" y="483" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">Estimated remaining</text>
+<text x="1530" y="483" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="700" text-anchor="end" letter-spacing="0">about 45–70m</text>
+<text x="1098" y="532" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">Workers</text>
+<text x="1530" y="532" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="700" text-anchor="end" letter-spacing="0">8 active</text>
+<text x="1098" y="588" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Estimate uses recent completed batches;</text>
+<text x="1098" y="612" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">show ‘Estimating…’ when evidence is thin.</text>
+<rect x="42" y="664" width="1516" height="149" rx="13" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="42" y="664" width="5" height="149" rx="2" fill="#5bc684"/>
+<text x="64" y="696" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="21" font-weight="700" text-anchor="start" letter-spacing="0">Latest run events</text>
+<text x="64" y="721" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">A short, timestamped trail—not early analysis</text>
+<text x="65" y="744" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">11:48   Controller generation 40 / 40 completed</text>
+<text x="65" y="777" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">12:11   18,420 / 20,000 validation games</text>
+<rect x="1117" y="721" width="190" height="55" rx="8" fill="#23313f" stroke="#6da9df" stroke-width="1"/>
+<text x="1212.0" y="754.5" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="700" text-anchor="middle" letter-spacing="0">Back to runs</text>
+<rect x="1324" y="721" width="204" height="55" rx="8" fill="#23313f" stroke="#e26467" stroke-width="1"/>
+<text x="1426.0" y="754.5" fill="#e26467" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="700" text-anchor="middle" letter-spacing="0">Stop training</text>
+<text x="42" y="867" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">No mission-result tabs while status is running. Stopping still requires confirmation.</text>
+<text x="1558" y="867" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="end" letter-spacing="0">PROGRESS / DESIGN STUDY</text>
+</svg>

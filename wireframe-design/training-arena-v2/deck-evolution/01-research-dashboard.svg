@@ -1,0 +1,140 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+<rect width="1600" height="900" fill="#0d1219"/>
+<rect x="0" y="0" width="1600" height="6" rx="0" fill="#ecb14b"/>
+<text x="42" y="37" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="2">DRACI ZVESTI  /  TRAINING ARENA</text>
+<text x="42" y="83" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="35" font-weight="700" text-anchor="start" letter-spacing="0">Deck evolution / research dashboard</text>
+<text x="43" y="113" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="400" text-anchor="start" letter-spacing="0">A readable story first, with population, diversity, matchups, and card signals below.</text>
+<rect x="1364" y="37" width="194" height="35" rx="8" fill="#382e1e" stroke="#ecb14b" stroke-width="1"/>
+<text x="1461.0" y="59.05" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">EVOLUTION 01</text>
+<rect x="1385" y="86" width="173" height="31" rx="8" fill="#202c38" stroke="#6da9df" stroke-width="1"/>
+<text x="1471.5" y="105.7" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="middle" letter-spacing="0">EXAMPLE DATA</text>
+<rect x="42" y="151" width="1516" height="57" rx="9" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<text x="64" y="187" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="700" text-anchor="start" letter-spacing="0">Meta-evolution  ·  DB 84  ·  complete  ·  one run scope</text>
+<rect x="1133" y="162" width="122" height="35" rx="8" fill="#47351d" stroke="#ecb14b" stroke-width="1"/>
+<text x="1194.0" y="184.4" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="middle" letter-spacing="0">Story</text>
+<rect x="1267" y="162" width="122" height="35" rx="8" fill="#202c38" stroke="#a8b6c5" stroke-width="1"/>
+<text x="1328.0" y="184.4" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="middle" letter-spacing="0">Evidence</text>
+<rect x="1401" y="162" width="133" height="35" rx="8" fill="#202c38" stroke="#a8b6c5" stroke-width="1"/>
+<text x="1467.5" y="184.4" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="middle" letter-spacing="0">Methods</text>
+<rect x="42" y="227" width="1080" height="131" rx="13" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="42" y="227" width="5" height="131" rx="2" fill="#ecb14b"/>
+<text x="64" y="258" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Finding in one sentence</text>
+<text x="66" y="301" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="23" font-weight="700" text-anchor="start" letter-spacing="0">A strong deck emerged, but the population became concentrated.</text>
+<text x="66" y="332" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">Inspect the spread and diversity before claiming the whole meta improved.</text>
+<rect x="1140" y="227" width="418" height="131" rx="13" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="1140" y="227" width="5" height="131" rx="2" fill="#6da9df"/>
+<text x="1162" y="258" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Scope &amp; integrity</text>
+<text x="1162" y="282" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">10 outer generations · illustrative</text>
+<text x="1163" y="306" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="700" text-anchor="start" letter-spacing="0">20 decks / generation</text>
+<text x="1163" y="334" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Held-out matchup rows: 1,200</text>
+<rect x="42" y="376" width="714" height="265" rx="13" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="42" y="376" width="5" height="265" rx="2" fill="#6da9df"/>
+<text x="64" y="407" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Population fitness</text>
+<text x="64" y="431" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Best, median and worst must be separate</text>
+<path d="M71 476 L721 476" stroke="#314151" stroke-width="1"/>
+<path d="M71 517 L721 517" stroke="#314151" stroke-width="1"/>
+<path d="M71 558 L721 558" stroke="#314151" stroke-width="1"/>
+<polyline points="73,560 180,530 287,508 394,493 501,467 608,459 717,449" fill="none" stroke="#ecb14b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="73" cy="560" r="4" fill="#ecb14b"/>
+<circle cx="180" cy="530" r="4" fill="#ecb14b"/>
+<circle cx="287" cy="508" r="4" fill="#ecb14b"/>
+<circle cx="394" cy="493" r="4" fill="#ecb14b"/>
+<circle cx="501" cy="467" r="4" fill="#ecb14b"/>
+<circle cx="608" cy="459" r="4" fill="#ecb14b"/>
+<circle cx="717" cy="449" r="4" fill="#ecb14b"/>
+<polyline points="73,584 180,569 287,551 394,548 501,538 608,530 717,525" fill="none" stroke="#6da9df" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="73" cy="584" r="4" fill="#6da9df"/>
+<circle cx="180" cy="569" r="4" fill="#6da9df"/>
+<circle cx="287" cy="551" r="4" fill="#6da9df"/>
+<circle cx="394" cy="548" r="4" fill="#6da9df"/>
+<circle cx="501" cy="538" r="4" fill="#6da9df"/>
+<circle cx="608" cy="530" r="4" fill="#6da9df"/>
+<circle cx="717" cy="525" r="4" fill="#6da9df"/>
+<polyline points="73,607 180,601 287,593 394,592 501,585 608,579 717,574" fill="none" stroke="#e26467" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="73" cy="607" r="4" fill="#e26467"/>
+<circle cx="180" cy="601" r="4" fill="#e26467"/>
+<circle cx="287" cy="593" r="4" fill="#e26467"/>
+<circle cx="394" cy="592" r="4" fill="#e26467"/>
+<circle cx="501" cy="585" r="4" fill="#e26467"/>
+<circle cx="608" cy="579" r="4" fill="#e26467"/>
+<circle cx="717" cy="574" r="4" fill="#e26467"/>
+<text x="74" y="619" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="start" letter-spacing="0">Outer gen 1</text>
+<text x="719" y="619" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="end" letter-spacing="0">Gen 10</text>
+<text x="505" y="433" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="0">Best</text>
+<text x="582" y="433" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="0">Median</text>
+<text x="681" y="433" fill="#e26467" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="0">Worst</text>
+<rect x="774" y="376" width="368" height="265" rx="13" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="774" y="376" width="5" height="265" rx="2" fill="#5bc684"/>
+<text x="796" y="407" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Diversity</text>
+<text x="796" y="431" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Similarity-aware view</text>
+<text x="798" y="465" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="47" font-weight="700" text-anchor="start" letter-spacing="0">5.2</text>
+<text x="798" y="493" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">effective archetypes</text>
+<rect x="798" y="531" width="320" height="14" rx="7" fill="#354353"/>
+<rect x="798" y="531" width="122" height="14" rx="7" fill="#5bc684"/>
+<text x="1118" y="524" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="end" letter-spacing="0">38% viable share</text>
+<text x="798" y="589" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Exact signatures can exaggerate</text>
+<text x="798" y="612" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">diversity when decks differ by one card.</text>
+<rect x="1160" y="376" width="398" height="265" rx="13" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="1160" y="376" width="5" height="265" rx="2" fill="#ecb14b"/>
+<text x="1182" y="407" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Matchup structure</text>
+<text x="1182" y="431" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Who beats whom locally?</text>
+<text x="1248" y="454" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="700" text-anchor="middle" letter-spacing="0">Blue</text>
+<text x="1321" y="454" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="700" text-anchor="middle" letter-spacing="0">Red</text>
+<text x="1394" y="454" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="700" text-anchor="middle" letter-spacing="0">Green</text>
+<text x="1467" y="454" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="700" text-anchor="middle" letter-spacing="0">Black</text>
+<text x="1184" y="485" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="700" text-anchor="start" letter-spacing="0">Blue</text>
+<rect x="1226" y="466" width="61" height="27" rx="4" fill="#202c38"/>
+<text x="1257" y="485" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="middle" letter-spacing="0">·</text>
+<rect x="1299" y="466" width="61" height="27" rx="4" fill="#2f664d"/>
+<text x="1330" y="485" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="middle" letter-spacing="0">+</text>
+<rect x="1372" y="466" width="61" height="27" rx="4" fill="#663b40"/>
+<text x="1403" y="485" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="middle" letter-spacing="0">−</text>
+<rect x="1445" y="466" width="61" height="27" rx="4" fill="#2f664d"/>
+<text x="1476" y="485" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="middle" letter-spacing="0">+</text>
+<text x="1184" y="519" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="700" text-anchor="start" letter-spacing="0">Red</text>
+<rect x="1226" y="500" width="61" height="27" rx="4" fill="#663b40"/>
+<text x="1257" y="519" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="middle" letter-spacing="0">−</text>
+<rect x="1299" y="500" width="61" height="27" rx="4" fill="#202c38"/>
+<text x="1330" y="519" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="middle" letter-spacing="0">·</text>
+<rect x="1372" y="500" width="61" height="27" rx="4" fill="#2f664d"/>
+<text x="1403" y="519" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="middle" letter-spacing="0">+</text>
+<rect x="1445" y="500" width="61" height="27" rx="4" fill="#663b40"/>
+<text x="1476" y="519" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="middle" letter-spacing="0">−</text>
+<text x="1184" y="553" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="700" text-anchor="start" letter-spacing="0">Green</text>
+<rect x="1226" y="534" width="61" height="27" rx="4" fill="#2f664d"/>
+<text x="1257" y="553" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="middle" letter-spacing="0">+</text>
+<rect x="1299" y="534" width="61" height="27" rx="4" fill="#663b40"/>
+<text x="1330" y="553" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="middle" letter-spacing="0">−</text>
+<rect x="1372" y="534" width="61" height="27" rx="4" fill="#202c38"/>
+<text x="1403" y="553" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="middle" letter-spacing="0">·</text>
+<rect x="1445" y="534" width="61" height="27" rx="4" fill="#2f664d"/>
+<text x="1476" y="553" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="middle" letter-spacing="0">+</text>
+<text x="1184" y="587" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="700" text-anchor="start" letter-spacing="0">Black</text>
+<rect x="1226" y="568" width="61" height="27" rx="4" fill="#663b40"/>
+<text x="1257" y="587" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="middle" letter-spacing="0">−</text>
+<rect x="1299" y="568" width="61" height="27" rx="4" fill="#2f664d"/>
+<text x="1330" y="587" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="middle" letter-spacing="0">+</text>
+<rect x="1372" y="568" width="61" height="27" rx="4" fill="#663b40"/>
+<text x="1403" y="587" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="middle" letter-spacing="0">−</text>
+<rect x="1445" y="568" width="61" height="27" rx="4" fill="#202c38"/>
+<text x="1476" y="587" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="middle" letter-spacing="0">·</text>
+<rect x="42" y="659" width="894" height="166" rx="13" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="42" y="659" width="5" height="166" rx="2" fill="#ecb14b"/>
+<text x="64" y="690" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Card-balance signals</text>
+<text x="64" y="714" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Generation-local presence lift · association only</text>
+<text x="65" y="753" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="700" text-anchor="start" letter-spacing="0">Draci Fanatik</text>
+<text x="403" y="753" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">high inclusion</text>
+<text x="655" y="753" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">+8.4 lift</text>
+<text x="65" y="791" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">Compare against same-generation baseline and show sample counts.</text>
+<rect x="954" y="659" width="604" height="166" rx="13" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="954" y="659" width="5" height="166" rx="2" fill="#6da9df"/>
+<text x="976" y="690" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Read deeper</text>
+<text x="976" y="714" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">From beginner explanation to full method</text>
+<rect x="977" y="741" width="263" height="53" rx="8" fill="#202c38" stroke="#6da9df" stroke-width="1"/>
+<text x="1108.5" y="772.75" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">Explain these metrics</text>
+<rect x="1254" y="741" width="280" height="53" rx="8" fill="#202c38" stroke="#ecb14b" stroke-width="1"/>
+<text x="1394.0" y="772.75" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">Open research evidence</text>
+<path d="M42 844 L1558 844" stroke="#45586a" stroke-width="1"/>
+<text x="42" y="875" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">The figures are illustrative; deeper statistics need notebook-style run-scoped aggregation.</text>
+<text x="1558" y="875" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="end" letter-spacing="0">EVOLUTION / RESEARCH DASHBOARD</text>
+</svg>

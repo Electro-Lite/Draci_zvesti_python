@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+<rect width="1600" height="900" fill="#0d1219"/>
+<rect x="0" y="0" width="1600" height="7" rx="0" fill="#ecb14b"/>
+<text x="42" y="38" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700" text-anchor="start" letter-spacing="2">DRACI ZVESTI  /  AI TRAINING</text>
+<text x="42" y="88" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="38" font-weight="700" text-anchor="start" letter-spacing="0">Arena C / Evidence desk</text>
+<text x="43" y="119" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="400" text-anchor="start" letter-spacing="0">Completed-run analysis with provenance and limits</text>
+<rect x="1414" y="39" width="142" height="34" rx="9" fill="#392d1e" stroke="#ecb14b" stroke-width="1"/>
+<text x="1485.0" y="60.55" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">CONCEPT ARENA C</text>
+<rect x="1394" y="91" width="162" height="34" rx="9" fill="#202c38" stroke="#6da9df" stroke-width="1"/>
+<text x="1475.0" y="112.2" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="middle" letter-spacing="0">SAMPLE DATA</text>
+<rect x="42" y="151" width="1516" height="71" rx="12" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<text x="63" y="184" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="23" font-weight="700" text-anchor="start" letter-spacing="0">Counter-deck training</text>
+<text x="63" y="207" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">UI 05  ·  counter-study-05  ·  Starter Blue  vs  evolved counter decks</text>
+<rect x="1354" y="168" width="180" height="38" rx="9" fill="#202c38" stroke="#5bc684" stroke-width="1"/>
+<text x="1444.0" y="192.25" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">COMPLETED</text>
+<rect x="42" y="240" width="942" height="306" rx="14" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="42" y="240" width="5" height="306" rx="2" fill="#6da9df"/>
+<text x="65" y="272" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Selected deck win rate vs counter pool</text>
+<text x="65" y="296" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Read the trend and the sample together</text>
+<path d="M81 341.0 L933 341.0" stroke="#324252" stroke-width="1"/>
+<path d="M81 376.5 L933 376.5" stroke="#324252" stroke-width="1"/>
+<path d="M81 412.0 L933 412.0" stroke="#324252" stroke-width="1"/>
+<path d="M81 447.5 L933 447.5" stroke="#324252" stroke-width="1"/>
+<path d="M81 483.0 L933 483.0" stroke="#324252" stroke-width="1"/>
+<text x="74" y="345" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="end" letter-spacing="0">56%</text>
+<text x="74" y="487" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="end" letter-spacing="0">39%</text>
+<polyline points="81.0,341.0 294.0,366.1 507.0,407.8 720.0,449.6 933.0,483.0" fill="none" stroke="#ecb14b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="81.0" cy="341.0" r="5" fill="#ecb14b" stroke="#0d1219" stroke-width="2"/>
+<circle cx="294.0" cy="366.1" r="5" fill="#ecb14b" stroke="#0d1219" stroke-width="2"/>
+<circle cx="507.0" cy="407.8" r="5" fill="#ecb14b" stroke="#0d1219" stroke-width="2"/>
+<circle cx="720.0" cy="449.6" r="5" fill="#ecb14b" stroke="#0d1219" stroke-width="2"/>
+<circle cx="933.0" cy="483.0" r="5" fill="#ecb14b" stroke="#0d1219" stroke-width="2"/>
+<text x="81" y="512" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">1</text>
+<text x="933" y="512" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="end" letter-spacing="0">5</text>
+<text x="507.0" y="512" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="middle" letter-spacing="0">generation</text>
+<rect x="1002" y="240" width="556" height="306" rx="14" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="1002" y="240" width="5" height="306" rx="2" fill="#ecb14b"/>
+<text x="1025" y="272" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Main result</text>
+<text x="1025" y="296" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">TOP COUNTER WIN RATE</text>
+<text x="1028" y="349" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="64" font-weight="700" text-anchor="start" letter-spacing="0">61%</text>
+<text x="1028" y="393" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="700" text-anchor="start" letter-spacing="0">Top counter: Counter G5 #12</text>
+<text x="1028" y="428" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">61% vs Starter Blue · 40 balanced games</text>
+<rect x="1028" y="462" width="504" height="60" rx="8" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="1046" y="490" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">SAMPLE / SOURCE</text>
+<text x="1046" y="514" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">UI summary and final counter rows</text>
+<rect x="42" y="563" width="942" height="258" rx="14" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="42" y="563" width="5" height="258" rx="2" fill="#5bc684"/>
+<text x="65" y="595" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Mission evidence</text>
+<text x="65" y="619" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Candidate counter win rate vs selected deck</text>
+<rect x="65" y="624" width="896" height="36" rx="6" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="82" y="651" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="600" text-anchor="start" letter-spacing="0">Counter G5 #12</text>
+<text x="930" y="651" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="700" text-anchor="end" letter-spacing="0">61%</text>
+<rect x="65" y="665" width="896" height="36" rx="6" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="82" y="692" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="600" text-anchor="start" letter-spacing="0">Counter G5 #04</text>
+<text x="930" y="692" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="700" text-anchor="end" letter-spacing="0">57%</text>
+<rect x="65" y="706" width="896" height="36" rx="6" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="82" y="733" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="600" text-anchor="start" letter-spacing="0">Counter G5 #19</text>
+<text x="930" y="733" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="700" text-anchor="end" letter-spacing="0">54%</text>
+<rect x="1002" y="563" width="556" height="258" rx="14" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="1002" y="563" width="5" height="258" rx="2" fill="#ecb14b"/>
+<text x="1025" y="595" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Interpretation guardrails</text>
+<text x="1025" y="619" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Separate observation from inference</text>
+<text x="1028" y="641" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">OBSERVED</text>
+<text x="1028" y="670" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="start" letter-spacing="0">Top counter: Counter G5 #12</text>
+<text x="1028" y="713" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">LIMIT</text>
+<text x="1028" y="743" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">The pooled deck win rate mixes different counter opponents.</text>
+<text x="1028" y="788" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start" letter-spacing="0">See full run settings and source details  →</text>
+<path d="M42 839 L1558 839" stroke="#45586a" stroke-width="1"/>
+<rect x="42" y="849" width="216" height="37" rx="9" fill="#202c38" stroke="#a8b6c5" stroke-width="1"/>
+<text x="150.0" y="872.4" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="middle" letter-spacing="0">←  Back to runs</text>
+<text x="1558" y="873" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="end" letter-spacing="0">C · EVIDENCE DESK</text>
+</svg>

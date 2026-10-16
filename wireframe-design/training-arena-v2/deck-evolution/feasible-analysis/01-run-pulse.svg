@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+<rect width="1600" height="900" fill="#0d1219"/>
+<rect x="0" y="0" width="1600" height="6" rx="0" fill="#ecb14b"/>
+<text x="42" y="37" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="2">DRACI ZVESTI  /  TRAINING ARENA</text>
+<text x="42" y="82" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="34" font-weight="700" text-anchor="start" letter-spacing="0">Deck evolution / run pulse</text>
+<text x="43" y="113" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="400" text-anchor="start" letter-spacing="0">What finished, what is still running, and which data can be trusted.</text>
+<rect x="1362" y="36" width="196" height="36" rx="8" fill="#382e1e" stroke="#ecb14b" stroke-width="1"/>
+<text x="1460" y="60" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="middle" letter-spacing="0">OBSERVED · DB 13</text>
+<rect x="42" y="151" width="236" height="674" rx="13" fill="#18212b" stroke="#46586a" stroke-width="1"/>
+<text x="64" y="185" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="0">DECK EVOLUTION</text>
+<text x="64" y="211" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="start" letter-spacing="0">One run · five questions</text>
+<rect x="58" y="237" width="204" height="50" rx="8" fill="#3d3526" stroke="#ecb14b" stroke-width="1"/>
+<text x="74" y="268" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="0">01  Run pulse</text>
+<rect x="58" y="301" width="204" height="50" rx="8" fill="#23313f" stroke="#46586a" stroke-width="1"/>
+<text x="74" y="332" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="500" text-anchor="start" letter-spacing="0">02  Population</text>
+<rect x="58" y="365" width="204" height="50" rx="8" fill="#23313f" stroke="#46586a" stroke-width="1"/>
+<text x="74" y="396" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="500" text-anchor="start" letter-spacing="0">03  Matchups</text>
+<rect x="58" y="429" width="204" height="50" rx="8" fill="#23313f" stroke="#46586a" stroke-width="1"/>
+<text x="74" y="460" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="500" text-anchor="start" letter-spacing="0">04  Composition</text>
+<rect x="58" y="493" width="204" height="50" rx="8" fill="#23313f" stroke="#46586a" stroke-width="1"/>
+<text x="74" y="524" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="500" text-anchor="start" letter-spacing="0">05  Research</text>
+<path d="M58 609 L262 609" stroke="#46586a" stroke-width="1"/>
+<text x="64" y="640" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="0">RUN  DB 13</text>
+<text x="64" y="665" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">replicated-final</text>
+<text x="64" y="695" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Seed 104729</text>
+<text x="64" y="726" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="start" letter-spacing="0">Outer generations: 12</text>
+<text x="64" y="751" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="start" letter-spacing="0">Inner generations: 20</text>
+<path d="M42 844 L1558 844" stroke="#46586a" stroke-width="1"/>
+<text x="42" y="875" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="start" letter-spacing="0">Measured local DB 13 unless noted. Scores are relative to each generation&#x27;s opponent pool.</text>
+<text x="1558" y="875" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="end" letter-spacing="0">EVOLUTION / 01 OF 05</text>
+<rect x="296" y="151" width="1262" height="154" rx="12" fill="#18212b" stroke="#46586a" stroke-width="1"/>
+<rect x="296" y="151" width="5" height="154" rx="2" fill="#5bc684"/>
+<text x="318" y="182" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Run DB 13 · replicated-final</text>
+<text x="318" y="206" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Completed  ·  23 July 2026  ·  63m 47s</text>
+<text x="322" y="248" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="39" font-weight="700" text-anchor="start" letter-spacing="0">12 / 12</text>
+<text x="530" y="229" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">OUTER GENERATIONS</text>
+<text x="530" y="254" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600" text-anchor="start" letter-spacing="0">Deck populations completed</text>
+<rect x="915" y="229" width="616" height="20" rx="8" fill="#23313f"/>
+<rect x="915" y="229" width="616" height="20" rx="8" fill="#5bc684"/>
+<text x="915" y="277" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="600" text-anchor="start" letter-spacing="0">1,458 / 1,458 outer pairings resolved</text>
+<rect x="296" y="324" width="604" height="350" rx="12" fill="#18212b" stroke="#46586a" stroke-width="1"/>
+<rect x="296" y="324" width="5" height="350" rx="2" fill="#6da9df"/>
+<text x="318" y="355" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Generation work</text>
+<text x="318" y="379" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Pairings are deck-vs-deck evaluations, not individual games</text>
+<rect x="326" y="426" width="25" height="111" rx="3" fill="#6da9df"/>
+<text x="338" y="560" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="middle" letter-spacing="0">1</text>
+<rect x="371" y="426" width="25" height="111" rx="3" fill="#6da9df"/>
+<rect x="416" y="426" width="25" height="111" rx="3" fill="#6da9df"/>
+<rect x="461" y="426" width="25" height="111" rx="3" fill="#6da9df"/>
+<rect x="506" y="426" width="25" height="111" rx="3" fill="#6da9df"/>
+<rect x="551" y="420" width="25" height="117" rx="3" fill="#6da9df"/>
+<text x="563" y="560" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="middle" letter-spacing="0">6</text>
+<rect x="596" y="420" width="25" height="117" rx="3" fill="#6da9df"/>
+<rect x="641" y="426" width="25" height="111" rx="3" fill="#6da9df"/>
+<rect x="686" y="420" width="25" height="117" rx="3" fill="#6da9df"/>
+<rect x="731" y="426" width="25" height="111" rx="3" fill="#6da9df"/>
+<rect x="776" y="426" width="25" height="111" rx="3" fill="#6da9df"/>
+<rect x="821" y="426" width="25" height="111" rx="3" fill="#5bc684"/>
+<text x="833" y="560" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="middle" letter-spacing="0">12</text>
+<text x="325" y="600" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">20–21 genomes per generation</text>
+<text x="325" y="631" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">The live version shows the current pairing queue and phase.</text>
+<rect x="918" y="324" width="640" height="350" rx="12" fill="#18212b" stroke="#46586a" stroke-width="1"/>
+<rect x="918" y="324" width="5" height="350" rx="2" fill="#ecb14b"/>
+<text x="940" y="355" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Evidence readiness</text>
+<text x="940" y="379" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">A trustworthy analysis starts with coverage and provenance</text>
+<text x="945" y="418" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">Genome rows</text>
+<text x="1530" y="418" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="end" letter-spacing="0">243 recorded</text>
+<path d="M945 435 L1530 435" stroke="#46586a" stroke-width="1"/>
+<text x="945" y="472" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">Outer matchup rows</text>
+<text x="1530" y="472" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="end" letter-spacing="0">1,458 scored</text>
+<path d="M945 489 L1530 489" stroke="#46586a" stroke-width="1"/>
+<text x="945" y="526" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">Card compositions</text>
+<text x="1530" y="526" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="end" letter-spacing="0">243 stored deck lists</text>
+<path d="M945 543 L1530 543" stroke="#46586a" stroke-width="1"/>
+<text x="945" y="580" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">Fixed benchmark</text>
+<text x="1530" y="580" fill="#e26467" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="end" letter-spacing="0">Not recorded for this run</text>
+<path d="M945 597 L1530 597" stroke="#46586a" stroke-width="1"/>
+<text x="945" y="634" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">Live inner-loop progress</text>
+<text x="1530" y="634" fill="#e26467" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="end" letter-spacing="0">Not streamed per pairing</text>
+<rect x="296" y="692" width="1262" height="133" rx="12" fill="#18212b" stroke="#46586a" stroke-width="1"/>
+<rect x="296" y="692" width="5" height="133" rx="2" fill="#e26467"/>
+<text x="318" y="723" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Read this correctly</text>
+<text x="318" y="747" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Completion measures executed work; it does not prove the decks improved.</text>
+<text x="319" y="783" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">Next: inspect population spread and composition change without calling relative fitness absolute quality.</text>
+</svg>

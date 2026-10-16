@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+<rect width="1600" height="900" fill="#0d1219"/>
+<rect x="0" y="0" width="1600" height="6" rx="0" fill="#ecb14b"/>
+<text x="42" y="37" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="2">DRACI ZVESTI  /  TRAINING ARENA</text>
+<text x="42" y="83" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="35" font-weight="700" text-anchor="start" letter-spacing="0">Inspect both decks</text>
+<text x="43" y="113" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="400" text-anchor="start" letter-spacing="0">Counter training · full card composition for the currently selected pair</text>
+<rect x="1364" y="37" width="194" height="35" rx="8" fill="#382e1e" stroke="#ecb14b" stroke-width="1"/>
+<text x="1461.0" y="59.05" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">COUNTER DETAIL</text>
+<rect x="1385" y="86" width="173" height="31" rx="8" fill="#202c38" stroke="#6da9df" stroke-width="1"/>
+<text x="1471.5" y="105.7" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="middle" letter-spacing="0">EXAMPLE DATA</text>
+<rect x="42" y="151" width="718" height="674" rx="13" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="42" y="151" width="5" height="674" rx="2" fill="#6da9df"/>
+<text x="64" y="182" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Your deck · Starter Blue</text>
+<text x="64" y="206" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Saved player deck · 10 total cards · five unique</text>
+<rect x="778" y="151" width="780" height="674" rx="13" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="778" y="151" width="5" height="674" rx="2" fill="#ecb14b"/>
+<text x="800" y="182" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Counter G1 #8</text>
+<text x="800" y="206" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Generated counter · 12 total cards · eight unique</text>
+<rect x="65" y="235" width="670" height="55" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<rect x="75" y="242" width="26" height="41" rx="5" fill="#70aee6"/>
+<text x="88" y="267.5" fill="#0d1219" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">L</text>
+<text x="112" y="268.5" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="600" text-anchor="start" letter-spacing="0">Lucisnik</text>
+<rect x="681" y="240" width="42" height="45" rx="8" fill="#18212b" stroke="#70aee6" stroke-width="1"/>
+<text x="702.0" y="267.05" fill="#70aee6" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">×2</text>
+<rect x="65" y="310" width="670" height="55" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<rect x="75" y="317" width="26" height="41" rx="5" fill="#70aee6"/>
+<text x="88" y="342.5" fill="#0d1219" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">P</text>
+<text x="112" y="343.5" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="600" text-anchor="start" letter-spacing="0">Paladin</text>
+<rect x="681" y="315" width="42" height="45" rx="8" fill="#18212b" stroke="#70aee6" stroke-width="1"/>
+<text x="702.0" y="342.05" fill="#70aee6" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">×2</text>
+<rect x="65" y="385" width="670" height="55" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<rect x="75" y="392" width="26" height="41" rx="5" fill="#70aee6"/>
+<text x="88" y="417.5" fill="#0d1219" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">P</text>
+<text x="112" y="418.5" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="600" text-anchor="start" letter-spacing="0">Panos</text>
+<rect x="681" y="390" width="42" height="45" rx="8" fill="#18212b" stroke="#70aee6" stroke-width="1"/>
+<text x="702.0" y="417.05" fill="#70aee6" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">×2</text>
+<rect x="65" y="460" width="670" height="55" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<rect x="75" y="467" width="26" height="41" rx="5" fill="#70aee6"/>
+<text x="88" y="492.5" fill="#0d1219" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">P</text>
+<text x="112" y="493.5" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="600" text-anchor="start" letter-spacing="0">Pesak</text>
+<rect x="681" y="465" width="42" height="45" rx="8" fill="#18212b" stroke="#70aee6" stroke-width="1"/>
+<text x="702.0" y="492.05" fill="#70aee6" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">×2</text>
+<rect x="65" y="535" width="670" height="55" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<rect x="75" y="542" width="26" height="41" rx="5" fill="#70aee6"/>
+<text x="88" y="567.5" fill="#0d1219" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">S</text>
+<text x="112" y="568.5" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="600" text-anchor="start" letter-spacing="0">Strazny</text>
+<rect x="681" y="540" width="42" height="45" rx="8" fill="#18212b" stroke="#70aee6" stroke-width="1"/>
+<text x="702.0" y="567.05" fill="#70aee6" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">×2</text>
+<rect x="802" y="223" width="732" height="49" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<rect x="812" y="230" width="26" height="35" rx="5" fill="#b7a1cf"/>
+<text x="825" y="252.5" fill="#0d1219" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">D</text>
+<text x="849" y="253.5" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="600" text-anchor="start" letter-spacing="0">Draci Fanatik</text>
+<rect x="1480" y="228" width="42" height="39" rx="8" fill="#18212b" stroke="#b7a1cf" stroke-width="1"/>
+<text x="1501.0" y="252.05" fill="#b7a1cf" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">×4</text>
+<rect x="802" y="290" width="732" height="49" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<rect x="812" y="297" width="26" height="35" rx="5" fill="#70aee6"/>
+<text x="825" y="319.5" fill="#0d1219" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">P</text>
+<text x="849" y="320.5" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="600" text-anchor="start" letter-spacing="0">Pesak</text>
+<rect x="1480" y="295" width="42" height="39" rx="8" fill="#18212b" stroke="#70aee6" stroke-width="1"/>
+<text x="1501.0" y="319.05" fill="#70aee6" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">×2</text>
+<rect x="802" y="357" width="732" height="49" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<rect x="812" y="364" width="26" height="35" rx="5" fill="#e98072"/>
+<text x="825" y="386.5" fill="#0d1219" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">A</text>
+<text x="849" y="387.5" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="600" text-anchor="start" letter-spacing="0">Asketa</text>
+<rect x="1480" y="362" width="42" height="39" rx="8" fill="#18212b" stroke="#e98072" stroke-width="1"/>
+<text x="1501.0" y="386.05" fill="#e98072" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">×1</text>
+<rect x="802" y="424" width="732" height="49" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<rect x="812" y="431" width="26" height="35" rx="5" fill="#b7a1cf"/>
+<text x="825" y="453.5" fill="#0d1219" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">D</text>
+<text x="849" y="454.5" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="600" text-anchor="start" letter-spacing="0">Dummy</text>
+<rect x="1480" y="429" width="42" height="39" rx="8" fill="#18212b" stroke="#b7a1cf" stroke-width="1"/>
+<text x="1501.0" y="453.05" fill="#b7a1cf" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">×1</text>
+<rect x="802" y="491" width="732" height="49" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<rect x="812" y="498" width="26" height="35" rx="5" fill="#e98072"/>
+<text x="825" y="520.5" fill="#0d1219" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">I</text>
+<text x="849" y="521.5" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="600" text-anchor="start" letter-spacing="0">Innosuv Fanatik</text>
+<rect x="1480" y="496" width="42" height="39" rx="8" fill="#18212b" stroke="#e98072" stroke-width="1"/>
+<text x="1501.0" y="520.05" fill="#e98072" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">×1</text>
+<rect x="802" y="558" width="732" height="49" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<rect x="812" y="565" width="26" height="35" rx="5" fill="#70aee6"/>
+<text x="825" y="587.5" fill="#0d1219" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">L</text>
+<text x="849" y="588.5" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="600" text-anchor="start" letter-spacing="0">Lucisnik</text>
+<rect x="1480" y="563" width="42" height="39" rx="8" fill="#18212b" stroke="#70aee6" stroke-width="1"/>
+<text x="1501.0" y="587.05" fill="#70aee6" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">×1</text>
+<rect x="802" y="625" width="732" height="49" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<rect x="812" y="632" width="26" height="35" rx="5" fill="#e98072"/>
+<text x="825" y="654.5" fill="#0d1219" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">N</text>
+<text x="849" y="655.5" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="600" text-anchor="start" letter-spacing="0">Novic</text>
+<rect x="1480" y="630" width="42" height="39" rx="8" fill="#18212b" stroke="#e98072" stroke-width="1"/>
+<text x="1501.0" y="654.05" fill="#e98072" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">×1</text>
+<rect x="802" y="692" width="732" height="49" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<rect x="812" y="699" width="26" height="35" rx="5" fill="#70aee6"/>
+<text x="825" y="721.5" fill="#0d1219" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">P</text>
+<text x="849" y="722.5" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="600" text-anchor="start" letter-spacing="0">Paladin</text>
+<rect x="1480" y="697" width="42" height="39" rx="8" fill="#18212b" stroke="#70aee6" stroke-width="1"/>
+<text x="1501.0" y="721.05" fill="#70aee6" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">×1</text>
+<rect x="65" y="728" width="670" height="54" rx="8" fill="#202c38" stroke="#6da9df" stroke-width="1"/>
+<text x="400.0" y="760.6" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700" text-anchor="middle" letter-spacing="0">←  Back to counter results</text>
+<path d="M42 844 L1558 844" stroke="#45586a" stroke-width="1"/>
+<text x="42" y="875" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Example lists are actual card copies from a saved deck and counter-run summary.</text>
+<text x="1558" y="875" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="end" letter-spacing="0">INSPECTOR / COUNTER</text>
+</svg>

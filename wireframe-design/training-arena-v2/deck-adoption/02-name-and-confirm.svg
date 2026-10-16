@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+<rect width="1600" height="900" fill="#0d1219"/>
+<rect x="0" y="0" width="1600" height="6" rx="0" fill="#ecb14b"/>
+<text x="42" y="37" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start" fill="#ecb14b">DRACI ZVESTI  /  TRAINING ARENA</text>
+<text x="42" y="82" font-family="DejaVu Sans, sans-serif" font-size="34" font-weight="700" text-anchor="start" fill="#eff3f7">Counter results</text>
+<text x="42" y="113" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="400" text-anchor="start" fill="#a8b6c5">Selected candidate · composition and test results remain visible underneath</text>
+<rect x="1355" y="36" width="203" height="37" rx="8" fill="#382e1e" stroke="#ecb14b"/>
+<text x="1457" y="61" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="middle" fill="#ecb14b">COMPLETED RUN</text>
+<path d="M42 835 L1558 835" stroke="#45586a"/>
+<text x="42" y="868" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="start" fill="#a8b6c5">Design-only example · displayed values are illustrative unless explicitly marked observed.</text>
+<rect x="42" y="153" width="1516" height="652" rx="12" fill="#18212b" stroke="#45586a"/>
+<rect x="42" y="153" width="5" height="652" rx="2" fill="#6da9df"/>
+<text x="64" y="185" font-family="DejaVu Sans, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#eff3f7">Selected counter · 12 cards</text>
+<text x="64" y="211" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" fill="#a8b6c5">Adopt this counter as my deck</text>
+<text x="75" y="277" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="400" text-anchor="start" fill="#a8b6c5">01   Source card 1</text>
+<text x="75" y="325" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="400" text-anchor="start" fill="#a8b6c5">02   Source card 2</text>
+<text x="75" y="373" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="400" text-anchor="start" fill="#a8b6c5">03   Source card 3</text>
+<text x="75" y="421" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="400" text-anchor="start" fill="#a8b6c5">04   Source card 4</text>
+<text x="75" y="469" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="400" text-anchor="start" fill="#a8b6c5">05   Source card 5</text>
+<text x="75" y="517" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="400" text-anchor="start" fill="#a8b6c5">06   Source card 6</text>
+<text x="75" y="565" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="400" text-anchor="start" fill="#a8b6c5">07   Source card 7</text>
+<text x="75" y="613" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="400" text-anchor="start" fill="#a8b6c5">08   Source card 8</text>
+<text x="75" y="661" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="400" text-anchor="start" fill="#a8b6c5">09   Source card 9</text>
+<rect x="0" y="0" width="1600" height="900" rx="0" fill="#080b10" opacity="0.74"/>
+<rect x="361" y="167" width="878" height="565" rx="12" fill="#18212b" stroke="#45586a"/>
+<rect x="361" y="167" width="5" height="565" rx="2" fill="#ecb14b"/>
+<text x="383" y="199" font-family="DejaVu Sans, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#eff3f7">Save a copy to My decks</text>
+<text x="383" y="225" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" fill="#a8b6c5">Original counter candidate stays unchanged in the completed run.</text>
+<text x="399" y="282" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700" text-anchor="start" fill="#eff3f7">New deck name</text>
+<rect x="399" y="305" width="802" height="65" rx="8" fill="#23313f" stroke="#6da9df"/>
+<text x="421" y="346" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="400" text-anchor="start" fill="#eff3f7">My Blue Counter</text>
+<text x="399" y="405" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" fill="#a8b6c5">Source</text>
+<text x="1200" y="405" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="600" text-anchor="end" fill="#eff3f7">Counter run · selected candidate #3</text>
+<text x="399" y="443" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" fill="#a8b6c5">Composition</text>
+<text x="1200" y="443" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="600" text-anchor="end" fill="#eff3f7">12 cards · exact copy counts preserved</text>
+<path d="M399 469 L1200 469" stroke="#45586a"/>
+<text x="399" y="511" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700" text-anchor="start" fill="#5bc684">Will save as a user deck (is_AI = false) with a fresh ID.</text>
+<text x="399" y="542" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" fill="#a8b6c5">If this name/composition already exists, offer to open it or choose another name.</text>
+<rect x="399" y="631" width="240" height="55" rx="8" fill="#23313f" stroke="#6da9df"/>
+<text x="519.0" y="666" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700" text-anchor="middle" fill="#6da9df">Cancel</text>
+<rect x="777" y="631" width="424" height="55" rx="8" fill="#47351d" stroke="#ecb14b"/>
+<text x="989.0" y="666" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700" text-anchor="middle" fill="#ecb14b">Save as my deck  →</text>
+</svg>

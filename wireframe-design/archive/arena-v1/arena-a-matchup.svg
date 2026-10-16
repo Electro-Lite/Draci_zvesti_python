@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+<rect width="1600" height="900" fill="#0d1219"/>
+<rect x="0" y="0" width="1600" height="7" rx="0" fill="#ecb14b"/>
+<text x="42" y="38" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700" text-anchor="start" letter-spacing="2">DRACI ZVESTI  /  AI TRAINING</text>
+<text x="42" y="88" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="38" font-weight="700" text-anchor="start" letter-spacing="0">Arena A / Mission studio</text>
+<text x="43" y="119" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="400" text-anchor="start" letter-spacing="0">Mission-specific overview inside a familiar tabbed shell</text>
+<rect x="1414" y="39" width="142" height="34" rx="9" fill="#392d1e" stroke="#ecb14b" stroke-width="1"/>
+<text x="1485.0" y="60.55" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">CONCEPT ARENA A</text>
+<rect x="1394" y="91" width="162" height="34" rx="9" fill="#202c38" stroke="#6da9df" stroke-width="1"/>
+<text x="1475.0" y="112.2" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="middle" letter-spacing="0">SAMPLE DATA</text>
+<rect x="42" y="151" width="1516" height="71" rx="12" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<text x="63" y="184" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="23" font-weight="700" text-anchor="start" letter-spacing="0">Deck matchup evaluation</text>
+<text x="63" y="207" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">UI 12  ·  blue-vs-choir  ·  Starter Blue  vs  Iron Choir</text>
+<rect x="1354" y="168" width="180" height="38" rx="9" fill="#202c38" stroke="#5bc684" stroke-width="1"/>
+<text x="1444.0" y="192.25" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">COMPLETED</text>
+<rect x="42" y="239" width="372" height="45" rx="9" fill="#202c38" stroke="#ecb14b" stroke-width="1"/>
+<text x="228.0" y="266.75" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">Overview</text>
+<rect x="427" y="239" width="372" height="45" rx="9" fill="#202c38" stroke="#a8b6c5" stroke-width="1"/>
+<text x="613.0" y="266.75" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">Checkpoints</text>
+<rect x="812" y="239" width="372" height="45" rx="9" fill="#202c38" stroke="#a8b6c5" stroke-width="1"/>
+<text x="998.0" y="266.75" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">Outcome</text>
+<rect x="1197" y="239" width="372" height="45" rx="9" fill="#202c38" stroke="#a8b6c5" stroke-width="1"/>
+<text x="1383.0" y="266.75" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">Findings</text>
+<rect x="42" y="301" width="392" height="277" rx="14" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="42" y="301" width="5" height="277" rx="2" fill="#ecb14b"/>
+<text x="65" y="333" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">DECK A WIN RATE</text>
+<text x="65" y="357" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Primary outcome for this mission</text>
+<text x="65" y="417" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="68" font-weight="700" text-anchor="start" letter-spacing="0">53%</text>
+<text x="65" y="463" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="600" text-anchor="start" letter-spacing="0">Starter Blue vs Iron Choir</text>
+<text x="65" y="497" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">53 wins · 14 draws · 33 losses</text>
+<rect x="65" y="524" width="345" height="34" rx="6" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="78" y="547" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="0">Open mission evidence  →</text>
+<rect x="451" y="301" width="716" height="277" rx="14" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="451" y="301" width="5" height="277" rx="2" fill="#6da9df"/>
+<text x="474" y="333" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Deck A win rate at checkpoints</text>
+<text x="474" y="357" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Outcome trend; axis and units stay visible</text>
+<path d="M492 392.0 L1119 392.0" stroke="#324252" stroke-width="1"/>
+<path d="M492 422.25 L1119 422.25" stroke="#324252" stroke-width="1"/>
+<path d="M492 452.5 L1119 452.5" stroke="#324252" stroke-width="1"/>
+<path d="M492 482.75 L1119 482.75" stroke="#324252" stroke-width="1"/>
+<path d="M492 513.0 L1119 513.0" stroke="#324252" stroke-width="1"/>
+<text x="485" y="396" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="end" letter-spacing="0">53%</text>
+<text x="485" y="517" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="end" letter-spacing="0">38%</text>
+<polyline points="492.0,513.0 701.0,456.5 910.0,424.3 1119.0,392.0" fill="none" stroke="#5bc684" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="492.0" cy="513.0" r="5" fill="#5bc684" stroke="#0d1219" stroke-width="2"/>
+<circle cx="701.0" cy="456.5" r="5" fill="#5bc684" stroke="#0d1219" stroke-width="2"/>
+<circle cx="910.0" cy="424.3" r="5" fill="#5bc684" stroke="#0d1219" stroke-width="2"/>
+<circle cx="1119.0" cy="392.0" r="5" fill="#5bc684" stroke="#0d1219" stroke-width="2"/>
+<text x="492" y="542" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">1</text>
+<text x="1119" y="542" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="end" letter-spacing="0">40</text>
+<text x="805.5" y="542" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="middle" letter-spacing="0">generation</text>
+<rect x="1184" y="301" width="374" height="277" rx="14" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="1184" y="301" width="5" height="277" rx="2" fill="#5bc684"/>
+<text x="1207" y="333" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Run facts</text>
+<text x="1207" y="357" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Mission-specific labels</text>
+<text x="1207" y="386" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="23" font-weight="700" text-anchor="start" letter-spacing="0">53–14–33</text>
+<text x="1380" y="386" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Wins · draws · losses</text>
+<path d="M1207 399 L1530 399" stroke="#45586a" stroke-width="1"/>
+<text x="1207" y="445" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="23" font-weight="700" text-anchor="start" letter-spacing="0">100</text>
+<text x="1380" y="445" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Final test games</text>
+<path d="M1207 458 L1530 458" stroke="#45586a" stroke-width="1"/>
+<text x="1207" y="504" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="23" font-weight="700" text-anchor="start" letter-spacing="0">40</text>
+<text x="1380" y="504" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Controller generations</text>
+<rect x="42" y="595" width="743" height="227" rx="14" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="42" y="595" width="5" height="227" rx="2" fill="#ecb14b"/>
+<text x="65" y="627" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">What happened</text>
+<text x="65" y="651" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">The same two decks are compared at every checkpoint.</text>
+<rect x="64" y="656" width="698" height="35" rx="6" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="80" y="681" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="600" text-anchor="start" letter-spacing="0">Generation 1</text>
+<text x="742" y="681" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="700" text-anchor="end" letter-spacing="0">38%</text>
+<rect x="64" y="699" width="698" height="35" rx="6" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="80" y="724" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="600" text-anchor="start" letter-spacing="0">Generation 10</text>
+<text x="742" y="724" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="700" text-anchor="end" letter-spacing="0">45%</text>
+<rect x="64" y="742" width="698" height="35" rx="6" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="80" y="767" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="600" text-anchor="start" letter-spacing="0">Generation 25</text>
+<text x="742" y="767" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="700" text-anchor="end" letter-spacing="0">49%</text>
+<rect x="802" y="595" width="756" height="227" rx="14" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="802" y="595" width="5" height="227" rx="2" fill="#6da9df"/>
+<text x="825" y="627" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Interpretation &amp; limits</text>
+<text x="825" y="651" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Only conclusions supported by this run</text>
+<text x="826" y="682" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="700" text-anchor="start" letter-spacing="0">Starter Blue vs Iron Choir</text>
+<text x="826" y="721" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">Checkpoint percentages use separate test-game samples.</text>
+<text x="826" y="771" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="start" letter-spacing="0">View evidence source, count and sample details  →</text>
+<path d="M42 839 L1558 839" stroke="#45586a" stroke-width="1"/>
+<rect x="42" y="849" width="216" height="37" rx="9" fill="#202c38" stroke="#a8b6c5" stroke-width="1"/>
+<text x="150.0" y="872.4" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="middle" letter-spacing="0">←  Back to runs</text>
+<text x="1558" y="873" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700" text-anchor="end" letter-spacing="0">A · TABBED MISSION STUDIO</text>
+</svg>

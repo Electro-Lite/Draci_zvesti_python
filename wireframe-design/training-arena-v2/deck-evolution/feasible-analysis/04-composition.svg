@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+<rect width="1600" height="900" fill="#0d1219"/>
+<rect x="0" y="0" width="1600" height="6" rx="0" fill="#ecb14b"/>
+<text x="42" y="37" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="2">DRACI ZVESTI  /  TRAINING ARENA</text>
+<text x="42" y="82" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="34" font-weight="700" text-anchor="start" letter-spacing="0">Deck evolution / composition</text>
+<text x="43" y="113" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="400" text-anchor="start" letter-spacing="0">Which cards became common—and what does that not tell us about play?</text>
+<rect x="1362" y="36" width="196" height="36" rx="8" fill="#382e1e" stroke="#ecb14b" stroke-width="1"/>
+<text x="1460" y="60" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="middle" letter-spacing="0">OBSERVED · DB 13</text>
+<rect x="42" y="151" width="236" height="674" rx="13" fill="#18212b" stroke="#46586a" stroke-width="1"/>
+<text x="64" y="185" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="0">DECK EVOLUTION</text>
+<text x="64" y="211" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="start" letter-spacing="0">One run · five questions</text>
+<rect x="58" y="237" width="204" height="50" rx="8" fill="#23313f" stroke="#46586a" stroke-width="1"/>
+<text x="74" y="268" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="500" text-anchor="start" letter-spacing="0">01  Run pulse</text>
+<rect x="58" y="301" width="204" height="50" rx="8" fill="#23313f" stroke="#46586a" stroke-width="1"/>
+<text x="74" y="332" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="500" text-anchor="start" letter-spacing="0">02  Population</text>
+<rect x="58" y="365" width="204" height="50" rx="8" fill="#23313f" stroke="#46586a" stroke-width="1"/>
+<text x="74" y="396" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="500" text-anchor="start" letter-spacing="0">03  Matchups</text>
+<rect x="58" y="429" width="204" height="50" rx="8" fill="#3d3526" stroke="#ecb14b" stroke-width="1"/>
+<text x="74" y="460" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="0">04  Composition</text>
+<rect x="58" y="493" width="204" height="50" rx="8" fill="#23313f" stroke="#46586a" stroke-width="1"/>
+<text x="74" y="524" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="500" text-anchor="start" letter-spacing="0">05  Research</text>
+<path d="M58 609 L262 609" stroke="#46586a" stroke-width="1"/>
+<text x="64" y="640" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="0">RUN  DB 13</text>
+<text x="64" y="665" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">replicated-final</text>
+<text x="64" y="695" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Seed 104729</text>
+<text x="64" y="726" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="start" letter-spacing="0">Outer generations: 12</text>
+<text x="64" y="751" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="start" letter-spacing="0">Inner generations: 20</text>
+<path d="M42 844 L1558 844" stroke="#46586a" stroke-width="1"/>
+<text x="42" y="875" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="400" text-anchor="start" letter-spacing="0">Measured local DB 13 unless noted. Scores are relative to each generation&#x27;s opponent pool.</text>
+<text x="1558" y="875" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="end" letter-spacing="0">EVOLUTION / 04 OF 05</text>
+<rect x="296" y="151" width="770" height="674" rx="12" fill="#18212b" stroke="#46586a" stroke-width="1"/>
+<rect x="296" y="151" width="5" height="674" rx="2" fill="#6da9df"/>
+<text x="318" y="182" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Card adoption · Gen 1 versus Gen 12</text>
+<text x="318" y="206" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Deck presence, n = 20 decks in each generation; same-run comparison</text>
+<text x="320" y="249" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">CARD</text>
+<text x="736" y="249" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="end" letter-spacing="0">GEN 1</text>
+<text x="1009" y="249" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="end" letter-spacing="0">GEN 12</text>
+<rect x="319" y="279" width="724" height="82" rx="7" fill="#23313f" stroke="#46586a" stroke-width="1"/>
+<text x="338" y="310" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="600" text-anchor="start" letter-spacing="0">Draci Fanatik</text>
+<text x="736" y="310" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="700" text-anchor="end" letter-spacing="0">90%</text>
+<text x="1009" y="310" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="700" text-anchor="end" letter-spacing="0">100%</text>
+<rect x="338" y="329" width="665" height="10" rx="5" fill="#18212b"/>
+<rect x="338" y="329" width="665" height="10" rx="5" fill="#5bc684"/>
+<rect x="319" y="379" width="724" height="82" rx="7" fill="#23313f" stroke="#46586a" stroke-width="1"/>
+<text x="338" y="410" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="600" text-anchor="start" letter-spacing="0">Novic</text>
+<text x="736" y="410" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="700" text-anchor="end" letter-spacing="0">85%</text>
+<text x="1009" y="410" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="700" text-anchor="end" letter-spacing="0">100%</text>
+<rect x="338" y="429" width="665" height="10" rx="5" fill="#18212b"/>
+<rect x="338" y="429" width="665" height="10" rx="5" fill="#5bc684"/>
+<rect x="319" y="479" width="724" height="82" rx="7" fill="#23313f" stroke="#46586a" stroke-width="1"/>
+<text x="338" y="510" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="600" text-anchor="start" letter-spacing="0">Paladin</text>
+<text x="736" y="510" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="700" text-anchor="end" letter-spacing="0">65%</text>
+<text x="1009" y="510" fill="#e26467" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="700" text-anchor="end" letter-spacing="0">30%</text>
+<rect x="338" y="529" width="665" height="10" rx="5" fill="#18212b"/>
+<rect x="338" y="529" width="200" height="10" rx="5" fill="#e26467"/>
+<rect x="319" y="579" width="724" height="82" rx="7" fill="#23313f" stroke="#46586a" stroke-width="1"/>
+<text x="338" y="610" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="600" text-anchor="start" letter-spacing="0">Panos</text>
+<text x="736" y="610" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="700" text-anchor="end" letter-spacing="0">50%</text>
+<text x="1009" y="610" fill="#e26467" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="700" text-anchor="end" letter-spacing="0">15%</text>
+<rect x="338" y="629" width="665" height="10" rx="5" fill="#18212b"/>
+<rect x="338" y="629" width="100" height="10" rx="5" fill="#e26467"/>
+<rect x="319" y="679" width="724" height="82" rx="7" fill="#23313f" stroke="#46586a" stroke-width="1"/>
+<text x="338" y="710" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="600" text-anchor="start" letter-spacing="0">Pesak</text>
+<text x="736" y="710" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="700" text-anchor="end" letter-spacing="0">85%</text>
+<text x="1009" y="710" fill="#e26467" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="700" text-anchor="end" letter-spacing="0">80%</text>
+<rect x="338" y="729" width="665" height="10" rx="5" fill="#18212b"/>
+<rect x="338" y="729" width="532" height="10" rx="5" fill="#e26467"/>
+<rect x="1084" y="151" width="474" height="360" rx="12" fill="#18212b" stroke="#46586a" stroke-width="1"/>
+<rect x="1084" y="151" width="5" height="360" rx="2" fill="#ecb14b"/>
+<text x="1106" y="182" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Selected card · Draci Fanatik</text>
+<text x="1106" y="206" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Frequency is not causal contribution</text>
+<text x="1110" y="255" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="24" font-weight="700" text-anchor="start" letter-spacing="0">18 / 20 → 20 / 20</text>
+<text x="1110" y="285" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">decks containing this card</text>
+<text x="1110" y="341" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="600" text-anchor="start" letter-spacing="0">Mean copies when present</text>
+<text x="1110" y="373" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="22" font-weight="700" text-anchor="start" letter-spacing="0">1.56 → 3.35</text>
+<text x="1110" y="421" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">Near-universal inclusion leaves</text>
+<text x="1110" y="449" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">almost no absence comparison group.</text>
+<rect x="1084" y="529" width="474" height="296" rx="12" fill="#18212b" stroke="#46586a" stroke-width="1"/>
+<rect x="1084" y="529" width="5" height="296" rx="2" fill="#e26467"/>
+<text x="1106" y="560" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Safe analysis boundary</text>
+<text x="1106" y="584" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Source: stored deck lists, not game-action logs</text>
+<text x="1110" y="625" fill="#5bc684" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="0">Can report: pick rate, copies, shifts</text>
+<text x="1110" y="663" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="0">Can test: local fitness association</text>
+<text x="1110" y="701" fill="#e26467" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="0">Cannot claim: drawn/played win rate</text>
+<text x="1110" y="751" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Go to notebooks for multi-seed replication</text>
+<text x="1110" y="777" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">and carefully scoped presence-lift tests.</text>
+</svg>

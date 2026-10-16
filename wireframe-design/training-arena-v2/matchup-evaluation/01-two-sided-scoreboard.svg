@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+<rect width="1600" height="900" fill="#0d1219"/>
+<rect x="0" y="0" width="1600" height="6" rx="0" fill="#ecb14b"/>
+<text x="42" y="37" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="2">DRACI ZVESTI  /  TRAINING ARENA</text>
+<text x="42" y="83" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="35" font-weight="700" text-anchor="start" letter-spacing="0">Deck duel / two-sided scoreboard</text>
+<text x="43" y="113" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="400" text-anchor="start" letter-spacing="0">Every rate names its deck; both complete compositions sit beside the result.</text>
+<rect x="1364" y="37" width="194" height="35" rx="8" fill="#382e1e" stroke="#ecb14b" stroke-width="1"/>
+<text x="1461.0" y="59.05" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">DUEL 01</text>
+<rect x="1385" y="86" width="173" height="31" rx="8" fill="#202c38" stroke="#6da9df" stroke-width="1"/>
+<text x="1471.5" y="105.7" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700" text-anchor="middle" letter-spacing="0">EXAMPLE DATA</text>
+<rect x="42" y="151" width="422" height="674" rx="13" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="42" y="151" width="5" height="674" rx="2" fill="#6da9df"/>
+<text x="64" y="182" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Deck A · Starter Blue</text>
+<text x="64" y="206" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">10 cards · selected first</text>
+<rect x="62" y="231" width="382" height="53" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<rect x="72" y="238" width="26" height="39" rx="5" fill="#70aee6"/>
+<text x="85" y="262.5" fill="#0d1219" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">L</text>
+<text x="109" y="263.5" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="600" text-anchor="start" letter-spacing="0">Lucisnik</text>
+<rect x="390" y="236" width="42" height="43" rx="8" fill="#18212b" stroke="#70aee6" stroke-width="1"/>
+<text x="411.0" y="262.05" fill="#70aee6" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">×2</text>
+<rect x="62" y="299" width="382" height="53" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<rect x="72" y="306" width="26" height="39" rx="5" fill="#70aee6"/>
+<text x="85" y="330.5" fill="#0d1219" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">P</text>
+<text x="109" y="331.5" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="600" text-anchor="start" letter-spacing="0">Paladin</text>
+<rect x="390" y="304" width="42" height="43" rx="8" fill="#18212b" stroke="#70aee6" stroke-width="1"/>
+<text x="411.0" y="330.05" fill="#70aee6" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">×2</text>
+<rect x="62" y="367" width="382" height="53" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<rect x="72" y="374" width="26" height="39" rx="5" fill="#70aee6"/>
+<text x="85" y="398.5" fill="#0d1219" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">P</text>
+<text x="109" y="399.5" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="600" text-anchor="start" letter-spacing="0">Panos</text>
+<rect x="390" y="372" width="42" height="43" rx="8" fill="#18212b" stroke="#70aee6" stroke-width="1"/>
+<text x="411.0" y="398.05" fill="#70aee6" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">×2</text>
+<rect x="62" y="435" width="382" height="53" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<rect x="72" y="442" width="26" height="39" rx="5" fill="#70aee6"/>
+<text x="85" y="466.5" fill="#0d1219" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">P</text>
+<text x="109" y="467.5" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="600" text-anchor="start" letter-spacing="0">Pesak</text>
+<rect x="390" y="440" width="42" height="43" rx="8" fill="#18212b" stroke="#70aee6" stroke-width="1"/>
+<text x="411.0" y="466.05" fill="#70aee6" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">×2</text>
+<rect x="62" y="503" width="382" height="53" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<rect x="72" y="510" width="26" height="39" rx="5" fill="#70aee6"/>
+<text x="85" y="534.5" fill="#0d1219" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">S</text>
+<text x="109" y="535.5" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="600" text-anchor="start" letter-spacing="0">Strazny</text>
+<rect x="390" y="508" width="42" height="43" rx="8" fill="#18212b" stroke="#70aee6" stroke-width="1"/>
+<text x="411.0" y="534.05" fill="#70aee6" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">×2</text>
+<rect x="62" y="744" width="382" height="50" rx="8" fill="#202c38" stroke="#6da9df" stroke-width="1"/>
+<text x="253.0" y="774.6" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700" text-anchor="middle" letter-spacing="0">Inspect Deck A  →</text>
+<rect x="482" y="151" width="596" height="674" rx="13" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="482" y="151" width="5" height="674" rx="2" fill="#ecb14b"/>
+<text x="504" y="182" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Final seat-balanced checkpoint</text>
+<text x="504" y="206" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Deck A: Starter Blue  /  Deck B: Killer Queen</text>
+<text x="510" y="248" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="29" font-weight="700" text-anchor="start" letter-spacing="0">100 games</text>
+<text x="510" y="289" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700" text-anchor="start" letter-spacing="0">Deck A win rate</text>
+<text x="922" y="289" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="34" font-weight="700" text-anchor="end" letter-spacing="0">53%</text>
+<rect x="510" y="304" width="542" height="14" rx="7" fill="#354353"/>
+<rect x="510" y="304" width="287" height="14" rx="7" fill="#6da9df"/>
+<text x="510" y="356" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700" text-anchor="start" letter-spacing="0">Draw rate</text>
+<text x="922" y="356" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="34" font-weight="700" text-anchor="end" letter-spacing="0">14%</text>
+<rect x="510" y="371" width="542" height="14" rx="7" fill="#354353"/>
+<rect x="510" y="371" width="76" height="14" rx="7" fill="#a8b6c5"/>
+<text x="510" y="423" fill="#e26467" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700" text-anchor="start" letter-spacing="0">Deck B win rate</text>
+<text x="922" y="423" fill="#e26467" font-family="DejaVu Sans, sans-serif" font-size="34" font-weight="700" text-anchor="end" letter-spacing="0">33%</text>
+<rect x="510" y="438" width="542" height="14" rx="7" fill="#354353"/>
+<rect x="510" y="438" width="179" height="14" rx="7" fill="#e26467"/>
+<rect x="510" y="506" width="542" height="101" rx="8" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="529" y="546" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="0">DECK A WINS</text>
+<text x="529" y="578" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="27" font-weight="700" text-anchor="start" letter-spacing="0">53</text>
+<text x="702" y="546" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="0">DRAWS</text>
+<text x="702" y="578" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="27" font-weight="700" text-anchor="start" letter-spacing="0">14</text>
+<text x="845" y="546" fill="#e26467" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="0">DECK B WINS</text>
+<text x="845" y="578" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="27" font-weight="700" text-anchor="start" letter-spacing="0">33</text>
+<text x="510" y="657" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">53% is Deck A wins / all 100 games.</text>
+<text x="510" y="686" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">Draws are separate; Deck B win rate is 33%.</text>
+<rect x="510" y="744" width="542" height="50" rx="8" fill="#47351d" stroke="#ecb14b" stroke-width="1"/>
+<text x="781.0" y="774.6" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700" text-anchor="middle" letter-spacing="0">See learning checkpoints  →</text>
+<rect x="1096" y="151" width="462" height="674" rx="13" fill="#18212b" stroke="#45586a" stroke-width="1"/>
+<rect x="1096" y="151" width="5" height="674" rx="2" fill="#e26467"/>
+<text x="1118" y="182" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">Deck B · Killer Queen</text>
+<text x="1118" y="206" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">10 cards · selected second</text>
+<rect x="1116" y="231" width="422" height="62" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<rect x="1126" y="238" width="26" height="48" rx="5" fill="#e98072"/>
+<text x="1139" y="267.0" fill="#0d1219" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">N</text>
+<text x="1163" y="268.0" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="600" text-anchor="start" letter-spacing="0">Novic</text>
+<rect x="1484" y="236" width="42" height="52" rx="8" fill="#18212b" stroke="#e98072" stroke-width="1"/>
+<text x="1505.0" y="266.55" fill="#e98072" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">×4</text>
+<rect x="1116" y="317" width="422" height="62" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<rect x="1126" y="324" width="26" height="48" rx="5" fill="#b7a1cf"/>
+<text x="1139" y="353.0" fill="#0d1219" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">Z</text>
+<text x="1163" y="354.0" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="600" text-anchor="start" letter-spacing="0">Zabijak</text>
+<rect x="1484" y="322" width="42" height="52" rx="8" fill="#18212b" stroke="#b7a1cf" stroke-width="1"/>
+<text x="1505.0" y="352.55" fill="#b7a1cf" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">×4</text>
+<rect x="1116" y="403" width="422" height="62" rx="7" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<rect x="1126" y="410" width="26" height="48" rx="5" fill="#e98072"/>
+<text x="1139" y="439.0" fill="#0d1219" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">A</text>
+<text x="1163" y="440.0" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="600" text-anchor="start" letter-spacing="0">Asketa</text>
+<rect x="1484" y="408" width="42" height="52" rx="8" fill="#18212b" stroke="#e98072" stroke-width="1"/>
+<text x="1505.0" y="438.55" fill="#e98072" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">×2</text>
+<rect x="1116" y="537" width="422" height="137" rx="9" fill="#202c38" stroke="#45586a" stroke-width="1"/>
+<text x="1135" y="574" fill="#eff3f7" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="700" text-anchor="start" letter-spacing="0">Reading the result</text>
+<text x="1135" y="607" fill="#6da9df" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">Blue always means Deck A.</text>
+<text x="1135" y="638" fill="#e26467" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">Red always means Deck B.</text>
+<rect x="1116" y="744" width="422" height="50" rx="8" fill="#202c38" stroke="#e26467" stroke-width="1"/>
+<text x="1327.0" y="774.6" fill="#e26467" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700" text-anchor="middle" letter-spacing="0">Inspect Deck B  →</text>
+<path d="M42 844 L1558 844" stroke="#45586a" stroke-width="1"/>
+<text x="42" y="875" fill="#a8b6c5" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Deck lists match saved decks; outcomes are illustrative examples.</text>
+<text x="1558" y="875" fill="#ecb14b" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" text-anchor="end" letter-spacing="0">DUEL / SCOREBOARD</text>
+</svg>
