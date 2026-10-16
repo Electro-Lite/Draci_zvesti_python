@@ -1,0 +1,26 @@
+{
+  "artifact_file": "player_deck-evolution_adopted-user_1094cb8fb6a04f2cbbcea4f1e5684c34_new-card-deck.pickle",
+  "artifact_type": "player_controller",
+  "card_ids": [
+    "Asketa_1",
+    "Draci Fanatik_1",
+    "Draci Fanatik_1",
+    "Draci Fanatik_1",
+    "Draci Fanatik_1",
+    "Dummy_1",
+    "Innosuv Fanatik_1",
+    "Innosuv skritek_1",
+    "Inosuv fanatik_1",
+    "Kvasimir EXPLOSIVE_1"
+  ],
+  "config_profile": "evaluator-v1",
+  "deck_id": "user_1094cb8fb6a04f2cbbcea4f1e5684c34",
+  "deck_name": "New card deck winner",
+  "deck_signature": "67f207830100f70c87a4e2505732834d",
+  "display_name": "New card deck winner \u00b7 Deck Evolution AI",
+  "generation": 65,
+  "mission": "deck-evolution",
+  "role": "adopted-user_1094cb8fb6a04f2cbbcea4f1e5684c34",
+  "run_label": "new card deck",
+  "schema_version": 1
+}
