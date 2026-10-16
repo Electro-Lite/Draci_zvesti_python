@@ -24,6 +24,7 @@ from neat_ai.deck_evaluator import (
     EvaluatorSettings,
     train_deck,
 )
+from neat_ai.player_artifacts import export_player_artifact
 from neat_ai.training_telemetry import emit_training_event
 
 
@@ -183,13 +184,35 @@ def _evaluate_pair(
         match_guid: str,
         evaluator_settings: EvaluatorSettings,
 ):
+    controllers = []
+
+    def capture_controllers(first, second):
+        controllers.extend((first, second))
+
     fitness1, fitness2 = train_deck(
         deck1,
         deck2,
         match_guid,
         settings=evaluator_settings,
+        controller_callback=capture_controllers,
     )
-    return genome_id1, fitness1, genome_id2, fitness2, match_guid
+    if len(controllers) != 2:
+        raise RuntimeError(f"Deck matchup {match_guid} produced no player controllers")
+    return (
+        genome_id1,
+        fitness1,
+        controllers[0],
+        genome_id2,
+        fitness2,
+        controllers[1],
+        match_guid,
+    )
+
+
+def _remember_best_controller(storage, genome_id, score, controller):
+    current = storage.get(genome_id)
+    if current is None or score > current[0]:
+        storage[genome_id] = (score, controller)
 
 
 def eval_genomes(
@@ -200,6 +223,7 @@ def eval_genomes(
         generation: int,
         species_count: int,
         metadata: dict,
+        artifact_root: Path,
 ):
     generation_started_at = time()
     population_size = len(genomes)
@@ -301,11 +325,23 @@ def eval_genomes(
         )
 
     genomes_by_id = dict(genomes)
+    # Each pairing trains fresh player populations. Keep the strongest
+    # holdout-scoring controller observed for each exact deck composition so
+    # the generated deck can later be adopted as a playable deck/AI pair.
+    best_controllers = {}
     completed_matches = 0
     with ProcessPoolExecutor(max_workers=max(1, settings.outer_workers)) as executor:
         futures = [executor.submit(_evaluate_pair, *match) for match in scheduled_matches]
         for future in as_completed(futures):
-            genome_id1, fit1, genome_id2, fit2, match_guid = future.result()
+            (
+                genome_id1,
+                fit1,
+                controller1,
+                genome_id2,
+                fit2,
+                controller2,
+                match_guid,
+            ) = future.result()
             if not math.isfinite(fit1) or not math.isfinite(fit2):
                 raise RuntimeError(
                     f"Deck matchup {match_guid} produced non-finite fitness"
@@ -314,6 +350,12 @@ def eval_genomes(
             genomes_by_id[genome_id2].fitness += fit2
             fitness_counts[genome_id1] += 1
             fitness_counts[genome_id2] += 1
+            _remember_best_controller(
+                best_controllers, genome_id1, fit1, controller1
+            )
+            _remember_best_controller(
+                best_controllers, genome_id2, fit2, controller2
+            )
             completed_matches += 1
 
             saved_match = logger.get_match_dbt(match_guid)
@@ -364,7 +406,26 @@ def eval_genomes(
             _genome_guid(training_row.id, generation, genome_id)
         )
         if genome_row is not None:
+            retained = best_controllers.get(genome_id)
+            if retained is None:
+                raise RuntimeError(
+                    f"Deck genome {genome_id} has no retained player controller"
+                )
+            deck = decks_by_genome[genome_id]
+            artifact = export_player_artifact(
+                artifact_root / "trained_ai",
+                retained[1],
+                deck,
+                mission="deck-evolution",
+                role=f"deck-{deck.id}",
+                run_label=settings.run_label,
+                generation=settings.evaluator_generations,
+                display_name=(
+                    f"{deck.name} · evolution gen {generation} player"
+                ),
+            )
             genome_row.score = genome.fitness
+            genome_row.pickle_path = str(artifact.path.resolve())
             logger.save_genome(genome_row)
 
     training_row.metadata = json.dumps(metadata, sort_keys=True)
@@ -455,6 +516,7 @@ def train_deck_builder(settings: BuilderSettings):
             generation,
             len(population.species.species),
             metadata,
+            artifact_root,
         )
 
     try:

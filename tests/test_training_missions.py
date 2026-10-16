@@ -93,8 +93,12 @@ class TrainingMissionTests(unittest.TestCase):
 
     def test_matchup_summary_can_persist_a_partial_checkpoint(self):
         settings = MatchupTrainerSettings(generations=40, evaluation_games=20)
-        deck_a = type("Deck", (), {"id": "a", "name": "Deck A"})()
-        deck_b = type("Deck", (), {"id": "b", "name": "Deck B"})()
+        deck_a = type(
+            "Deck", (), {"id": "a", "name": "Deck A", "cards": _Deck.cards}
+        )()
+        deck_b = type(
+            "Deck", (), {"id": "b", "name": "Deck B", "cards": _Deck.cards}
+        )()
         checkpoint = {
             "generation": 1,
             "ai_wins": 9,
@@ -118,6 +122,8 @@ class TrainingMissionTests(unittest.TestCase):
         self.assertEqual(result["evaluation"]["ai_wins"], 9)
         self.assertEqual(result["skill_evaluations"], [checkpoint])
         self.assertEqual(result["best_fitness"], 4.0)
+        self.assertEqual(len(result["deck_1_cards"]), 10)
+        self.assertEqual(result["deck_1_cards"][0]["id"], "card-0")
 
     def test_counter_job_insights_expose_top_counter(self):
         service = TrainingService.__new__(TrainingService)
@@ -163,6 +169,8 @@ class TrainingMissionTests(unittest.TestCase):
         self.assertEqual(insights.opponent, "2 evolved counter decks")
         self.assertEqual(insights.top_counter_name, "Counter B")
         self.assertEqual(insights.top_counter_win_rate, 0.6)
+        self.assertIsNotNone(insights.counter)
+        self.assertEqual(len(insights.counter.candidates), 2)
         self.assertTrue(any("persisted" in line for line in insights.conclusions))
 
 

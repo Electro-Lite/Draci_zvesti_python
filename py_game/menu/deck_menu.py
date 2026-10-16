@@ -16,10 +16,41 @@ class DeckMenu(Menu):
     def __init__(self, game: "Game"):
         super().__init__(game)
         self.previous_menu = None
-        self.deck_ids = DBUtil().get_all_deck_ids()
-        self.items = ["Back", "Create deck", *self.deck_ids]
+        self.deck_options = DBUtil().get_all_deck_options()
+        self.items = [
+            "Back",
+            "Create deck",
+            *(name for _deck_id, name in self.deck_options),
+        ]
         self.selected = 0
         self._visible_offset = 0
+
+    def _selected_deck_id(self):
+        index = self.selected - 2
+        if 0 <= index < len(self.deck_options):
+            return self.deck_options[index][0]
+        return None
+
+    def _refresh_decks(self, selected_deck_id=None):
+        self.deck_options = DBUtil().get_all_deck_options()
+        self.items = [
+            "Back",
+            "Create deck",
+            *(name for _deck_id, name in self.deck_options),
+        ]
+        if selected_deck_id:
+            selected_index = next(
+                (
+                    index
+                    for index, (deck_id, _name) in enumerate(self.deck_options)
+                    if deck_id == selected_deck_id
+                ),
+                None,
+            )
+            if selected_index is not None:
+                self.selected = selected_index + 2
+                return
+        self.selected = min(self.selected, max(0, len(self.items) - 1))
 
     def _return(self):
         self.return_to_previous()
@@ -30,6 +61,7 @@ class DeckMenu(Menu):
         self.game.curr_menu = editor
         editor.previous_menu = self
         editor.display_menu()
+        self._refresh_decks(editor.current_deck_id)
 
     def check_input(self):
         if self.game.UP_KEY:
@@ -49,7 +81,7 @@ class DeckMenu(Menu):
         elif self.selected == 1:
             self._open_editor()
         else:
-            self._open_editor(self.items[self.selected])
+            self._open_editor(self._selected_deck_id())
 
     def display_menu(self):
         self.run_display = True
@@ -77,7 +109,7 @@ class DeckMenu(Menu):
             self.draw_buttons()
             detail = ""
             if self.selected >= 2:
-                deck = DBUtil().load_deck(self.items[self.selected])
+                deck = DBUtil().load_deck(self._selected_deck_id())
                 if deck:
                     detail = f"{len(deck.cards)} cards  •  {deck.description or 'No description'}"
             self.draw_message(detail, self.game.palette.muted)

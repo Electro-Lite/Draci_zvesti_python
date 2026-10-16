@@ -13,10 +13,17 @@ from choice_strategies.choice_strategy_ai_neat import PlayerChoiceStrategyNeat
 from choice_strategies.choice_strategy_ai_random import ChoiceStrategyAIRandom
 from choice_strategies.choice_strategy_human_pygame import PygameChoiceStrategy
 from core.player import Player
+from neat_ai.player_artifacts import (
+    PlayerArtifact,
+    composition_signature,
+    discover_player_artifacts as discover_manifest_artifacts,
+    load_player_artifact,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 PLAYER_CONFIG_PATH = PROJECT_ROOT / "neat_ai" / "configs" / "neat_config_player.txt"
+EVALUATOR_CONFIG_PATH = PROJECT_ROOT / "neat_ai" / "configs" / "neat_config_evaluator.txt"
 TRAINED_AI_DIR = PROJECT_ROOT / "neat_ai" / "trained_ai"
 
 
@@ -67,6 +74,7 @@ class PacedNeatStrategy(PlayerChoiceStrategyNeat):
 class ControllerSpec:
     kind: ControllerKind
     artifact_path: str | None = None
+    deck_signature: str | None = None
 
     @property
     def label(self) -> str:
@@ -75,32 +83,20 @@ class ControllerSpec:
         return f"Trained AI ({Path(self.artifact_path).stem})"
 
 
-def discover_player_artifacts() -> list[Path]:
-    roots = [TRAINED_AI_DIR, PROJECT_ROOT / ".ui_training"]
-    artifacts = []
-    for root in roots:
-        if not root.exists():
-            continue
-        pattern = "best_*.pickle" if root == TRAINED_AI_DIR else "*/trained_ai/best_*.pickle"
-        artifacts.extend(
-            path
-            for path in root.glob(pattern)
-            if "builder" not in path.name
-        )
-    return sorted(
-        artifacts,
-        key=lambda path: path.stat().st_mtime,
-        reverse=True,
+def discover_player_artifacts(deck) -> list[PlayerArtifact]:
+    return discover_manifest_artifacts(
+        (TRAINED_AI_DIR, PROJECT_ROOT / ".ui_training"),
+        deck,
     )
 
 
-def _player_config() -> neat.Config:
+def _player_config(path=PLAYER_CONFIG_PATH) -> neat.Config:
     return neat.Config(
         neat.DefaultGenome,
         neat.DefaultReproduction,
         neat.DefaultSpeciesSet,
         neat.DefaultStagnation,
-        str(PLAYER_CONFIG_PATH),
+        str(path),
     )
 
 
@@ -117,14 +113,28 @@ def create_player(
     if not controller.artifact_path:
         raise ValueError("A trained AI controller requires a model artifact")
 
+    expected_signature = composition_signature(deck)
+    if controller.deck_signature != expected_signature:
+        raise ValueError(
+            "The selected trained AI was not trained for this exact deck composition"
+        )
+
     artifact = Path(controller.artifact_path)
     if not artifact.is_file():
         raise ValueError(f"Trained AI artifact does not exist: {artifact}")
     with artifact.open("rb") as artifact_file:
         genome = pickle.load(artifact_file)
+    manifest = load_player_artifact(artifact.with_suffix(".player.json"))
+    if manifest is None or manifest.manifest.deck_signature != expected_signature:
+        raise ValueError(
+            "The trained AI artifact has no valid matching deck evidence"
+        )
     player = Player(player_id, player_deck, PacedNeatStrategy)
     try:
-        player.net = neat.nn.FeedForwardNetwork.create(genome, _player_config())
+        player.net = neat.nn.FeedForwardNetwork.create(
+            genome,
+            _player_config(EVALUATOR_CONFIG_PATH),
+        )
     except Exception as error:
         raise ValueError(
             f"{artifact.name} is not compatible with the player AI config"
@@ -148,3 +158,11 @@ def validate_match_setup(
             and not controller.artifact_path
         ):
             raise ValueError("Select a model for each trained AI player")
+    for deck, controller in ((deck_1, controller_1), (deck_2, controller_2)):
+        if (
+            controller.kind == ControllerKind.TRAINED_AI
+            and controller.deck_signature != composition_signature(deck)
+        ):
+            raise ValueError(
+                "The selected trained AI does not match this exact deck composition"
+            )

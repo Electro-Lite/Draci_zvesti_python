@@ -25,6 +25,7 @@ from core.player import Player
 from display_strategies.display_strategy_none import DisplayStrategyNone
 from neat_ai.deck_builder import build_deck
 from neat_ai.deck_evaluator import fitness_from_result
+from neat_ai.player_artifacts import export_player_artifact
 from neat_ai.training_telemetry import emit_training_event
 from utils.database_utils import DBUtil
 
@@ -34,7 +35,7 @@ class CounterDeckTrainerSettings:
     counter_generations: int = 5
     controller_generations: int = 40
     workers: int = 8
-    evaluation_games: int = 40
+    evaluation_games: int = 1_000
     seed: int = 104729
     run_label: str = "counter-deck-lab"
 
@@ -303,7 +304,14 @@ def _candidate_row(builder_id, deck, stats, subject_cards, generation):
     }
 
 
-def build_summary(subject_deck, settings, history, elapsed_seconds, artifact_path=None):
+def build_summary(
+    subject_deck,
+    settings,
+    history,
+    elapsed_seconds,
+    artifact_path=None,
+    player_artifacts=(),
+):
     final_rows = history[-1]["candidates"] if history else []
     subject_wins = sum(row["subject_wins"] for row in final_rows)
     draws = sum(row["draws"] for row in final_rows)
@@ -350,6 +358,7 @@ def build_summary(subject_deck, settings, history, elapsed_seconds, artifact_pat
         "skill_evaluations": skill_evaluations,
         "top_counter": top_counter,
         "counter_matchups": final_rows,
+        "player_artifacts": [str(path) for path in player_artifacts],
     }
 
 
@@ -551,6 +560,19 @@ def train_counter_decks(subject_deck, settings: CounterDeckTrainerSettings | Non
             },
             artifact_file,
         )
+    subject_artifact = export_player_artifact(
+        output_dir,
+        best_subject_controller,
+        subject_deck,
+        mission="counter",
+        role="subject",
+        run_label=settings.run_label,
+        generation=settings.controller_generations,
+        display_name=(
+            f"{subject_deck.name} · counter training gen "
+            f"{settings.controller_generations}"
+        ),
+    )
     elapsed = time() - started_at
     summary = build_summary(
         subject_deck,
@@ -558,6 +580,7 @@ def train_counter_decks(subject_deck, settings: CounterDeckTrainerSettings | Non
         history,
         elapsed,
         artifact_path,
+        (subject_artifact.path,),
     )
     if summary_path:
         Path(summary_path).write_text(json.dumps(summary, indent=2, sort_keys=True))
@@ -584,7 +607,7 @@ def parse_args():
     parser.add_argument("--counter-generations", type=int, default=5)
     parser.add_argument("--controller-generations", type=int, default=40)
     parser.add_argument("--workers", type=int, default=8)
-    parser.add_argument("--evaluation-games", type=int, default=40)
+    parser.add_argument("--evaluation-games", type=int, default=1_000)
     parser.add_argument("--seed", type=int, default=104729)
     parser.add_argument("--run-label", default="counter-deck-lab")
     return parser.parse_args()

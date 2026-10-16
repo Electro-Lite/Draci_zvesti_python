@@ -430,3 +430,18 @@ class DBUtil():
             cursor.execute('SELECT id FROM decks WHERE COALESCE(is_AI, 0) = 0 ORDER BY id')
         rows = cursor.fetchall()
         return [row[0] for row in rows]
+
+    @retry
+    def get_all_deck_options(self, include_ai: bool = False):
+        """Return stable deck identities paired with user-facing names."""
+        cursor = self.conn_decks.cursor()
+        where = "" if include_ai else "WHERE COALESCE(is_AI, 0) = 0"
+        cursor.execute(
+            f'''
+            SELECT id, COALESCE(NULLIF(TRIM(name), ''), id) AS display_name
+            FROM decks
+            {where}
+            ORDER BY LOWER(display_name), id
+            '''
+        )
+        return [(str(deck_id), str(name)) for deck_id, name in cursor.fetchall()]

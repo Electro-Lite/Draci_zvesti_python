@@ -10,6 +10,7 @@ from pathlib import Path
 from time import time
 
 from neat_ai.deck_evaluator import EvaluatorSettings, train_deck
+from neat_ai.player_artifacts import export_player_artifact
 from neat_ai.training_plan import matchup_checkpoints
 from neat_ai.training_telemetry import emit_training_event
 from utils.database_utils import DBUtil
@@ -19,7 +20,7 @@ from utils.database_utils import DBUtil
 class MatchupTrainerSettings:
     generations: int = 40
     workers: int = 8
-    evaluation_games: int = 100
+    evaluation_games: int = 1_000
     seed: int = 104729
     run_label: str = "matchup-evaluation"
 
@@ -50,7 +51,33 @@ def evaluator_settings(settings: MatchupTrainerSettings) -> EvaluatorSettings:
     )
 
 
-def build_summary(deck_1, deck_2, settings, checkpoints, elapsed_seconds, scores=None):
+def _deck_snapshot(deck):
+    return [
+        {
+            "id": str(getattr(card, "id", "") or ""),
+            "name": str(getattr(card, "name", "") or getattr(card, "id", "") or "Unknown card"),
+            "color": str(
+                getattr(
+                    getattr(card, "color", None),
+                    "name",
+                    getattr(card, "color", None),
+                )
+                or "Unknown"
+            ).title(),
+        }
+        for card in getattr(deck, "cards", ())
+    ]
+
+
+def build_summary(
+    deck_1,
+    deck_2,
+    settings,
+    checkpoints,
+    elapsed_seconds,
+    scores=None,
+    player_artifacts=(),
+):
     """Build a UI-readable report from all completed holdout checkpoints."""
     if not checkpoints:
         raise ValueError("At least one completed matchup checkpoint is required")
@@ -63,8 +90,10 @@ def build_summary(deck_1, deck_2, settings, checkpoints, elapsed_seconds, scores
         "kind": "matchup_evaluation",
         "deck_id": deck_1.id,
         "deck_name": deck_1.name,
+        "deck_1_cards": _deck_snapshot(deck_1),
         "opponent_deck_id": deck_2.id,
         "opponent_deck_name": deck_2.name,
+        "deck_2_cards": _deck_snapshot(deck_2),
         "settings": asdict(settings),
         "best_fitness": best_fitness,
         "elapsed_seconds": elapsed_seconds,
@@ -76,6 +105,7 @@ def build_summary(deck_1, deck_2, settings, checkpoints, elapsed_seconds, scores
             "ai_win_rate": final["deck_1_wins"] / final["games"],
         },
         "skill_evaluations": list(checkpoints),
+        "player_artifacts": [str(path) for path in player_artifacts],
     }
 
 
@@ -87,6 +117,7 @@ def evaluate_matchup(deck_1, deck_2, settings: MatchupTrainerSettings | None = N
     settings = settings or MatchupTrainerSettings()
     started_at = time()
     checkpoints = []
+    final_controllers = []
     summary_path = os.environ.get("PLAYER_TRAINING_SUMMARY_PATH")
     emit_training_event(
         "run_started",
@@ -139,8 +170,37 @@ def evaluate_matchup(deck_1, deck_2, settings: MatchupTrainerSettings | None = N
         deck_2,
         settings=evaluator_settings(settings),
         checkpoint_callback=checkpoint_completed,
+        controller_callback=lambda first, second: final_controllers.extend(
+            (first, second)
+        ),
     )
     elapsed = time() - started_at
+    artifact_paths = []
+    if len(final_controllers) == 2:
+        output_dir = Path(
+            os.environ.get("TRAINING_ARTIFACT_DIR", Path(__file__).resolve().parent)
+        ) / "trained_ai"
+        first = export_player_artifact(
+            output_dir,
+            final_controllers[0],
+            deck_1,
+            mission="matchup",
+            role="deck-a",
+            run_label=settings.run_label,
+            generation=settings.generations,
+            display_name=f"{deck_1.name} · matchup gen {settings.generations}",
+        )
+        second = export_player_artifact(
+            output_dir,
+            final_controllers[1],
+            deck_2,
+            mission="matchup",
+            role="deck-b",
+            run_label=settings.run_label,
+            generation=settings.generations,
+            display_name=f"{deck_2.name} · matchup gen {settings.generations}",
+        )
+        artifact_paths.extend((first.path, second.path))
     summary = build_summary(
         deck_1,
         deck_2,
@@ -148,6 +208,7 @@ def evaluate_matchup(deck_1, deck_2, settings: MatchupTrainerSettings | None = N
         checkpoints,
         elapsed,
         scores,
+        artifact_paths,
     )
     if summary_path:
         Path(summary_path).write_text(json.dumps(summary, indent=2, sort_keys=True))
@@ -172,7 +233,7 @@ def parse_args():
     parser.add_argument("opponent_deck_id")
     parser.add_argument("--generations", type=int, default=40)
     parser.add_argument("--workers", type=int, default=8)
-    parser.add_argument("--evaluation-games", type=int, default=100)
+    parser.add_argument("--evaluation-games", type=int, default=1_000)
     parser.add_argument("--seed", type=int, default=104729)
     parser.add_argument("--run-label", default="matchup-evaluation")
     return parser.parse_args()

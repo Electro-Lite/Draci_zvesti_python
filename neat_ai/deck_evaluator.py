@@ -401,6 +401,7 @@ def train_deck(
     match_dbt_guid: str = None,
     settings: EvaluatorSettings = None,
     checkpoint_callback: Callable[[int, dict], None] | None = None,
+    controller_callback: Callable[[object, object], None] | None = None,
 ) -> list[float]:
     settings = settings or EvaluatorSettings()
     local_dir = os.path.dirname(__file__)
@@ -514,6 +515,8 @@ def train_deck(
         phase="holdout",
         outcome_callback=capture_final,
     )
+    if controller_callback is not None:
+        controller_callback(copy.deepcopy(winner1), copy.deepcopy(best_genome2))
     if checkpoint_callback is not None:
         checkpoint_callback(
             settings.generations,
