@@ -16,7 +16,20 @@ dist/
 build/
 *.egg-info/
 
+# Windows packaging intermediates and generated installers
+packager/.build/
+packager/artifacts/*
+!packager/artifacts/.gitkeep
+
 *.db
+!utils/cards.db
+!utils/decks.db
+*.db-shm
+*.db-wal
+*.db-journal
+training_progress.txt
+**/.ipynb_checkpoints/
+db-recovery-*/
 .analysis_cache/
 .ui_training/
 .ui_settings.json
@@ -30,3 +43,5 @@ neat_ai/trained_ai/*
 !neat_ai/checkpoints/.gitkeep
 !neat_ai/neat_ai/.gitkeep
 !neat_ai/trained_ai/.gitkeep
+!neat_ai/trained_ai/player_deck-evolution_adopted-user_1094cb8fb6a04f2cbbcea4f1e5684c34_new-card-deck.pickle
+!neat_ai/trained_ai/player_deck-evolution_adopted-user_1094cb8fb6a04f2cbbcea4f1e5684c34_new-card-deck.player.json
