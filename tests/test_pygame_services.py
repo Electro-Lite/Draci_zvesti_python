@@ -218,11 +218,85 @@ class PygameServiceTests(unittest.TestCase):
         self.assertIsNone(game.previous_choice_type)
         self.assertEqual(game.interaction_message, "")
         self.assertIsNone(game.inspected_card_view)
+        self.assertIsNone(game.card_detail_rect)
         self.assertEqual(game.hand_card_rects, [])
         self.assertEqual(game.board_slot_rects, [])
         self.assertEqual(game.action_rects, {})
         self.assertEqual(game.current_legal_indices, [])
         game.drag.cancel.assert_called_once_with()
+
+    def test_only_right_click_opens_card_detail_and_outside_click_closes_it(self):
+        game = Game.__new__(Game)
+        card = {"id": "archer", "name": "Archer"}
+        game.inspected_card_view = None
+        game.card_detail_rect = pg.Rect(100, 100, 300, 300)
+        game.mouse_clicked = True
+        game.mouse_right_clicked = False
+        game.mouse_position = (20, 20)
+
+        game._update_inspected_card(card)
+        self.assertIsNone(game.inspected_card_view)
+
+        game.mouse_clicked = False
+        game.mouse_right_clicked = True
+        game._update_inspected_card(card)
+        self.assertIs(game.inspected_card_view, card)
+        game.card_detail_rect = pg.Rect(100, 100, 300, 300)
+
+        game.mouse_clicked = True
+        game.mouse_right_clicked = False
+        game.mouse_position = (150, 150)
+        game._update_inspected_card(None)
+        self.assertIs(game.inspected_card_view, card)
+
+        game.mouse_position = (20, 20)
+        game._update_inspected_card(None)
+        self.assertIsNone(game.inspected_card_view)
+
+    def test_right_button_release_is_accepted_for_windows_context_clicks(self):
+        game = Game.__new__(Game)
+        game.settings = SimpleNamespace(fullscreen=False)
+        game._quit_prompt_open = False
+        event = pg.event.Event(pg.MOUSEBUTTONUP, button=3, pos=(320, 240))
+
+        with (
+            patch("pygame.event.get", return_value=[event]),
+            patch("pygame.mouse.get_pos", return_value=(0, 0)),
+        ):
+            game.check_events()
+
+        self.assertTrue(game.mouse_right_clicked)
+        self.assertEqual(game.mouse_position, (320, 240))
+        self.assertFalse(game.mouse_clicked)
+
+    def test_detail_key_opens_keyboard_highlighted_card(self):
+        game = Game.__new__(Game)
+        highlighted = {"id": "archer", "name": "Archer"}
+        game.inspected_card_view = None
+        game.card_detail_rect = pg.Rect(100, 100, 300, 300)
+        game.mouse_clicked = False
+        game.mouse_right_clicked = False
+        game.DETAIL_KEY = True
+
+        game._update_inspected_card(None, highlighted)
+
+        self.assertIs(game.inspected_card_view, highlighted)
+        self.assertIsNone(game.card_detail_rect)
+
+    def test_d_key_requests_card_detail(self):
+        game = Game.__new__(Game)
+        game.settings = SimpleNamespace(fullscreen=False)
+        game._quit_prompt_open = False
+        game.DETAIL_KEY = False
+        event = pg.event.Event(pg.KEYDOWN, key=pg.K_d)
+
+        with (
+            patch("pygame.event.get", return_value=[event]),
+            patch("pygame.mouse.get_pos", return_value=(0, 0)),
+        ):
+            game.check_events()
+
+        self.assertTrue(game.DETAIL_KEY)
 
     def test_training_about_guide_covers_every_configurable_setting(self):
         headings = {
@@ -927,6 +1001,9 @@ class PygameServiceTests(unittest.TestCase):
                 )
 
         self.assertEqual(job.status, "running")
+        self.assertRegex(job.job_id, r"^\d{8}-\d{6}-[0-9a-f]{8}$")
+        self.assertNotIn("training-run", job.job_id)
+        self.assertEqual(job.request["run_label"], "training-run")
         popen.assert_called_once()
 
     def test_training_service_stops_only_processes_owned_by_this_ui(self):

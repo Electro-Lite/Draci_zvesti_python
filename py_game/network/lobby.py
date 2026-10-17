@@ -11,6 +11,7 @@ class LobbyPlayer:
     name: str
     deck_id: str | None = None
     ready: bool = False
+    deck_name: str | None = None
 
 
 @dataclass
@@ -43,7 +44,9 @@ class LobbyState:
 class HostLobbyController:
     host_name: str
     validate_deck: Callable[[str], bool]
+    reconstruct_guest_deck: Callable[[dict], object] | None = None
     state: LobbyState = field(init=False)
+    guest_deck: object | None = field(default=None, init=False, repr=False)
 
     def __post_init__(self):
         self.state = LobbyState(host=LobbyPlayer(self.host_name))
@@ -73,16 +76,29 @@ class HostLobbyController:
             if not name or len(name) > 24:
                 raise ValueError("Guest name must contain 1-24 characters")
             self.state.guest = LobbyPlayer(name=name)
+            self.guest_deck = None
             self.state.status = "configuring"
             return MessageType.HELLO_ACCEPTED, self.state.public_payload()
         if self.state.guest is None:
             raise ValueError("Guest must complete the handshake first")
         if message_type == MessageType.SELECT_DECK:
-            deck_id = str(payload.get("deck_id", ""))
-            if not self.validate_deck(deck_id):
-                raise ValueError("The selected guest deck is invalid")
-            self.state.guest.deck_id = deck_id
             self.state.guest.ready = False
+            if self.reconstruct_guest_deck is not None:
+                self.guest_deck = None
+                self.state.guest.deck_id = None
+                self.state.guest.deck_name = None
+                reconstructed = self.reconstruct_guest_deck(payload.get("deck"))
+                deck_id = str(getattr(reconstructed, "id", ""))
+                deck_name = str(getattr(reconstructed, "name", ""))
+                self.guest_deck = reconstructed
+            else:
+                # Compatibility path for non-network callers and older focused tests.
+                deck_id = str(payload.get("deck_id", ""))
+                if not self.validate_deck(deck_id):
+                    raise ValueError("The selected guest deck is invalid")
+                deck_name = None
+            self.state.guest.deck_id = deck_id
+            self.state.guest.deck_name = deck_name
         elif message_type == MessageType.READY:
             ready = payload.get("ready")
             if not isinstance(ready, bool):
@@ -97,6 +113,7 @@ class HostLobbyController:
             return MessageType.PONG, {}
         elif message_type == MessageType.DISCONNECT:
             self.state.guest = None
+            self.guest_deck = None
             self.state.status = "waiting_for_player"
         else:
             raise ValueError(f"Message {message_type.value} is not valid in the lobby")

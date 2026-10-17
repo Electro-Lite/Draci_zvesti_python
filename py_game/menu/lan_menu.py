@@ -7,6 +7,7 @@ import pygame as pg
 
 from py_game.menu.base_menu import Menu
 from py_game.network.lobby import HostLobbyController
+from py_game.network.decks import reconstruct_remote_deck, serialize_deck_selection
 from py_game.network.protocol import MessageType
 from py_game.network.session import (
     ConnectionState,
@@ -50,6 +51,14 @@ class LanMenu(Menu):
             return bool(deck and deck.validate())
         except (ValueError, RuntimeError):
             return False
+
+    def _local_deck_descriptor(self, deck_id: str) -> dict:
+        deck = DBUtil().load_deck(deck_id)
+        return serialize_deck_selection(deck)
+
+    @staticmethod
+    def _reconstruct_guest_deck(descriptor: dict):
+        return reconstruct_remote_deck(descriptor, DBUtil().load_card)
 
     def _deck_label(self, deck_id: str | None) -> str:
         if not deck_id:
@@ -156,6 +165,7 @@ class LanMenu(Menu):
         self.lobby = HostLobbyController(
             self.game.settings.player_name,
             self._valid_deck,
+            self._reconstruct_guest_deck,
         )
         try:
             self.host.start()
@@ -302,8 +312,13 @@ class LanMenu(Menu):
             except ValueError as error:
                 self._set_error(str(error))
         elif self.client and self.client.peer:
+            try:
+                descriptor = self._local_deck_descriptor(deck_id)
+            except (ValueError, RuntimeError) as error:
+                self._set_error(str(error))
+                return
             self.guest_ready = False
-            self._send_client(MessageType.SELECT_DECK, {"deck_id": deck_id})
+            self._send_client(MessageType.SELECT_DECK, {"deck": descriptor})
 
     def _copy_host_address(self):
         address = f"{self.local_ip}:{self.host.port if self.host else self.game.settings.lan_port}"
@@ -390,6 +405,12 @@ class LanMenu(Menu):
 
     def _start_host_match(self):
         if not self.host or not self.host.peer or not self.lobby.state.can_start:
+            return
+        if self.lobby.guest_deck is None:
+            self.lobby.state.guest.ready = False
+            self.lobby._update_status()
+            self._set_error("The guest deck composition is unavailable; select the deck again")
+            self._broadcast_lobby()
             return
         seed = pg.time.get_ticks()
         payload = {

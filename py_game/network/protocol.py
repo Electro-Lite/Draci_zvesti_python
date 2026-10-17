@@ -7,7 +7,7 @@ from enum import Enum
 from typing import Any
 
 
-PROTOCOL_VERSION = 1
+PROTOCOL_VERSION = 2
 APPLICATION_VERSION = "1.0"
 MAX_MESSAGE_SIZE = 256 * 1024
 HEADER = struct.Struct("!I")

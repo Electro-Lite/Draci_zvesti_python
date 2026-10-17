@@ -15,6 +15,7 @@ from py_game.network.gameplay import (
     network_display_strategy,
     serialize_game_state,
 )
+from py_game.network.decks import reconstruct_remote_deck, serialize_deck_selection
 from py_game.network.lobby import HostLobbyController
 from py_game.network.protocol import (
     HEADER,
@@ -179,6 +180,134 @@ class LobbyTests(unittest.TestCase):
                     payload=hello_payload("Guest"),
                 )
             )
+
+    def test_guest_composition_is_reconstructed_instead_of_looking_up_remote_id(self):
+        database = DBUtil()
+        source = database.load_deck("Killer Queen_1")
+        source.id = "guest-windows-only-id"
+        source.name = "Guest custom deck"
+        lobby = HostLobbyController(
+            "Host",
+            validate_deck=lambda deck_id: database.load_deck(deck_id) is not None,
+            reconstruct_guest_deck=lambda descriptor: reconstruct_remote_deck(
+                descriptor,
+                database.load_card,
+            ),
+        )
+        lobby.handle(
+            ProtocolMessage(
+                type=MessageType.HELLO.value,
+                sequence=0,
+                payload=hello_payload("Guest"),
+            )
+        )
+
+        lobby.handle(
+            ProtocolMessage(
+                type=MessageType.SELECT_DECK.value,
+                sequence=1,
+                payload={"deck": serialize_deck_selection(source)},
+            )
+        )
+
+        self.assertEqual(lobby.state.guest.deck_id, "guest-windows-only-id")
+        self.assertEqual(lobby.state.guest.deck_name, "Guest custom deck")
+        self.assertEqual(
+            [str(card.id) for card in lobby.guest_deck.cards],
+            [str(card.id) for card in source.cards],
+        )
+
+    def test_invalid_reselection_clears_previous_guest_deck_and_ready_state(self):
+        database = DBUtil()
+        source = database.load_deck("Killer Queen_1")
+        lobby = HostLobbyController(
+            "Host",
+            validate_deck=lambda _deck_id: True,
+            reconstruct_guest_deck=lambda descriptor: reconstruct_remote_deck(
+                descriptor,
+                database.load_card,
+            ),
+        )
+        lobby.handle(
+            ProtocolMessage(
+                type=MessageType.HELLO.value,
+                sequence=0,
+                payload=hello_payload("Guest"),
+            )
+        )
+        lobby.handle(
+            ProtocolMessage(
+                type=MessageType.SELECT_DECK.value,
+                sequence=1,
+                payload={"deck": serialize_deck_selection(source)},
+            )
+        )
+        lobby.handle(
+            ProtocolMessage(
+                type=MessageType.READY.value,
+                sequence=2,
+                payload={"ready": True},
+            )
+        )
+
+        invalid = serialize_deck_selection(source)
+        invalid["card_ids"][0] = "missing-card"
+        with self.assertRaisesRegex(ValueError, "unknown card"):
+            lobby.handle(
+                ProtocolMessage(
+                    type=MessageType.SELECT_DECK.value,
+                    sequence=3,
+                    payload={"deck": invalid},
+                )
+            )
+
+        self.assertIsNone(lobby.guest_deck)
+        self.assertIsNone(lobby.state.guest.deck_id)
+        self.assertFalse(lobby.state.guest.ready)
+
+
+class RemoteDeckTransferTests(unittest.TestCase):
+    def setUp(self):
+        self.database = DBUtil()
+
+    @staticmethod
+    def card_ids(deck):
+        return [str(card.id) for card in deck.cards]
+
+    def test_remote_id_collision_does_not_substitute_the_hosts_composition(self):
+        remote = self.database.load_deck("Killer Queen_1")
+        remote.id = "Starter Blue_1"
+        remote.name = "Different deck with colliding ID"
+        host_deck = self.database.load_deck("Starter Blue_1")
+
+        reconstructed = reconstruct_remote_deck(
+            serialize_deck_selection(remote),
+            self.database.load_card,
+        )
+
+        self.assertEqual(self.card_ids(reconstructed), self.card_ids(remote))
+        self.assertNotEqual(self.card_ids(reconstructed), self.card_ids(host_deck))
+
+    def test_unknown_card_is_rejected_without_saving_remote_deck(self):
+        remote = self.database.load_deck("Killer Queen_1")
+        remote.id = "not-in-host-deck-database"
+        descriptor = serialize_deck_selection(remote)
+        descriptor["card_ids"][0] = "missing-card"
+
+        with self.assertRaisesRegex(ValueError, "unknown card"):
+            reconstruct_remote_deck(descriptor, self.database.load_card)
+
+        self.assertIsNone(self.database.load_deck("not-in-host-deck-database"))
+
+    def test_malformed_and_excessive_duplicate_compositions_are_rejected(self):
+        with self.assertRaisesRegex(ValueError, "missing or malformed"):
+            reconstruct_remote_deck(None, self.database.load_card)
+
+        remote = self.database.load_deck("Killer Queen_1")
+        descriptor = serialize_deck_selection(remote)
+        descriptor["card_ids"] = [descriptor["card_ids"][0]] * 10
+        with self.assertRaisesRegex(ValueError, "maximum"):
+            reconstruct_remote_deck(descriptor, self.database.load_card)
 
 
 class AuthoritativeGameplayTests(unittest.TestCase):
@@ -428,6 +557,10 @@ class LoopbackTransportTests(unittest.TestCase):
             lobby = HostLobbyController(
                 "Host",
                 validate_deck=lambda deck_id: DBUtil().load_deck(deck_id) is not None,
+                reconstruct_guest_deck=lambda descriptor: reconstruct_remote_deck(
+                    descriptor,
+                    DBUtil().load_card,
+                ),
             )
             client.peer.send(MessageType.HELLO, hello_payload("Guest"))
             hello = self._wait_for(
@@ -450,7 +583,11 @@ class LoopbackTransportTests(unittest.TestCase):
             lobby.set_host_ready(True)
             client.peer.send(
                 MessageType.SELECT_DECK,
-                {"deck_id": "Killer Queen_1"},
+                {
+                    "deck": serialize_deck_selection(
+                        DBUtil().load_deck("Killer Queen_1")
+                    )
+                },
             )
             select_message = self._wait_for(
                 lambda: next(

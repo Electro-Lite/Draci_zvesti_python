@@ -1,3 +1,4 @@
+import copy
 import threading
 from pathlib import Path
 
@@ -58,6 +59,7 @@ class Game():
         self.PASS_KEY = False
         self.USE_ABILITY_KEY = False
         self.SKIP_ABILITY_KEY = False
+        self.DETAIL_KEY = False
         self.running, self.playing      = True, False
         self.DISPLAY_W, self.DISPLAY_H = self.settings.width, self.settings.height
         self.BLACK = self.palette.background
@@ -81,6 +83,7 @@ class Game():
         self.pending_drop_position = None
         self.interaction_message = ""
         self.inspected_card_view = None
+        self.card_detail_rect = None
         self._card_model_cache = {}
         self.training_service = TrainingService()
         self._quit_prompt_open = False
@@ -132,6 +135,12 @@ class Game():
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
                 self.mouse_right_clicked = True
                 self.mouse_position = event.pos
+            elif event.type == pygame.MOUSEBUTTONUP and event.button == 3:
+                # Some Windows mouse/touchpad drivers deliver a complete
+                # context click before the next rendered frame. Treat either
+                # edge as the same one-frame inspection action.
+                self.mouse_right_clicked = True
+                self.mouse_position = event.pos
             elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
                 self.mouse_released = True
                 self.mouse_position = event.pos
@@ -149,6 +158,8 @@ class Game():
                     self.USE_ABILITY_KEY = True
                 elif event.key in (pygame.K_s, pygame.K_n):
                     self.SKIP_ABILITY_KEY = True
+                elif event.key == pygame.K_d:
+                    self.DETAIL_KEY = True
                 elif event.key == pygame.K_DOWN:
                     self.DOWN_KEY       = True
                 elif event.key == pygame.K_UP:
@@ -228,6 +239,7 @@ class Game():
         self.PASS_KEY = False
         self.USE_ABILITY_KEY = False
         self.SKIP_ABILITY_KEY = False
+        self.DETAIL_KEY = False
         self.mouse_clicked = False
         self.mouse_right_clicked = False
         self.mouse_released = False
@@ -498,6 +510,7 @@ class Game():
 
     def _draw_card_tooltip(self, card_view, anchor):
         if not card_view or not self.settings.show_tooltips:
+            self.card_detail_rect = None
             return
         metrics = self.layout
         panel_width = min(max(390, self.DISPLAY_W * 3 // 5), self.DISPLAY_W - metrics.margin * 2)
@@ -507,6 +520,7 @@ class Game():
         x = metrics.margin if anchor[0] > self.DISPLAY_W // 2 else self.DISPLAY_W - metrics.margin - panel_width
         y = max(metrics.margin, (self.DISPLAY_H - panel_height) // 2)
         rect = pygame.Rect(x, y, panel_width, panel_height)
+        self.card_detail_rect = rect
         shade = pygame.Surface(rect.size, pygame.SRCALPHA)
         shade.fill((*self.palette.panel[:3], 247))
         self.display.blit(shade, rect)
@@ -558,13 +572,32 @@ class Game():
                 max_lines=max(3, (rect.bottom - metrics.margin - text_y) // max(1, metrics.font_small)),
             )
         self.draw_text_left(
-            "Right-click elsewhere to close",
+            "Click elsewhere to close",
             max(10, metrics.font_small - 2),
             text_x,
             rect.bottom - metrics.margin,
             self.palette.muted,
             text_width,
         )
+
+    def _update_inspected_card(self, hovered_card, highlighted_card=None):
+        """Inspect a context-clicked or keyboard-highlighted card."""
+        if self.mouse_right_clicked:
+            self.inspected_card_view = hovered_card
+            if hovered_card is None:
+                self.card_detail_rect = None
+            return
+        if getattr(self, "DETAIL_KEY", False) and highlighted_card is not None:
+            self.inspected_card_view = highlighted_card
+            self.card_detail_rect = None
+            return
+        detail_rect = getattr(self, "card_detail_rect", None)
+        if (
+            self.mouse_clicked
+            and (detail_rect is None or not detail_rect.collidepoint(self.mouse_position))
+        ):
+            self.inspected_card_view = None
+            self.card_detail_rect = None
 
     def _draw_wrapped_card_text(self, text, size, x, y, max_width, max_lines=8):
         font = pygame.font.Font(self.font_name, int(size))
@@ -687,7 +720,7 @@ class Game():
                 self._draw_card_view(None, rect, hidden=True)
 
         self.draw_text_left(
-            f"Board  •  dragon deck: {state.get('dragon_deck_count', 0)}  •  Right-click card details",
+            f"Board  •  dragon deck: {state.get('dragon_deck_count', 0)}  •  Right-click or D for details",
             metrics.font_small,
             board_zone.x,
             board_zone.y + metrics.font_small // 2,
@@ -708,6 +741,7 @@ class Game():
             legal_indices = set(getattr(self, "current_legal_indices", []))
         marked_side, marked_player_id = self._marked_board_owner(state, mark_current_player)
         hovered_card = None
+        highlighted_card = None
         for index, card in enumerate((state.get("board") or [None] * 6)[:6]):
             rect = pygame.Rect(start_x + index * (card_w + gap), board_area.y, card_w, card_h)
             self.board_slot_rects.append(rect)
@@ -743,6 +777,8 @@ class Game():
                 )
             if card and rect.collidepoint(self.mouse_position):
                 hovered_card = card
+            if card and self.selected_position == index:
+                highlighted_card = card
             self.draw_text(str(index + 1), max(10, metrics.font_small - 2), rect.centerx, rect.y + 8, self.palette.muted)
 
         if state.get("game_state") == "BATTLE" and state.get("dragon"):
@@ -750,7 +786,7 @@ class Game():
 
         local = state.get("local", {})
         self.draw_text_left(
-            f"Your hand  •  deck: {local.get('deck_count', 0)}  •  graveyard: {local.get('graveyard_count', 0)}  •  Right-click card details",
+            f"Your hand  •  deck: {local.get('deck_count', 0)}  •  graveyard: {local.get('graveyard_count', 0)}  •  Right-click or D for details",
             metrics.font_small,
             hand_zone.x,
             hand_zone.y + metrics.font_small // 2,
@@ -779,6 +815,8 @@ class Game():
                 )
                 if rect.collidepoint(self.mouse_position):
                     hovered_card = card
+                if selected:
+                    highlighted_card = card
 
         footer = pygame.Rect(0, self.DISPLAY_H - footer_h, self.DISPLAY_W, footer_h)
         pygame.draw.rect(self.display, self.palette.panel, footer)
@@ -871,8 +909,7 @@ class Game():
         elif state.get("game_state") == "BATTLE" and state.get("dragon"):
             self._draw_battle_presentation(state, opponent_zone)
         else:
-            if self.mouse_right_clicked:
-                self.inspected_card_view = hovered_card
+            self._update_inspected_card(hovered_card, highlighted_card)
             if self.inspected_card_view is not None:
                 self._draw_card_tooltip(self.inspected_card_view, self.mouse_position)
 
@@ -1101,6 +1138,7 @@ class Game():
         self.previous_choice_type = None
         self.interaction_message = ""
         self.inspected_card_view = None
+        self.card_detail_rect = None
         self.hand_card_rects = []
         self.board_slot_rects = []
         self.action_rects = {}
@@ -1239,6 +1277,10 @@ class Game():
             self.draw_responsive_game()
 
     def _handle_local_mouse_choice(self):
+        # A visible detail panel is modal for left clicks. Clicking outside
+        # closes it during rendering without also playing the card underneath.
+        if getattr(self, "inspected_card_view", None) is not None and self.mouse_clicked:
+            return
         player = getattr(self, "board", None) and self.board.player_on_turn
         if not player or not isinstance(player.choice_strategy, PygameChoiceStrategy):
             return
@@ -1449,7 +1491,9 @@ class Game():
 
     def lan_host_game_loop(self, host, lobby, payload):
         deck_1 = DBUtil().load_deck(payload["host_deck_id"])
-        deck_2 = DBUtil().load_deck(payload["guest_deck_id"])
+        deck_2 = copy.deepcopy(lobby.guest_deck)
+        if deck_2 is None:
+            raise ValueError("The guest deck composition is unavailable")
         logic_p1 = Player(1, deck_1, PygameChoiceStrategy)
         logic_p2 = Player(2, deck_2, RemoteChoiceStrategy)
         self.p1, self.p2 = logic_p1, logic_p2
@@ -1693,6 +1737,8 @@ class Game():
         )
 
     def _handle_client_choice(self, client, request, state):
+        if getattr(self, "inspected_card_view", None) is not None and self.mouse_clicked:
+            return False
         choice_type = (request.payload or {}).get("choice_type")
         self._sync_choice_defaults(choice_type)
         legal = set((request.payload or {}).get("legal_indices", []))

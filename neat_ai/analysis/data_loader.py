@@ -7,7 +7,7 @@ import pandas as pd
 
 
 PROJECT_ROOT_NAME = "Draci_zvesti_merged"
-ANALYSIS_TRAINING_ID: int | None = 10
+ANALYSIS_TRAINING_ID: int | None = 75
 
 
 def set_analysis_training_id(training_id: int | None) -> None:
