@@ -8,6 +8,7 @@ from neat_ai.player_artifacts import (
     composition_signature,
     discover_player_artifacts,
     export_player_artifact,
+    safe_artifact_segment,
 )
 from py_game.match_setup import ControllerKind, ControllerSpec, validate_match_setup
 from neat_ai.deck_builder_trainer import _remember_best_controller
@@ -24,6 +25,16 @@ def _deck(deck_id="deck-a", card_ids=None):
 
 
 class PlayerArtifactTests(unittest.TestCase):
+    def test_artifact_segments_are_bounded_and_keep_a_stable_identity(self):
+        value = "custom-deck-" + "x" * 200
+        first = safe_artifact_segment(value, "deck")
+        second = safe_artifact_segment(value, "deck")
+        other = safe_artifact_segment(value + "y", "deck")
+
+        self.assertLessEqual(len(first), 32)
+        self.assertEqual(first, second)
+        self.assertNotEqual(first, other)
+
     def test_evolution_retains_the_best_observed_controller_for_each_deck(self):
         retained = {}
         _remember_best_controller(retained, 7, 2.0, "first")

@@ -64,11 +64,14 @@ def arena_destination(
 
 def overall_progress(telemetry) -> float | None:
     """Calculate progress only from counters explicitly emitted by a trainer."""
-    if str(getattr(telemetry, "status", "")).lower() == "completed":
+    status = str(getattr(telemetry, "status", "")).lower()
+    if status == "completed":
         return 1.0
     phase_progress = getattr(telemetry, "phase_progress", None)
     if phase_progress is not None:
-        return max(0.0, min(1.0, float(phase_progress)))
+        # The last generation can finish before summaries and model artifacts
+        # are flushed. Only authoritative process completion may display 100%.
+        return max(0.0, min(0.99, float(phase_progress)))
     generation = int(getattr(telemetry, "generation", 0) or 0)
     total = int(getattr(telemetry, "total_generations", 0) or 0)
     if total <= 0 or generation <= 0:

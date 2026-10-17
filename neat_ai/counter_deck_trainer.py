@@ -10,7 +10,6 @@ import math
 import os
 import pickle
 import random
-import re
 from collections import Counter
 from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
 from dataclasses import asdict, dataclass
@@ -25,7 +24,7 @@ from core.player import Player
 from display_strategies.display_strategy_none import DisplayStrategyNone
 from neat_ai.deck_builder import build_deck
 from neat_ai.deck_evaluator import fitness_from_result
-from neat_ai.player_artifacts import export_player_artifact
+from neat_ai.player_artifacts import export_player_artifact, safe_artifact_segment
 from neat_ai.training_telemetry import emit_training_event
 from utils.database_utils import DBUtil
 
@@ -549,8 +548,9 @@ def train_counter_decks(subject_deck, settings: CounterDeckTrainerSettings | Non
     )
     output_dir = artifact_root / "trained_ai"
     output_dir.mkdir(parents=True, exist_ok=True)
-    safe_label = re.sub(r"[^A-Za-z0-9_.-]+", "-", settings.run_label).strip("-")
-    artifact_path = output_dir / f"counter_{subject_deck.id}_{safe_label or 'run'}.pickle"
+    safe_deck = safe_artifact_segment(subject_deck.id, "deck")
+    safe_label = safe_artifact_segment(settings.run_label, "run")
+    artifact_path = output_dir / f"counter_{safe_deck}_{safe_label}.pickle"
     with artifact_path.open("wb") as artifact_file:
         pickle.dump(
             {

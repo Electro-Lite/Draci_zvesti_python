@@ -4780,7 +4780,10 @@ class TrainingMenu(Menu):
         identity = (
             f"{item.run_id} · {item.title}"
             if isinstance(item, TrainingRunSummary)
-            else getattr(item, "job_id", "Training run")
+            else str(
+                (getattr(item, "request", {}) or {}).get("run_label")
+                or getattr(item, "job_id", "Training run")
+            )
         )
         if destination == ArenaDestination.PROGRESS:
             title = "Training in progress" if status != "stopping" else "Stopping training"

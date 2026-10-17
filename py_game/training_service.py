@@ -8,6 +8,7 @@ import signal
 import sqlite3
 import subprocess
 import sys
+from uuid import uuid4
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass, replace
 from enum import Enum
@@ -248,11 +249,6 @@ def select_diverse_matchups(
     return tuple(strongest), tuple(weakest), len(eligible)
 
 
-def _safe_label(label: str) -> str:
-    cleaned = re.sub(r"[^A-Za-z0-9_.-]+", "-", label.strip()).strip("-")
-    return cleaned or "training-run"
-
-
 def _summary_int(value, default=0) -> int:
     try:
         return int(value)
@@ -338,13 +334,14 @@ class TrainingService:
             raise RuntimeError(f"UI training job {active_jobs[0].job_id} is running")
 
         stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
-        job_id = f"{stamp}-{_safe_label(request.run_label)}"
+        # Keep internal paths short. Windows installations already have a deep
+        # LocalAppData prefix, and final artifact names add more components.
+        # The descriptive run label remains in job.request and in the UI.
+        job_id = f"{stamp}-{uuid4().hex[:8]}"
         job_dir = JOB_ROOT / job_id
-        suffix = 2
         while job_dir.exists():
-            job_id = f"{stamp}-{_safe_label(request.run_label)}-{suffix}"
+            job_id = f"{stamp}-{uuid4().hex[:8]}"
             job_dir = JOB_ROOT / job_id
-            suffix += 1
         job_dir.mkdir(parents=True)
 
         command = build_command(request)

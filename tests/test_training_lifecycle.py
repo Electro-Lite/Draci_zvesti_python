@@ -44,7 +44,7 @@ class TrainingLifecycleTests(unittest.TestCase):
         telemetry = TrainingTelemetry(
             status="running", phase_progress=1.0, generation=10, total_generations=10
         )
-        self.assertEqual(overall_progress(telemetry), 1.0)
+        self.assertEqual(overall_progress(telemetry), 0.99)
         self.assertEqual(
             arena_destination(
                 "running",

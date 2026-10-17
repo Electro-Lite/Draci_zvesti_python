@@ -92,9 +92,13 @@ class PlayerArtifact:
         return self.manifest.display_name
 
 
-def _safe_segment(value: str, fallback: str) -> str:
+def safe_artifact_segment(value: str, fallback: str, maximum: int = 32) -> str:
     cleaned = re.sub(r"[^A-Za-z0-9_.-]+", "-", str(value or "")).strip("-.")
-    return cleaned or fallback
+    cleaned = cleaned or fallback
+    if len(cleaned) <= maximum:
+        return cleaned
+    digest = hashlib.sha256(cleaned.encode("utf-8")).hexdigest()[:8]
+    return f"{cleaned[:maximum - len(digest) - 1]}-{digest}"
 
 
 def export_player_artifact(
@@ -115,9 +119,9 @@ def export_player_artifact(
     if not card_ids:
         raise ValueError("Cannot export a player controller without a deck composition")
     base = "player_{}_{}_{}".format(
-        _safe_segment(mission, "training"),
-        _safe_segment(role, "player"),
-        _safe_segment(run_label, "run"),
+        safe_artifact_segment(mission, "training"),
+        safe_artifact_segment(role, "player"),
+        safe_artifact_segment(run_label, "run"),
     )
     artifact_path = output_dir / f"{base}.pickle"
     manifest_path = output_dir / f"{base}.player.json"
