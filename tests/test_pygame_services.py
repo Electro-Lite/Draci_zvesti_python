@@ -21,6 +21,7 @@ from choice_strategies.choice_strategy_human_pygame import (
 )
 from choice_strategies.choice_strategy_ai_random import ChoiceStrategyAIRandom
 from py_game.deck_advisor import DeckAdvisor
+from py_game.deck_editor import ActivePane, DeckBuilderMenu
 from py_game.game import Game
 from py_game.menu.basic_play_menu import BasicPlayMenu
 from py_game.menu.deck_menu import DeckMenu
@@ -64,6 +65,51 @@ from utils.database_utils import DBUtil
 
 
 class PygameServiceTests(unittest.TestCase):
+    def test_deck_builder_available_cards_pagination_reaches_every_card(self):
+        menu = DeckBuilderMenu.__new__(DeckBuilderMenu)
+        menu.all_cards = [
+            SimpleNamespace(id=f"card-{index}", power=Power.NORMAL)
+            for index in range(29)
+        ]
+        menu.deck_cards = []
+        menu.indices = {pane: 0 for pane in ActivePane}
+        menu.available_page = 0
+        menu.available_page_size = 7
+
+        visible_ids = []
+        for page in range(menu._available_page_count()):
+            menu.available_page = page
+            first = page * menu.available_page_size
+            visible_ids.extend(
+                card.id
+                for card in menu._available_cards()[
+                    first : first + menu.available_page_size
+                ]
+            )
+
+        self.assertEqual(visible_ids, [card.id for card in menu.all_cards])
+
+    def test_deck_builder_available_page_navigation_keeps_valid_selection(self):
+        menu = DeckBuilderMenu.__new__(DeckBuilderMenu)
+        menu.all_cards = [
+            SimpleNamespace(id=f"card-{index}", power=Power.NORMAL)
+            for index in range(18)
+        ]
+        menu.deck_cards = []
+        menu.indices = {pane: 0 for pane in ActivePane}
+        menu.available_page = 0
+        menu.available_page_size = 7
+
+        menu._change_available_page(1)
+        menu._change_available_page(1)
+
+        self.assertEqual(menu.available_page, 2)
+        self.assertEqual(menu.indices[ActivePane.AVAILABLE], 14)
+        self.assertLess(
+            menu.indices[ActivePane.AVAILABLE],
+            len(menu._available_cards()),
+        )
+
     def test_deck_management_displays_names_but_keeps_ids_for_actions(self):
         game = SimpleNamespace(
             DISPLAY_W=1280,
@@ -115,6 +161,45 @@ class PygameServiceTests(unittest.TestCase):
         self.assertEqual(rows["Deck B"], "Starter Blue")
         self.assertEqual(request.deck_id, "user_24f0127")
         self.assertEqual(request.opponent_deck_id, "Starter Blue_1")
+
+    def test_training_deck_picker_paginates_every_deck(self):
+        for size in ((640, 480), (1280, 720)):
+            menu = TrainingMenu.__new__(TrainingMenu)
+            menu.game = SimpleNamespace(layout=LayoutMetrics.from_size(*size))
+            menu.deck_ids = [f"deck-{index}" for index in range(23)]
+            menu.deck_options = [
+                (deck_id, f"Deck {index}")
+                for index, deck_id in enumerate(menu.deck_ids)
+            ]
+            menu.setup_picker_index = 0
+            menu.setup_picker_page = 0
+
+            page_size = menu._picker_page_size()
+            page_count = menu._picker_page_count(page_size)
+            visible_ids = []
+            for page in range(page_count):
+                menu.setup_picker_page = page
+                panel, rows = menu._picker_panel()
+                visible_ids.extend(deck_id for _index, deck_id, _name, _rect in rows)
+                previous, _next = menu._picker_pagination_rects(panel)
+                if rows:
+                    self.assertLessEqual(rows[-1][3].bottom, previous.y)
+
+            self.assertEqual(visible_ids, menu.deck_ids)
+
+    def test_training_deck_picker_page_navigation_reaches_last_deck(self):
+        menu = TrainingMenu.__new__(TrainingMenu)
+        menu.game = SimpleNamespace(layout=LayoutMetrics.from_size(640, 480))
+        menu.deck_ids = [f"deck-{index}" for index in range(19)]
+        menu.setup_picker_index = 0
+        menu.setup_picker_page = 0
+
+        while menu.setup_picker_page < menu._picker_page_count() - 1:
+            menu._change_picker_page(1)
+
+        _panel, rows = menu._picker_panel()
+        self.assertEqual(rows[-1][1], "deck-18")
+        self.assertIn(menu.setup_picker_index, [row[0] for row in rows])
 
     def test_backspace_edits_adoption_name_without_closing_dialog(self):
         menu = TrainingMenu.__new__(TrainingMenu)

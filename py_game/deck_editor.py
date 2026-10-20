@@ -10,6 +10,7 @@ from cards.power import Power
 from py_game.deck_advisor import DeckAdvisor, discover_advisors
 from py_game.menu.base_menu import Menu
 from py_game.ui.layout import RectSpec
+from py_game.ui.widgets import Button
 from utils.database_utils import DBUtil
 
 if TYPE_CHECKING:
@@ -64,6 +65,9 @@ class DeckBuilderMenu(Menu):
         ]
         self.row_hitboxes = []
         self.pane_rects = {}
+        self.available_page = 0
+        self.available_page_size = self.PAGE_SIZE
+        self.available_page_hitboxes = {}
 
     def _copy_count(self, card) -> int:
         return sum(
@@ -99,6 +103,40 @@ class DeckBuilderMenu(Menu):
                 self.indices[pane],
                 max(0, len(items) - 1),
             )
+        self._clamp_available_page()
+
+    def _available_page_count(self, page_size=None):
+        page_size = max(1, page_size or self.available_page_size)
+        return max(1, (len(self._available_cards()) + page_size - 1) // page_size)
+
+    def _clamp_available_page(self, page_size=None):
+        page_size = max(1, page_size or self.available_page_size)
+        self.available_page = min(
+            max(0, self.available_page),
+            self._available_page_count(page_size) - 1,
+        )
+        selected = self.indices[ActivePane.AVAILABLE]
+        first = self.available_page * page_size
+        if selected < first or selected >= first + page_size:
+            self.available_page = selected // page_size
+
+    def _change_available_page(self, direction, page_size=None):
+        cards = self._available_cards()
+        if not cards:
+            self.available_page = 0
+            self.indices[ActivePane.AVAILABLE] = 0
+            return
+        page_size = max(1, page_size or self.available_page_size)
+        page_count = self._available_page_count(page_size)
+        current = min(max(0, self.available_page), page_count - 1)
+        target = min(max(0, current + direction), page_count - 1)
+        row = self.indices[ActivePane.AVAILABLE] - current * page_size
+        row = min(max(0, row), page_size - 1)
+        self.available_page = target
+        self.indices[ActivePane.AVAILABLE] = min(
+            target * page_size + row,
+            len(cards) - 1,
+        )
 
     def _selected_card(self):
         if self.active_pane == ActivePane.ACTIONS:
@@ -142,6 +180,11 @@ class DeckBuilderMenu(Menu):
             self.indices[self.active_pane] = (
                 self.indices[self.active_pane] + direction
             ) % len(items)
+            if self.active_pane == ActivePane.AVAILABLE:
+                self.available_page = (
+                    self.indices[ActivePane.AVAILABLE]
+                    // max(1, self.available_page_size)
+                )
 
     def _move_horizontal(self, direction):
         pane_index = list(ActivePane).index(self.active_pane)
@@ -405,6 +448,7 @@ class DeckBuilderMenu(Menu):
         panes = dict(zip(ActivePane, columns))
         self.pane_rects = panes
         self.row_hitboxes = []
+        self.available_page_hitboxes = {}
         titles = {
             ActivePane.AVAILABLE: "Available cards",
             ActivePane.ACTIONS: "Deck actions",
@@ -451,11 +495,27 @@ class DeckBuilderMenu(Menu):
         items = self._items(pane)
         selected = self.indices[pane]
         details_reserved = int(spec.height * 0.30) if pane == ActivePane.ACTIONS else 0
+        pagination_reserved = (
+            max(30, metrics.target_height - metrics.gap // 2) + metrics.gap
+            if pane == ActivePane.AVAILABLE
+            else 0
+        )
         list_top = spec.y + metrics.target_height
-        available_height = spec.height - metrics.target_height - details_reserved - metrics.gap
+        available_height = (
+            spec.height
+            - metrics.target_height
+            - details_reserved
+            - pagination_reserved
+            - metrics.gap
+        )
         row_height = max(28, metrics.target_height - metrics.gap // 2)
         page_size = max(1, available_height // row_height)
-        offset = max(0, min(selected - page_size + 1, len(items) - page_size))
+        if pane == ActivePane.AVAILABLE:
+            self.available_page_size = page_size
+            self._clamp_available_page(page_size)
+            offset = self.available_page * page_size
+        else:
+            offset = max(0, min(selected - page_size + 1, len(items) - page_size))
         for row, item in enumerate(items[offset : offset + page_size]):
             index = offset + row
             rect = pg.Rect(
@@ -491,6 +551,62 @@ class DeckBuilderMenu(Menu):
                 max_width=rect.width - metrics.gap * 2,
             )
             self.row_hitboxes.append((pane, index, rect))
+        if pane == ActivePane.AVAILABLE:
+            self._draw_available_pagination(spec, page_size)
+
+    def _draw_available_pagination(self, spec, page_size):
+        metrics = self.game.layout
+        footer_height = max(30, metrics.target_height - metrics.gap // 2)
+        footer_y = spec.bottom - metrics.gap - footer_height
+        inner_x = spec.x + metrics.gap
+        inner_width = spec.width - metrics.gap * 2
+        button_width = max(34, min(74, (inner_width - metrics.gap * 2) // 3))
+        previous_rect = RectSpec(inner_x, footer_y, button_width, footer_height)
+        next_rect = RectSpec(
+            spec.right - metrics.gap - button_width,
+            footer_y,
+            button_width,
+            footer_height,
+        )
+        page_count = self._available_page_count(page_size)
+        self.available_page_hitboxes = {
+            "previous": previous_rect,
+            "next": next_rect,
+        }
+        font = pg.font.Font(
+            self.game.font_name,
+            max(11, metrics.font_small - (2 if spec.width < 260 else 0)),
+        )
+        compact = spec.width < 300
+        for key, label, rect, enabled in (
+            (
+                "previous",
+                "<" if compact else "< Prev",
+                previous_rect,
+                self.available_page > 0,
+            ),
+            (
+                "next",
+                ">" if compact else "Next >",
+                next_rect,
+                self.available_page < page_count - 1,
+            ),
+        ):
+            Button(
+                key,
+                label,
+                rect,
+                enabled=enabled,
+                hovered=enabled and rect.contains(self.game.mouse_position),
+            ).draw(self.game.display, font, self.game.palette)
+        center_x = (previous_rect.right + next_rect.x) // 2
+        self.game.draw_text(
+            f"{self.available_page + 1}/{page_count}",
+            max(11, metrics.font_small - 2),
+            center_x,
+            footer_y + footer_height // 2,
+            self.game.palette.muted,
+        )
 
     def _draw_responsive_details(self, spec):
         card = self._selected_card()
@@ -523,10 +639,31 @@ class DeckBuilderMenu(Menu):
             for pane, spec in self.pane_rects.items():
                 if spec.contains(self.game.mouse_position):
                     self.active_pane = pane
-                    self._move_vertical(-self.game.mouse_wheel)
+                    if pane == ActivePane.AVAILABLE:
+                        self._change_available_page(-self.game.mouse_wheel)
+                    else:
+                        self._move_vertical(-self.game.mouse_wheel)
                     break
         for event in self.game.events:
+            if event.type == pg.KEYDOWN and event.key in (pg.K_PAGEUP, pg.K_PAGEDOWN):
+                if self.active_pane == ActivePane.AVAILABLE:
+                    self._change_available_page(
+                        -1 if event.key == pg.K_PAGEUP else 1,
+                    )
+                continue
             if event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
+                page_direction = next(
+                    (
+                        -1 if key == "previous" else 1
+                        for key, rect in self.available_page_hitboxes.items()
+                        if rect.contains(event.pos)
+                    ),
+                    None,
+                )
+                if page_direction is not None:
+                    self.active_pane = ActivePane.AVAILABLE
+                    self._change_available_page(page_direction)
+                    continue
                 for pane, index, rect in self.row_hitboxes:
                     if rect.collidepoint(event.pos):
                         self.active_pane = pane

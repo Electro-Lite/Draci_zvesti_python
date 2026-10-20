@@ -174,6 +174,7 @@ class TrainingMenu(Menu):
         self.setup_edit_original_auto_label = False
         self.setup_picker_key = None
         self.setup_picker_index = 0
+        self.setup_picker_page = 0
         self.setup_review_open = False
         self.setup_review_request = None
         self.setup_review_selected = 0
@@ -661,6 +662,7 @@ class TrainingMenu(Menu):
             self.setup_picker_index = self.deck_ids.index(self.cockpit.value(key))
         except ValueError:
             self.setup_picker_index = 0
+        self.setup_picker_page = self.setup_picker_index // self._picker_page_size()
 
     def _activate_setup_control(self, key):
         self.setup_focus_key = key
@@ -729,11 +731,52 @@ class TrainingMenu(Menu):
             return True
         return True
 
+    def _picker_page_size(self, panel=None):
+        panel = panel or self.game.layout.centered_panel(0.62, 0.72, max_width=760)
+        row_height = max(38, min(48, self.game.layout.target_height))
+        return max(1, min(8, (panel.height - 150) // (row_height + 4)))
+
+    def _picker_page_count(self, page_size=None):
+        page_size = page_size or self._picker_page_size()
+        return max(1, math.ceil(len(self.deck_ids) / page_size))
+
+    def _sync_picker_page_to_selection(self):
+        page_size = self._picker_page_size()
+        self.setup_picker_page = min(
+            self._picker_page_count(page_size) - 1,
+            max(0, self.setup_picker_index // page_size),
+        )
+
+    def _change_picker_page(self, direction):
+        page_size = self._picker_page_size()
+        page_count = self._picker_page_count(page_size)
+        new_page = max(0, min(page_count - 1, self.setup_picker_page + direction))
+        if new_page == self.setup_picker_page:
+            return
+        row_on_page = self.setup_picker_index % page_size
+        self.setup_picker_page = new_page
+        self.setup_picker_index = min(
+            len(self.deck_ids) - 1,
+            new_page * page_size + row_on_page,
+        )
+
+    def _picker_pagination_rects(self, panel):
+        gap = self.game.layout.gap
+        height = max(34, min(42, self.game.layout.target_height))
+        width = min(150, (panel.width - gap * 4) // 3)
+        y = panel.bottom - gap - height
+        return (
+            RectSpec(panel.x + gap, y, width, height),
+            RectSpec(panel.right - gap - width, y, width, height),
+        )
+
     def _picker_panel(self):
         panel = self.game.layout.centered_panel(0.62, 0.72, max_width=760)
         row_height = max(38, min(48, self.game.layout.target_height))
-        visible_count = max(1, min(8, (panel.height - 110) // (row_height + 4)))
-        start = max(0, min(self.setup_picker_index - visible_count // 2, len(self.deck_ids) - visible_count))
+        visible_count = self._picker_page_size(panel)
+        page_count = self._picker_page_count(visible_count)
+        self.setup_picker_page = max(0, min(self.setup_picker_page, page_count - 1))
+        start = self.setup_picker_page * visible_count
         rows = []
         for offset, deck_id in enumerate(self.deck_ids[start : start + visible_count]):
             rows.append(
@@ -756,10 +799,18 @@ class TrainingMenu(Menu):
             self.setup_picker_key = None
             self.game.BACK_KEY = False
             return
-        if self.game.UP_KEY:
+        if self.game.LEFT_KEY:
+            self._change_picker_page(-1)
+        elif self.game.RIGHT_KEY:
+            self._change_picker_page(1)
+        elif self.game.UP_KEY:
             self.setup_picker_index = max(0, self.setup_picker_index - 1)
+            self._sync_picker_page_to_selection()
         elif self.game.DOWN_KEY:
             self.setup_picker_index = min(len(self.deck_ids) - 1, self.setup_picker_index + 1)
+            self._sync_picker_page_to_selection()
+        if self.game.mouse_wheel:
+            self._change_picker_page(-1 if self.game.mouse_wheel > 0 else 1)
         if self.game.START_KEY:
             self.cockpit.set_value(
                 self.setup_picker_key,
@@ -770,7 +821,14 @@ class TrainingMenu(Menu):
             self.game.START_KEY = False
             return
         if self.game.mouse_clicked:
-            _panel, rows = self._picker_panel()
+            panel, rows = self._picker_panel()
+            previous_rect, next_rect = self._picker_pagination_rects(panel)
+            if previous_rect.contains(self.game.mouse_position):
+                self._change_picker_page(-1)
+                return
+            if next_rect.contains(self.game.mouse_position):
+                self._change_picker_page(1)
+                return
             for index, deck_id, _deck_name, rect in rows:
                 if rect.contains(self.game.mouse_position):
                     self.setup_picker_index = index
@@ -1239,7 +1297,14 @@ class TrainingMenu(Menu):
         self.game.display.blit(shade, (0, 0))
         panel, rows = self._picker_panel()
         self._draw_cockpit_panel(panel, accent=self.game.palette.accent)
-        self.game.draw_text_left("Select deck", self.game.layout.font_normal, panel.x + self.game.layout.gap, panel.y + 27, self.game.palette.text, panel.width - self.game.layout.gap * 2)
+        title = (
+            "Select Deck B"
+            if self.setup_picker_key == "opponent_deck_id"
+            else "Select Deck A"
+            if self.kind == TrainingKind.MATCHUP_EVALUATION
+            else "Select deck"
+        )
+        self.game.draw_text_left(title, self.game.layout.font_normal, panel.x + self.game.layout.gap, panel.y + 27, self.game.palette.text, panel.width - self.game.layout.gap * 2)
         font = pg.font.Font(self.game.font_name, max(12, self.game.layout.font_small))
         for index, _deck_id, deck_name, rect in rows:
             Button(
@@ -1249,6 +1314,30 @@ class TrainingMenu(Menu):
                 selected=index == self.setup_picker_index,
                 hovered=rect.contains(self.game.mouse_position),
             ).draw(self.game.display, font, self.game.palette)
+        page_size = self._picker_page_size(panel)
+        page_count = self._picker_page_count(page_size)
+        previous_rect, next_rect = self._picker_pagination_rects(panel)
+        Button(
+            "picker_previous",
+            "< Previous",
+            previous_rect,
+            enabled=self.setup_picker_page > 0,
+            hovered=previous_rect.contains(self.game.mouse_position),
+        ).draw(self.game.display, font, self.game.palette)
+        Button(
+            "picker_next",
+            "Next >",
+            next_rect,
+            enabled=self.setup_picker_page < page_count - 1,
+            hovered=next_rect.contains(self.game.mouse_position),
+        ).draw(self.game.display, font, self.game.palette)
+        self.game.draw_text(
+            f"Page {self.setup_picker_page + 1} / {page_count}  •  {len(self.deck_ids)} decks",
+            max(10, self.game.layout.font_small - 2),
+            panel.center[0],
+            previous_rect.y + previous_rect.height // 2,
+            self.game.palette.muted,
+        )
 
     def _review_rows(self, request):
         if request.kind == TrainingKind.PLAYER_DECK:

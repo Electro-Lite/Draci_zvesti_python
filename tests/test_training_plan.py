@@ -74,7 +74,7 @@ class FirstLegalStrategy(PlayerChoiceStrategy):
 
 
 class TrainingPlanTests(unittest.TestCase):
-    def test_zero_damage_battle_resolves_as_dragon_defense(self):
+    def test_zero_damage_battle_resolves_as_dragon_surviving(self):
         owner = object()
         card = SimpleNamespace(hp=2, dmg=0, owner=owner)
         dragon = SimpleNamespace(
@@ -98,18 +98,23 @@ class TrainingPlanTests(unittest.TestCase):
             def remove_card(self, removed):
                 self.positions[self.positions.index(removed)] = None
 
+        result_events = []
         display = SimpleNamespace(
             dragon=None,
             display_dragon=lambda: None,
             display_board=lambda: None,
             display_dragon_vs_card=lambda: None,
-            display_battle_result=lambda: None,
+            display_battle_result=lambda: result_events.append(
+                dict(board.battle_event)
+            ),
         )
         board = BattleBoard()
 
         self.assertIsNone(battle_dragon(board, display))
-        self.assertIsNone(board.positions[0])
+        self.assertIs(board.positions[0], card)
         self.assertEqual(board.dragons, [dragon])
+        self.assertEqual(result_events[0]["phase"], "dragon_survived")
+        self.assertIsNone(result_events[0]["point_for"])
         dragon.restore.assert_called_once_with()
 
     def test_neat_configs_parse(self):

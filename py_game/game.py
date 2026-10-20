@@ -282,24 +282,24 @@ class Game():
         overlay.set_alpha(self.BACKGROUND_OVERLAY_OPACITY)
         self.display.blit(overlay, (0, 0))
 
-    def navigate_hand(self, player):
+    def navigate_hand(self, player, allowed_indices=None):
         cards = player.hand.cards
-        if self.selected_card == None and len(cards)>0 :
-            self.selected_card = cards[0]
+        indices = list(allowed_indices) if allowed_indices is not None else list(range(len(cards)))
+        available = [cards[index] for index in indices if 0 <= index < len(cards)]
+        if self.selected_card not in available:
+            self.selected_card = available[0] if available else None
         if self.LEFT_KEY:
             try:
-                pos = cards.index(self.selected_card)
-                pos = (pos - 1) if pos > 0 else len(cards) - 1
-                self.selected_card = cards[pos]
+                pos = available.index(self.selected_card)
+                self.selected_card = available[(pos - 1) % len(available)]
             except ValueError:
-                self.selected_card = cards[len(cards)-1] if len(cards)>0 else None
+                self.selected_card = available[-1] if available else None
         elif self.RIGHT_KEY:
             try:
-                pos = cards.index(self.selected_card)
-                pos = (pos + 1) % len(cards)
-                self.selected_card = cards[pos]
+                pos = available.index(self.selected_card)
+                self.selected_card = available[(pos + 1) % len(available)]
             except ValueError:
-                self.selected_card = cards[0] if len(cards)>0 else None
+                self.selected_card = available[0] if available else None
     
     def navigate_board(self, allowed_positions=None):
         empty_positions = (
@@ -339,8 +339,13 @@ class Game():
         strategy = player.choice_strategy
         choice_type = strategy.waiting_for
         self._sync_choice_defaults(choice_type)
-        if choice_type in (ChoiceType.CARD, ChoiceType.PLAY_OR_PASS):
-            self.navigate_hand(player)
+        if choice_type in (ChoiceType.CARD, ChoiceType.PLAY_OR_PASS, ChoiceType.ABILITY_CARD):
+            legal_cards = (
+                strategy.legal_ability_card_indices()
+                if choice_type == ChoiceType.ABILITY_CARD
+                else strategy.legal_play_card_indices()
+            )
+            self.navigate_hand(player, legal_cards)
             self.selected_position = None
             if choice_type == ChoiceType.PLAY_OR_PASS and self.PASS_KEY:
                 strategy.set_choice(ChoiceType.PLAY_OR_PASS, PASS_SELECTION)
@@ -348,7 +353,8 @@ class Game():
                 strategy.set_choice(choice_type, self.selected_card)
         elif choice_type == ChoiceType.POSITION:
             self.selected_card = None
-            self.navigate_board()
+            legal_positions = strategy.legal_placement_positions()
+            self.navigate_board(legal_positions)
             if self.START_KEY and self.selected_position is not None:
                 strategy.set_choice(ChoiceType.POSITION, self.selected_position)
         elif choice_type == ChoiceType.PASS:
@@ -431,13 +437,20 @@ class Game():
 
     def _draw_active_mana_marker(self, card_view, rect, active_mana):
         bonus = card_view.get("mana_bonus") or {}
+        active_colors = (
+            {str(color) for color in active_mana}
+            if isinstance(active_mana, (list, tuple, set, frozenset))
+            else {str(active_mana)}
+            if active_mana
+            else set()
+        )
+        card_color = card_view.get("color")
         if (
-            not active_mana
-            or card_view.get("color") != active_mana
+            card_color not in active_colors
             or not (bonus.get("dmg", 0) or bonus.get("hp", 0))
         ):
             return
-        color = MANA_COLORS.get(active_mana)
+        color = MANA_COLORS.get(card_color)
         if color is None:
             return
         radius = max(5, min(10, rect.width // 15))
@@ -503,9 +516,10 @@ class Game():
             "pass": "Play a card or pass for this round",
             "play_or_pass": "Choose a card to play, or pass the round",
             "card": "Choose a card from your hand",
-            "position": "Choose an open board position",
+            "position": "Choose a legal board position",
             "use_ability": "Use this card's active ability?",
             "target": "Choose a legal ability target",
+            "ability_card": "Choose a card to place beside the commander",
         }.get(choice_type, "Waiting for the other player")
 
     def _draw_card_tooltip(self, card_view, anchor):
@@ -657,7 +671,15 @@ class Game():
             if choice_type
             else self.palette.text,
         )
-        status = f"Round {state.get('round', 0)}  •  Mana {state.get('mana') or '—'}"
+        mana_effects = state.get("mana_effects", [state.get("mana")])
+        mana_status = (
+            f"{state.get('mana') or '—'} (effects blocked)"
+            if state.get("mana_effects_blocked")
+            else " + ".join(mana_effects)
+            if mana_effects
+            else "—"
+        )
+        status = f"Round {state.get('round', 0)}  •  Mana {mana_status}"
         font = pygame.font.Font(self.font_name, metrics.font_small)
         status_surface = font.render(status, True, self.palette.muted)
         self.display.blit(status_surface, status_surface.get_rect(midright=(self.DISPLAY_W - metrics.margin, header.centery)))
@@ -754,7 +776,7 @@ class Game():
                 rect,
                 selected=self.selected_position == index,
                 legal=index in legal_indices or drag_legal,
-                active_mana=state.get("mana"),
+                active_mana=state.get("mana_effects", [state.get("mana")]),
             )
             if card and card.get("owner") == marked_side and marked_player_id is not None:
                 self._draw_owner_marker(rect, marked_player_id)
@@ -811,7 +833,10 @@ class Game():
                     card,
                     rect,
                     selected=selected,
-                    legal=choice_type in ("card", "play_or_pass"),
+                    legal=(
+                        choice_type in ("card", "play_or_pass", "ability_card")
+                        and index in set(getattr(self, "current_legal_card_indices", range(len(hand))))
+                    ),
                 )
                 if rect.collidepoint(self.mouse_position):
                     hovered_card = card
@@ -830,6 +855,8 @@ class Game():
             ]
         elif choice_type == "card":
             action_labels = [("confirm_card", "Play selected · Enter")]
+        elif choice_type == "ability_card":
+            action_labels = [("confirm_card", "Place selected beside · Enter")]
         elif choice_type == "use_ability":
             action_labels = [("skip_ability", "Skip · S"), ("use_ability", "Use ability · Enter / A")]
         if action_labels:
@@ -862,8 +889,9 @@ class Game():
                 x += button_w + metrics.gap
         else:
             keyboard_hint = {
-                "position": "Left / Right choose an open slot  •  Enter places the card",
+                "position": "Left / Right choose a legal slot  •  Enter places the card",
                 "target": "Left / Right choose a target  •  Enter confirms",
+                "ability_card": "Left / Right choose a card  •  Enter confirms",
             }.get(choice_type)
             self.draw_text(
                 "Battle resolving step by step • watch the board values"
@@ -1010,7 +1038,12 @@ class Game():
         )
         self._draw_card_view(dragon, dragon_rect, selected=True)
         if challenger:
-            self._draw_card_view(challenger, challenger_rect, selected=True, active_mana=state.get("mana"))
+            self._draw_card_view(
+                challenger,
+                challenger_rect,
+                selected=True,
+                active_mana=state.get("mana_effects", [state.get("mana")]),
+            )
         else:
             pygame.draw.rect(
                 self.display,
@@ -1096,6 +1129,7 @@ class Game():
             ChoiceType.USE_ABILITY: "use_ability",
             ChoiceType.TARGET: "target",
             ChoiceType.PLAY_OR_PASS: "play_or_pass",
+            ChoiceType.ABILITY_CARD: "ability_card",
         }
         return mapping.get(player.choice_strategy.waiting_for)
 
@@ -1106,8 +1140,15 @@ class Game():
         self.current_legal_indices = (
             strategy.legal_targets()
             if choice_type == "target" and isinstance(strategy, PygameChoiceStrategy)
-            else [index for index, card in enumerate(self.board.positions) if card is None]
+            else strategy.legal_placement_positions()
             if choice_type == "position"
+            else []
+        )
+        self.current_legal_card_indices = (
+            strategy.legal_ability_card_indices()
+            if choice_type == "ability_card" and isinstance(strategy, PygameChoiceStrategy)
+            else strategy.legal_play_card_indices()
+            if choice_type in ("card", "play_or_pass") and self.board.player_on_turn
             else []
         )
         if self.selected_card is not None:
@@ -1290,7 +1331,14 @@ class Game():
             position = self.pending_drop_position
             # The renderer's legal-index cache can be one frame behind the
             # logic thread. The board itself is authoritative for placement.
-            if 0 <= position < len(self.board.positions) and self.board.positions[position] is None:
+            legal_positions = strategy.legal_placement_positions()
+            if getattr(strategy, "info", None) is None:
+                legal_positions = [
+                    index
+                    for index, occupant in enumerate(self.board.positions)
+                    if occupant is None
+                ]
+            if position in legal_positions:
                 if strategy.set_choice(ChoiceType.POSITION, position):
                     self.pending_drop_position = None
                     self.interaction_message = "Card placed"
@@ -1302,16 +1350,29 @@ class Game():
             if (
                 event.type == pygame.MOUSEBUTTONDOWN
                 and event.button == 1
-                and choice_type in ("card", "play_or_pass")
+                and choice_type in ("card", "play_or_pass", "ability_card")
             ):
                 for index, rect in enumerate(self.hand_card_rects):
-                    if rect.collidepoint(event.pos) and index < len(player.hand.cards):
+                    if (
+                        rect.collidepoint(event.pos)
+                        and index < len(player.hand.cards)
+                        and index in self.current_legal_card_indices
+                    ):
                         self.selected_card = player.hand.cards[index]
                         self.selected_card_index = index
+                        if choice_type == "ability_card":
+                            self.interaction_message = ""
+                            break
                         self.drag.begin(
                             f"card:{index}",
                             event.pos,
-                            {f"slot:{slot}" for slot in range(6) if self.board.positions[slot] is None},
+                            {
+                                f"slot:{slot}"
+                                for slot in self.board.legal_placement_positions(
+                                    self.selected_card,
+                                    player,
+                                )
+                            },
                         )
                         self.interaction_message = ""
                         break
@@ -1349,11 +1410,13 @@ class Game():
                 strategy.set_choice(ChoiceType.PASS, False)
             elif self.action_rects.get("pass", pygame.Rect(0, 0, 0, 0)).collidepoint(self.mouse_position):
                 strategy.set_choice(ChoiceType.PASS, True)
-        elif choice_type in ("card", "play_or_pass"):
+        elif choice_type in ("card", "play_or_pass", "ability_card"):
             if self.action_rects.get("confirm_card", pygame.Rect(0, 0, 0, 0)).collidepoint(self.mouse_position) and self.selected_card is not None:
                 strategy.set_choice(
                     ChoiceType.PLAY_OR_PASS
                     if choice_type == "play_or_pass"
+                    else ChoiceType.ABILITY_CARD
+                    if choice_type == "ability_card"
                     else ChoiceType.CARD,
                     self.selected_card,
                 )
@@ -1489,7 +1552,34 @@ class Game():
                 player.choice_strategy.exit_thread()
         logic_thread.join(timeout=1.0)
 
-    def lan_host_game_loop(self, host, lobby, payload):
+    def _draw_network_latency(self, peer):
+        latency = getattr(peer, "latency_ms", None)
+        label = "Ping —" if latency is None else f"Ping {round(latency)} ms"
+        metrics = self.layout
+        font = pygame.font.Font(self.font_name, max(11, metrics.font_small - 2))
+        rendered = font.render(label, True, self.palette.muted)
+        padding = max(5, metrics.gap // 2)
+        rect = rendered.get_rect(
+            bottomright=(
+                self.DISPLAY_W - metrics.margin,
+                self.DISPLAY_H - metrics.margin,
+            )
+        ).inflate(padding * 2, padding)
+        overlay = pygame.Surface(rect.size, pygame.SRCALPHA)
+        overlay.fill((*self.palette.panel, 220))
+        self.display.blit(overlay, rect)
+        pygame.draw.rect(self.display, self.palette.border, rect, 1, border_radius=5)
+        self.display.blit(rendered, rendered.get_rect(center=rect.center))
+
+    def lan_host_game_loop(
+        self,
+        host,
+        lobby,
+        payload,
+        *,
+        network_label="LAN",
+        show_latency=False,
+    ):
         deck_1 = DBUtil().load_deck(payload["host_deck_id"])
         deck_2 = copy.deepcopy(lobby.guest_deck)
         if deck_2 is None:
@@ -1561,7 +1651,7 @@ class Game():
                 logic_p1.choice_strategy.exit_thread()
                 self.board.game_running = False
             if self.BACK_KEY:
-                if self.confirm_dialog("Leave the active LAN match?"):
+                if self.confirm_dialog(f"Leave the active {network_label} match?"):
                     self.logic_error = "Host ended the match"
                     try:
                         host.peer.send(
@@ -1619,8 +1709,10 @@ class Game():
             if self.logic_error and (self.START_KEY or self.mouse_clicked):
                 break
             self.draw_responsive_game()
+            if show_latency and host.peer:
+                self._draw_network_latency(host.peer)
             if self.logic_error:
-                self.draw_notice_overlay("LAN match interrupted", self.logic_error)
+                self.draw_notice_overlay(f"{network_label} match interrupted", self.logic_error)
             self.window.blit(self.display, (0, 0))
             pygame.display.update()
             self.reset_keys()
@@ -1633,7 +1725,14 @@ class Game():
         logic_thread.join(timeout=1.0)
         self.reset_keys()
 
-    def lan_client_game_loop(self, client, payload):
+    def lan_client_game_loop(
+        self,
+        client,
+        payload,
+        *,
+        network_label="LAN",
+        show_latency=False,
+    ):
         if not client or not client.peer:
             return
         self.playing = True
@@ -1657,6 +1756,12 @@ class Game():
                         request = message
                         state = (message.payload or {}).get("state", state)
                         self.current_legal_indices = (message.payload or {}).get("legal_indices", [])
+                        self.current_legal_card_indices = (
+                            list(self.current_legal_indices)
+                            if (message.payload or {}).get("choice_type")
+                            in ("card", "play_or_pass", "ability_card")
+                            else []
+                        )
                         if (
                             (message.payload or {}).get("choice_type") == "position"
                             and self.pending_drop_position in self.current_legal_indices
@@ -1698,12 +1803,15 @@ class Game():
                     if sent:
                         request = None
                 if self.logic_error:
-                    self.draw_notice_overlay("LAN connection", self.logic_error)
+                    self.draw_notice_overlay(f"{network_label} connection", self.logic_error)
             else:
                 self.draw_background()
                 self.draw_text("Waiting for the host…", self.TEXT_LARGE, self.DISPLAY_W // 2, self.DISPLAY_H // 2)
 
-            if self.BACK_KEY and self.confirm_dialog("Leave the active LAN match?"):
+            if show_latency and client.peer:
+                self._draw_network_latency(client.peer)
+
+            if self.BACK_KEY and self.confirm_dialog(f"Leave the active {network_label} match?"):
                 try:
                     client.peer.send(
                         MessageType.DISCONNECT,
@@ -1759,11 +1867,14 @@ class Game():
             if (
                 event.type == pygame.MOUSEBUTTONDOWN
                 and event.button == 1
-                and choice_type in ("card", "play_or_pass")
+                and choice_type in ("card", "play_or_pass", "ability_card")
             ):
                 for index, rect in enumerate(self.hand_card_rects):
                     if rect.collidepoint(event.pos) and index in legal:
                         self.selected_card_index = index
+                        if choice_type == "ability_card":
+                            self.interaction_message = ""
+                            break
                         self.drag.begin(
                             f"card:{index}",
                             event.pos,
@@ -1789,7 +1900,7 @@ class Game():
                     self.interaction_message = "Drop on a highlighted empty board slot"
 
         if self.LEFT_KEY or self.RIGHT_KEY:
-            if choice_type in ("card", "play_or_pass") and legal:
+            if choice_type in ("card", "play_or_pass", "ability_card") and legal:
                 ordered = sorted(legal)
                 current = self.selected_card_index if self.selected_card_index in legal else ordered[0]
                 offset = -1 if self.LEFT_KEY else 1
@@ -1808,7 +1919,7 @@ class Game():
                 if self.action_rects.get("pass", pygame.Rect(0, 0, 0, 0)).collidepoint(self.mouse_position):
                     self._send_client_action(client, request, True)
                     return True
-            elif choice_type in ("card", "play_or_pass"):
+            elif choice_type in ("card", "play_or_pass", "ability_card"):
                 for index, rect in enumerate(self.hand_card_rects):
                     if rect.collidepoint(self.mouse_position) and index in legal:
                         self.selected_card_index = index
@@ -1841,7 +1952,7 @@ class Game():
             if choice_type == "pass":
                 self._send_client_action(client, request, False)
                 return True
-            if choice_type in ("card", "play_or_pass") and self.selected_card_index in legal:
+            if choice_type in ("card", "play_or_pass", "ability_card") and self.selected_card_index in legal:
                 self._send_client_action(client, request, self.selected_card_index)
                 return True
             if choice_type in ("position", "target") and self.selected_position in legal:

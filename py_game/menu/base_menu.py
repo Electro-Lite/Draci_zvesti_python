@@ -118,7 +118,15 @@ class Menu():
         if self.previous_menu is not None:
             self.previous_menu.run_display = True
 
-    def prompt_text(self, title, initial="", *, max_length=64, validator=None):
+    def prompt_text(
+        self,
+        title,
+        initial="",
+        *,
+        max_length=64,
+        validator=None,
+        masked=False,
+    ):
         field = TextInput(initial, max_length, validator, focused=True)
         self.game.reset_keys()
         while self.game.running:
@@ -129,11 +137,11 @@ class Menu():
                 if event.type == pg.KEYDOWN and event.key in (pg.K_RETURN, pg.K_KP_ENTER):
                     return field.value
                 field.handle_event(event)
-            self.draw_text_prompt(title, field.value)
+            self.draw_text_prompt(title, field.value, masked=masked)
             self.blit_screen()
         return None
 
-    def draw_text_prompt(self, title: str, value: str) -> None:
+    def draw_text_prompt(self, title: str, value: str, *, masked: bool = False) -> None:
         """Draw the shared responsive text-entry dialog for UI and visual tests."""
         self.draw_background()
         panel = self.game.layout.centered_panel(0.68, 0.38)
@@ -155,7 +163,7 @@ class Menu():
         pg.draw.rect(self.game.display, self.game.palette.panel_alt, field_rect, border_radius=8)
         pg.draw.rect(self.game.display, self.game.palette.accent, field_rect, 2, border_radius=8)
         self.game.draw_text_left(
-            value or " ",
+            ("•" * len(value) if masked else value) or " ",
             self.game.layout.font_normal,
             field_rect.x + self.game.layout.gap,
             field_rect.centery,

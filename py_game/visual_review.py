@@ -22,6 +22,7 @@ from py_game.menu.basic_play_menu import BasicPlayMenu
 from py_game.menu.deck_menu import DeckMenu
 from py_game.menu.lan_menu import LanMenu
 from py_game.menu.main_menu import MainMenu
+from py_game.menu.play_menu import PlayMenu
 from py_game.menu.options_menu import OptionsMenu
 from py_game.menu.training_menu import TrainingMenu
 from py_game.counter_presentation import (
@@ -76,6 +77,23 @@ def _main(game, output, size):
     menu.draw_title("Dračí zvěsti", "Build a deck, challenge a rival, and face the dragons")
     menu.draw_buttons()
     _save(game, output, "main", size)
+
+
+def _play(game, output, size):
+    menu = PlayMenu(game)
+    menu.refresh_layout()
+    menu.build_menu_buttons(
+        list(menu.ITEMS),
+        0,
+        top_ratio=0.25,
+        bottom_ratio=0.86,
+        width_ratio=0.50,
+    )
+    menu.draw_background()
+    menu.draw_title("Play", "Choose how you want to play")
+    menu.draw_buttons()
+    menu.draw_message(menu.message)
+    _save(game, output, "play", size)
 
 
 def _local(game, output, size):
@@ -1096,6 +1114,7 @@ def generate(output: Path, sizes=REVIEW_SIZES) -> list[Path]:
     game = Game()
     renderers = (
         _main,
+        _play,
         _local,
         _lan,
         _lan_join,
