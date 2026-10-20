@@ -49,7 +49,12 @@ async function loadRelease() {
     }).format(new Date(release.publishedAt));
     for (const card of document.querySelectorAll(".platform-card")) {
       const artifact = release.artifacts.find((item) => item.id === card.dataset.platform);
-      if (!artifact) continue;
+      if (!artifact) {
+        card.querySelector(".package-name").textContent = "Not included in this release";
+        card.querySelector(".package-size").textContent = "—";
+        card.querySelector(".download-button").disabled = true;
+        continue;
+      }
       card.querySelector(".package-name").textContent = artifact.fileName;
       card.querySelector(".package-size").textContent = formatBytes(artifact.originalSize);
       card.querySelector(".download-button").disabled = false;

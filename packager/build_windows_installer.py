@@ -169,9 +169,9 @@ def build_installer(dist_app: Path, version: str, compiler: Path) -> Path:
     run(
         [
             str(compiler),
-            f'/DSourceDir="{dist_app}"',
-            f'/DOutputDir="{ARTIFACTS_DIR}"',
-            f'/DAppVersion="{version}"',
+            f"/DSourceDir={dist_app}",
+            f"/DOutputDir={ARTIFACTS_DIR}",
+            f"/DAppVersion={version}",
             str(INNO_SCRIPT),
         ]
     )

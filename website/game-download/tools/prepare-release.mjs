@@ -32,10 +32,13 @@ function parseArgs(values) {
     }
     options[key.slice(2)] = value;
   }
-  if (!options.version || !options.windows || !options.linux) {
+  options.windowsInstaller = options["windows-installer"] || options.windows;
+  options.windowsPortable = options["windows-portable"];
+  if (!options.version || !options.linux || (!options.windowsInstaller && !options.windowsPortable)) {
     throw new Error(
       "Usage: node tools/prepare-release.mjs --version <version> " +
-      "--windows <setup.exe> --linux <game.AppImage> [--output dist]",
+      "[--windows-installer <setup.exe>] [--windows-portable <portable.zip>] " +
+      "--linux <game.AppImage> [--output dist]",
     );
   }
   if (!/^\d+(?:\.\d+){1,3}(?:[-+][A-Za-z0-9.-]+)?$/.test(options.version)) {
@@ -92,7 +95,14 @@ async function readPassword() {
   });
 }
 
-async function encryptArtifact({ id, platform, inputPath, password, outputDirectory }) {
+async function encryptArtifact({
+  id,
+  platform,
+  inputPath,
+  password,
+  outputDirectory,
+  mimeType = "application/octet-stream",
+}) {
   const clear = await readFile(inputPath);
   const salt = randomBytes(16);
   const iv = randomBytes(12);
@@ -126,7 +136,7 @@ async function encryptArtifact({ id, platform, inputPath, password, outputDirect
     platform,
     fileName: basename(inputPath),
     encryptedFiles,
-    mimeType: "application/octet-stream",
+    mimeType,
     originalSize: clear.length,
     encryptedSize: ciphertext.length,
     iterations: ITERATIONS,
@@ -137,9 +147,19 @@ async function encryptArtifact({ id, platform, inputPath, password, outputDirect
 }
 
 const options = parseArgs(process.argv.slice(2));
-const windowsPath = resolve(options.windows);
 const linuxPath = resolve(options.linux);
-await validateArtifact(windowsPath, ".exe", "Windows");
+const windowsInstallerPath = options.windowsInstaller
+  ? resolve(options.windowsInstaller)
+  : null;
+const windowsPortablePath = options.windowsPortable
+  ? resolve(options.windowsPortable)
+  : null;
+if (windowsInstallerPath) {
+  await validateArtifact(windowsInstallerPath, ".exe", "Windows installer");
+}
+if (windowsPortablePath) {
+  await validateArtifact(windowsPortablePath, ".zip", "Windows portable package");
+}
 await validateArtifact(linuxPath, ".AppImage", "Linux");
 const password = await readPassword();
 if (password.length < 12) throw new Error("Use a release password of at least 12 characters");
@@ -148,13 +168,26 @@ await mkdir(outputDirectory, { recursive: true });
 const stagingDirectory = await mkdtemp(resolve(outputDirectory, ".release-staging-"));
 try {
   const artifacts = [];
-  artifacts.push(await encryptArtifact({
-    id: "windows",
-    platform: "Windows 10/11",
-    inputPath: windowsPath,
-    password,
-    outputDirectory: stagingDirectory,
-  }));
+  if (windowsInstallerPath) {
+    artifacts.push(await encryptArtifact({
+      id: "windows-installer",
+      platform: "Windows 10/11 installer",
+      inputPath: windowsInstallerPath,
+      password,
+      outputDirectory: stagingDirectory,
+      mimeType: "application/vnd.microsoft.portable-executable",
+    }));
+  }
+  if (windowsPortablePath) {
+    artifacts.push(await encryptArtifact({
+      id: "windows-portable",
+      platform: "Windows 10/11 portable",
+      inputPath: windowsPortablePath,
+      password,
+      outputDirectory: stagingDirectory,
+      mimeType: "application/zip",
+    }));
+  }
   artifacts.push(await encryptArtifact({
     id: "linux",
     platform: "Linux x86-64",
@@ -174,7 +207,7 @@ try {
   );
 
   const generated = (await readdir(outputDirectory)).filter((name) =>
-    /^(?:game-release(?:-\d+)?|windows-release-\d+|linux-release-\d+)\.enc$/.test(name),
+    /^(?:game-release(?:-\d+)?|windows(?:-installer|-portable)?-release-\d+|linux-release-\d+)\.enc$/.test(name),
   );
   await Promise.all(generated.map((name) => unlink(resolve(outputDirectory, name))));
   const stagedFiles = await readdir(stagingDirectory);

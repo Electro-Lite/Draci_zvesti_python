@@ -15,15 +15,18 @@ From this directory, run:
 
 ```bash
 node tools/prepare-release.mjs \
-  --version 0.2.0 \
-  --windows /absolute/path/to/DraciZvesti-0.2.0-Windows-x64-Setup.exe \
-  --linux /absolute/path/to/DraciZvesti-0.2.0-Linux-x86_64.AppImage \
+  --version 0.1.2 \
+  --windows-installer /absolute/path/to/DraciZvesti-0.1.2-Windows-x64-Setup.exe \
+  --windows-portable /absolute/path/to/DraciZvesti-0.1.2-Windows-x64-portable.zip \
+  --linux /absolute/path/to/DraciZvesti-0.1.2-Linux-x86_64.AppImage \
   --output dist
 ```
 
-The script requests one password interactively, encrypts and verifies both
-packages, and updates `dist/release.json`. It refuses to create a release unless
-both platforms are provided. Publish the resulting static directory. Encrypted
+The script requests one password interactively, encrypts and verifies every
+selected package, and updates `dist/release.json`. Linux and at least one Windows format
+are required; omit either `--windows-installer` or `--windows-portable` when you
+only want to publish one of them. The legacy `--windows` option remains an alias
+for `--windows-installer`. Publish the resulting static directory. Encrypted
 chunks are reassembled and decrypted in the visitor's browser.
 
 Do not place raw installers or source archives in `dist`; only the generated
