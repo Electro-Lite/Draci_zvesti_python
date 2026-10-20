@@ -1,0 +1,8 @@
+[Unit]
+Description=Draci Zvesti website and online services
+Wants=draci-zvesti-web.service draci-zvesti-online.service
+After=network-online.target
+
+[Install]
+WantedBy=multi-user.target
+

@@ -1,0 +1,31 @@
+[Unit]
+Description=Draci Zvesti protected download website
+Documentation=file:///home/electro/Personal/UPOL/Draci_zvesti_merged/website/game-download/README.md
+After=network-online.target
+Wants=network-online.target
+Before=draci-zvesti.target
+PartOf=draci-zvesti.target
+
+[Service]
+Type=simple
+User=electro
+Group=electro
+WorkingDirectory=/home/electro/Personal/UPOL/Draci_zvesti_merged/website/game-download
+ExecStart=/usr/bin/python3 -m http.server 4173 --bind 127.0.0.1 --directory dist
+Environment=PYTHONDONTWRITEBYTECODE=1
+Restart=on-failure
+RestartSec=3s
+TimeoutStopSec=10s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=draci-zvesti.target
+

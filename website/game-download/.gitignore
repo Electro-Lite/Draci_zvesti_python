@@ -1,0 +1,3 @@
+.DS_Store
+dist/*-release-*.enc
+dist/release.json

@@ -1,0 +1,32 @@
+[Unit]
+Description=Draci Zvesti online WebSocket relay
+Documentation=file:///home/electro/Personal/UPOL/Draci_zvesti_merged/ONLINE_SERVER.md
+After=network-online.target
+Wants=network-online.target
+Before=draci-zvesti.target
+PartOf=draci-zvesti.target
+
+[Service]
+Type=simple
+User=electro
+Group=electro
+WorkingDirectory=/home/electro/Personal/UPOL/Draci_zvesti_merged
+ExecStart=/home/electro/Personal/UPOL/Draci_zvesti_merged/.zvesti_venv/bin/python -m py_game.network.online_server --host 127.0.0.1 --port 47888 --max-clients 200 --max-lobbies 100
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+Restart=on-failure
+RestartSec=3s
+TimeoutStopSec=15s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=draci-zvesti.target
+

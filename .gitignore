@@ -13,6 +13,8 @@ env/
 
 # Build and Distribution Artifacts
 dist/
+!website/game-download/dist/
+!website/game-download/dist/**
 build/
 *.egg-info/
 

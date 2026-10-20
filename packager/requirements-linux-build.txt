@@ -1,0 +1,4 @@
+# Install into the project's Linux virtual environment before packaging.
+PyInstaller>=6.10,<7
+websockets>=15,<16
+

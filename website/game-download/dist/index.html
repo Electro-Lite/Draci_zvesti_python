@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0d141d" />
+    <meta
+      name="description"
+      content="Password-protected download portal for Dračí zvěsti game builds."
+    />
+    <title>Dračí zvěsti — Private download</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="release-card" aria-labelledby="page-title">
+        <div class="eyebrow"><span class="status-dot"></span> Private release</div>
+        <h1 id="page-title">Dračí zvěsti</h1>
+        <p class="lead">Choose your system, enter the release password, and download the playable game.</p>
+
+        <div class="release-details" aria-label="Release information">
+          <div>
+            <span>Release</span>
+            <strong id="release-version">Loading release…</strong>
+          </div>
+          <div>
+            <span>Published</span>
+            <strong id="release-date">—</strong>
+          </div>
+        </div>
+
+        <div id="platforms" class="platforms" aria-label="Game downloads">
+          <article class="platform-card" data-platform="windows">
+            <div>
+              <span class="platform-kicker">Windows 10/11</span>
+              <h2>Windows installer</h2>
+              <p class="package-name">Waiting for release…</p>
+            </div>
+            <strong class="package-size">—</strong>
+            <button class="primary-button download-button" type="button" disabled>
+              Unlock &amp; download .exe
+            </button>
+          </article>
+          <article class="platform-card" data-platform="linux">
+            <div>
+              <span class="platform-kicker">Linux x86-64</span>
+              <h2>AppImage</h2>
+              <p class="package-name">Waiting for release…</p>
+            </div>
+            <strong class="package-size">—</strong>
+            <button class="primary-button download-button" type="button" disabled>
+              Unlock &amp; download AppImage
+            </button>
+          </article>
+        </div>
+
+        <div id="unlock-form">
+          <label for="release-password">Release password</label>
+          <div class="password-row">
+            <input
+              id="release-password"
+              name="password"
+              type="password"
+              autocomplete="current-password"
+              required
+              aria-describedby="status-message"
+            />
+            <button id="toggle-password" class="icon-button" type="button" aria-label="Show password">
+              Show
+            </button>
+          </div>
+        </div>
+
+        <div id="progress-wrap" class="progress-wrap" hidden>
+          <div class="progress-track" aria-hidden="true"><div id="progress-bar"></div></div>
+          <span id="progress-label">Preparing secure download…</span>
+        </div>
+
+        <p id="status-message" class="status-message" role="status" aria-live="polite">
+          The encrypted package is only decrypted on this device.
+        </p>
+
+        <footer>
+          <span>A two-player card game of mana, tactics, and dragons.</span>
+          <span class="security-note">AES-256-GCM encrypted</span>
+        </footer>
+      </section>
+    </main>
+  </body>
+</html>
