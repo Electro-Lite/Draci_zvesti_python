@@ -33,7 +33,8 @@ class AbilityId(Enum):
     PLUS_1_1_SIDEWAYS_ANY_2_2_ON_BLACK  = 28
     GO_FIRST                            = 29
     PLUS_1_1_SIDEWAYS                   = 30
-
+    HIT_DRAGON_BLUE_INFRONT_DMG         = 33
+    PLUS_1_1_FROM_RED                   = 34
 
 #   Dragons
     EAT_FIRST                           = 31

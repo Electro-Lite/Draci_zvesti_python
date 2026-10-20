@@ -1,5 +1,6 @@
 from choice_strategies.choice_strategy import PlayerChoiceStrategy
 from cards.ability.ability_target import AbilityTarget
+from cards.ability.abilities import can_use_on_play
 
 
 PLAY_PASS = slice(0, 2)
@@ -48,25 +49,34 @@ class PlayerChoiceStrategyNeat(PlayerChoiceStrategy):
         return max(legal, key=lambda index: (values[index], -index))
 
     def get_choice_pass(self) -> bool:
+        if not self.legal_play_card_indices():
+            return True
         # Index 0 means play; index 1 means pass.
         return self._argmax(PLAY_PASS, (0, 1)) == 1
 
     def get_choice_card(self):
         hand = self.this_player.hand.cards
-        choice = self._argmax(HAND_CARD, range(len(hand)))
+        choice = self._argmax(HAND_CARD, self.legal_play_card_indices())
         self._selected_card = hand.pop(choice)
         return self._selected_card
 
     def get_choice_pos(self) -> int:
-        positions = self.info.game_board.positions
         self._selected_position = self._argmax(
             BOARD_POSITION,
-            (index for index, card in enumerate(positions) if card is None),
+            self.legal_placement_positions(),
         )
         return self._selected_position
 
     def _legal_ability_targets(self):
         ability = self._selected_card.ability
+        custom_targets = getattr(ability, "legal_target_positions", None)
+        custom = (
+            custom_targets(self._selected_card, self.info.game_board)
+            if custom_targets is not None
+            else None
+        )
+        if custom is not None:
+            return list(custom)
         target_owner = getattr(ability, "target_owner", AbilityTarget.ANY)
         if target_owner == AbilityTarget.DRAGON:
             return []
@@ -89,7 +99,12 @@ class PlayerChoiceStrategyNeat(PlayerChoiceStrategy):
         return legal
 
     def get_choice_use_ability(self) -> bool:
-        if self._selected_card is None or not self._selected_card.ability.is_active:
+        if self._selected_card is None or not can_use_on_play(self._selected_card.ability):
+            return False
+        can_activate = getattr(self._selected_card.ability, "can_activate", None)
+        if can_activate is not None and not can_activate(
+            self._selected_card, self.info.game_board
+        ):
             return False
         if (
             getattr(self._selected_card.ability, "requires_target", False)
@@ -106,3 +121,11 @@ class PlayerChoiceStrategyNeat(PlayerChoiceStrategy):
         if not getattr(self._selected_card.ability, "requires_target", False):
             return None
         return self._argmax(ABILITY_TARGET, self._legal_ability_targets())
+
+    def get_choice_ability_card(self):
+        legal = self._selected_card.ability.legal_hand_card_indices(
+            self._selected_card,
+            self.info.game_board,
+        )
+        index = self._argmax(HAND_CARD, legal)
+        return self.this_player.hand.cards[index]

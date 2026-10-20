@@ -3,6 +3,7 @@ from config import Config
 # import decks  as     decks_lib
 from choice_strategies.choice_strategy import PlayerChoiceStrategy
 from core.hand import Hand
+from cards.ability.abilities import can_use_on_play
 
 from typing                         import TYPE_CHECKING
 
@@ -36,7 +37,7 @@ class Player:
     def record_card_play(self, card, used_active_ability: bool) -> None:
         card_id = str(card.id)
         self.card_plays[card_id] = self.card_plays.get(card_id, 0) + 1
-        if card.ability.is_active and used_active_ability:
+        if can_use_on_play(card.ability) and used_active_ability:
             self.active_ability_uses[card_id] = (
                 self.active_ability_uses.get(card_id, 0) + 1
             )

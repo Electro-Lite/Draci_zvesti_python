@@ -1,3 +1,5 @@
+from cards.ability.ability_target import AbilityTarget
+from cards.ability.abilities import can_use_on_play
 from choice_strategies.choice_strategy import PlayerChoiceStrategy
 from typing import TYPE_CHECKING, Callable
 
@@ -39,18 +41,18 @@ class ChoiceStrategyPygame(PlayerChoiceStrategy):
     def get_choice_pos(self) -> int:
         game_board = self.info.game_board
         positions = game_board.positions
+        legal_positions = self.legal_placement_positions()
         print("\n📍 Choose position (0–{}):".format(len(positions) - 1))
         for i, card in enumerate(positions):
-            if card is None:
+            if i in legal_positions and card is None:
                 print(f"  [{i}] EMPTY")
-            else:
+            elif i in legal_positions:
                 print(f"  [{i}] Player_{card.owner.id} - {card.name} (DMG:{card.dmg}, HP:{card.hp})")
 
         # Find first empty slot for fallback (do not mutate anything)
         def fallback_fn():
-            for i, c in enumerate(positions):
-                if c is None:
-                    return i
+            if legal_positions:
+                return legal_positions[0]
             # no empty slot
             raise IndexError("No empty space on board")
 
@@ -61,44 +63,56 @@ class ChoiceStrategyPygame(PlayerChoiceStrategy):
                 raise ValueError("Please enter a valid integer index.")
             if pos < 0 or pos >= len(positions):
                 raise ValueError("Invalid index.")
-            if positions[pos] is not None:
-                raise ValueError("Position already occupied.")
+            if pos not in legal_positions:
+                raise ValueError("Position is not legal for this card.")
             return pos
 
         # If board is full, match AI behavior and raise
-        if not any(p is None for p in positions):
-            raise IndexError("No empty space on board")
+        if not legal_positions:
+            raise IndexError("No legal space on board")
 
         return self._retry_input("▶ Enter position index: ", validate, fallback_fn)
 
     def get_choice_card(self) -> "Card":
         cards = self.this_player.hand.cards
-        if not cards:
-            raise IndexError("No cards in hand")
+        legal = self.legal_play_card_indices()
+        if not legal:
+            raise IndexError("No legal cards in hand")
 
         print("\n🃏 Your hand:")
-        for i, card in enumerate(cards):
+        for i in legal:
+            card = cards[i]
             print(f"  [{i}] {card.name} (DMG:{card.dmg}, HP:{card.hp})")
 
         # fallback pops the first card but only when actually used
         def fallback_fn():
-            if not self.this_player.hand.cards:
+            if not legal:
                 raise IndexError("No cards in hand to fallback to.")
-            return self.this_player.hand.cards.pop(0)
+            return self.this_player.hand.cards.pop(legal[0])
 
         def validate(user_in: str):
             try:
                 idx = int(user_in)
             except ValueError:
                 raise ValueError("Please enter a valid integer index.")
-            if idx < 0 or idx >= len(self.this_player.hand.cards):
+            if idx not in legal:
                 raise ValueError("Invalid card index.")
             # pop and return the selected card
             return self.this_player.hand.cards.pop(idx)
 
-        return self._retry_input("▶ Choose a card index: ", validate, fallback_fn)
+        self.selected_card = self._retry_input(
+            "▶ Choose a card index: ", validate, fallback_fn
+        )
+        return self.selected_card
 
     def get_choice_use_ability(self) -> bool:
+        card = getattr(self, "selected_card", None)
+        if card is None or not can_use_on_play(card.ability):
+            return False
+        board = self.info.game_board
+        if not card.ability.can_activate(card, board):
+            return False
+
         def validate(user_in: str) -> bool:
             s = user_in.strip().lower()
             if s in ("y", "yes"):
@@ -111,6 +125,8 @@ class ChoiceStrategyPygame(PlayerChoiceStrategy):
         return self._retry_input("✨ Use ability? (y/n): ", validate, lambda: False)
 
     def get_choice_pass(self) -> bool:
+        if not self.legal_play_card_indices():
+            return True
         def validate(user_in: str) -> bool:
             s = user_in.strip().lower()
             if s in ("y", "yes"):
@@ -125,20 +141,36 @@ class ChoiceStrategyPygame(PlayerChoiceStrategy):
     def get_choice_ability_target(self) -> int:
         game_board = self.info.game_board
         positions = game_board.positions
-        print("\n🎯 Choose ability target (cannot target your own cards):")
+        source = getattr(self, "selected_card", None)
+        if source is None:
+            return None
+        custom = source.ability.legal_target_positions(source, game_board)
+        if custom is not None:
+            legal_positions = list(custom)
+        else:
+            target_owner = getattr(source.ability, "target_owner", AbilityTarget.ANY)
+            legal_positions = []
+            for index, candidate in enumerate(positions):
+                if candidate is None:
+                    continue
+                if target_owner == AbilityTarget.ANY:
+                    legal_positions.append(index)
+                elif target_owner == AbilityTarget.ALLY and candidate.owner is self.this_player:
+                    legal_positions.append(index)
+                elif target_owner == AbilityTarget.ENEMY and candidate.owner is not self.this_player:
+                    legal_positions.append(index)
+
+        print("\n🎯 Choose ability target:")
         for i, card in enumerate(positions):
-            if card is None:
+            if i in legal_positions and card is None:
                 print(f"  [{i}] EMPTY")
-            else:
+            elif i in legal_positions:
                 print(f"  [{i}] Player_{card.owner.id} - {card.name} (DMG:{card.dmg}, HP:{card.hp})")
 
-        # build list of enemy targets for fallback
-        enemy_positions = [i for i, c in enumerate(positions) if c is not None and c.owner.id != self.this_player.id]
-
         def fallback_fn():
-            if not enemy_positions:
-                raise IndexError("No valid enemy targets available.")
-            return enemy_positions[0]
+            if not legal_positions:
+                raise IndexError("No valid ability targets available.")
+            return legal_positions[0]
 
         def validate(user_in: str) -> int:
             try:
@@ -147,13 +179,34 @@ class ChoiceStrategyPygame(PlayerChoiceStrategy):
                 raise ValueError("Please enter a valid integer index.")
             if pos < 0 or pos >= len(positions):
                 raise ValueError("Invalid index.")
-            if positions[pos] is None:
-                raise ValueError("That position is empty.")
-            if positions[pos].owner.id == self.this_player.id:
-                raise ValueError("You cannot target your own card.")
+            if pos not in legal_positions:
+                raise ValueError("That is not a legal target for this ability.")
             return pos
 
-        if not enemy_positions:
-            raise IndexError("No valid enemy targets available.")
+        if not legal_positions:
+            return None
 
         return self._retry_input("▶ Enter target position index: ", validate, fallback_fn)
+
+    def get_choice_ability_card(self):
+        source = getattr(self, "selected_card", None)
+        if source is None:
+            return None
+        legal = source.ability.legal_hand_card_indices(source, self.info.game_board)
+        if not legal:
+            return None
+        cards = self.this_player.hand.cards
+        for index in legal:
+            print(f"  [{index}] {cards[index].name}")
+
+        def validate(user_in):
+            index = int(user_in)
+            if index not in legal:
+                raise ValueError("That card is not legal for this ability")
+            return cards[index]
+
+        return self._retry_input(
+            "▶ Choose the second card: ",
+            validate,
+            lambda: cards[legal[0]],
+        )

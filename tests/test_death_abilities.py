@@ -1,7 +1,13 @@
 import unittest
 from types import SimpleNamespace
 
-from cards.ability.abilities import HitDragon2Dmg, NoAbility, SideWay2DmgOnDeath
+from cards.ability.abilities import (
+    HealDragon1,
+    HitDragon2Dmg,
+    NoAbility,
+    SideWay2DmgOnDeath,
+    WeakenDragon1Dmg,
+)
 from cards.card import Card
 from cards.card_type import CardType
 from cards.mana import ManaColor
@@ -62,7 +68,7 @@ class DeathAbilityTests(unittest.TestCase):
             "Dragon",
             2,
             NoAbility(),
-            damage=0,
+            damage=1,
             card_type=CardType.DRAGON,
         )
         board.positions[0] = explosive
@@ -132,6 +138,115 @@ class DeathAbilityTests(unittest.TestCase):
         self.assertIs(battle_dragon(board, self.Display()), first_owner)
         self.assertIs(dragon.slain_by, first_owner)
         self.assertEqual(dragon.hp, 0)
+
+    def test_surviving_healer_restores_one_hp_when_dragon_advances(self):
+        owner = SimpleNamespace(graveyard=[], id=1)
+        board = Board()
+        first = make_card(owner, "Guard", 1, NoAbility(), damage=1)
+        healer = make_card(owner, "Dragon healer", 1, HealDragon1(), damage=1)
+        dragon = make_card(
+            None,
+            "Dragon",
+            2,
+            NoAbility(),
+            damage=1,
+            card_type=CardType.DRAGON,
+        )
+        board.positions[:2] = [first, healer]
+        board.dragons = [dragon]
+        events = []
+        display = self.Display()
+        display.display_dragon_vs_card = lambda: events.append(
+            dict(board.battle_event or {})
+        )
+
+        self.assertIsNone(battle_dragon(board, display))
+        self.assertIn(first, owner.graveyard)
+        self.assertIn(healer, owner.graveyard)
+        heal_event = next(
+            event
+            for event in events
+            if event.get("phase") == "dragon_move_ability"
+            and event.get("card") is healer
+        )
+        self.assertEqual(heal_event["dragon_healing"], 1)
+        self.assertEqual(heal_event["slot"], 0)
+        self.assertEqual(heal_event["source_slot"], 1)
+
+    def test_heal_dragon_stops_at_max_hp_without_moving_marker(self):
+        owner = SimpleNamespace(graveyard=[], id=1)
+        board = Board()
+        healer = make_card(owner, "Dragon healer", 1, HealDragon1())
+        dragon = make_card(
+            None,
+            "Dragon",
+            2,
+            NoAbility(),
+            damage=1,
+            card_type=CardType.DRAGON,
+        )
+        board.positions[4] = healer
+        board.dragon = dragon
+        board.dragon_position = 1
+
+        healer.ability.apply_onDragonMove(healer, board, dragon)
+
+        self.assertEqual(dragon.hp, 2)
+        self.assertEqual(board.dragon_position, 1)
+        self.assertEqual(board.battle_event["slot"], 1)
+        self.assertEqual(board.battle_event["source_slot"], 4)
+        self.assertEqual(board.battle_event["dragon_healing"], 0)
+
+    def test_heal_dragon_repairs_an_existing_over_max_hp_value(self):
+        owner = SimpleNamespace(graveyard=[], id=1)
+        board = Board()
+        healer = make_card(owner, "Dragon healer", 1, HealDragon1())
+        dragon = make_card(
+            None,
+            "Dragon",
+            5,
+            NoAbility(),
+            damage=1,
+            card_type=CardType.DRAGON,
+        )
+        dragon.hp = 7
+        board.positions[2] = healer
+        board.dragon = dragon
+        board.dragon_position = 0
+
+        healer.ability.apply_onDragonMove(healer, board, dragon)
+
+        self.assertEqual(dragon.hp, 5)
+        self.assertEqual(board.battle_event["dragon_healing"], 0)
+
+    def test_weaken_dragon_passive_is_recalculated_without_stacking(self):
+        owner = SimpleNamespace(graveyard=[], id=1)
+        board = Board()
+        weakener = make_card(owner, "Dragon weakener", 2, WeakenDragon1Dmg())
+        dragon = make_card(
+            None,
+            "Dragon",
+            5,
+            NoAbility(),
+            damage=4,
+            card_type=CardType.DRAGON,
+        )
+        board.positions[2] = weakener
+        board.dragon = dragon
+        board.dragon_base_dmg = dragon.dmg
+
+        board.mana_pool[0].color = ManaColor.RED
+        board.recalculate()
+        self.assertEqual(dragon.dmg, 3)
+        board.recalculate()
+        self.assertEqual(dragon.dmg, 3)
+
+        board.mana_pool[0].color = ManaColor.BLUE
+        board.recalculate()
+        self.assertEqual(dragon.dmg, 2)
+
+        board.remove_card(weakener)
+        self.assertEqual(dragon.dmg, 4)
 
 
 if __name__ == "__main__":

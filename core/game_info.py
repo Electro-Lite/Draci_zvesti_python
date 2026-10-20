@@ -23,12 +23,17 @@ class GameInfo:
     def get_game_info(self):
         player = self.player_on_turn
         board = self.game_board
-        mana = board.mana_pool[0].color
+        active_mana = getattr(board, "active_mana_colors", None)
+        mana_colors = (
+            active_mana()
+            if active_mana is not None
+            else {board.mana_pool[0].color}
+        )
 
         info = [
-            1.0 if mana == ManaColor.RED else 0.0,
-            1.0 if mana == ManaColor.BLACK else 0.0,
-            1.0 if mana == ManaColor.BLUE else 0.0,
+            1.0 if ManaColor.RED in mana_colors else 0.0,
+            1.0 if ManaColor.BLACK in mana_colors else 0.0,
+            1.0 if ManaColor.BLUE in mana_colors else 0.0,
         ]
 
         dragon_colors = [dragon.color for dragon in board.dragons]
