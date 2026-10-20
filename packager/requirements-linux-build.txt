@@ -1,4 +1,6 @@
 # Install into the project's Linux virtual environment before packaging.
 PyInstaller>=6.10,<7
+pygame>=2.6,<3
+neat-python>=0.92,<2
 websockets>=15,<16
 

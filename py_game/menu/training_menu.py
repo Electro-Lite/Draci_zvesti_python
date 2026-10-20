@@ -29,6 +29,7 @@ from py_game.deck_adoption import (
 )
 from py_game.evolution_presentation import EvolutionDeck, EvolutionPresentation
 from py_game.menu.base_menu import Menu
+from py_game.runtime_paths import data_path
 from py_game.training_service import (
     TrainingKind,
     TrainingInsights,
@@ -2697,8 +2698,9 @@ class TrainingMenu(Menu):
                     project_root = Path(__file__).resolve().parents[2]
                     artifacts = discover_manifest_artifacts(
                         (
+                            data_path("trained_ai"),
+                            data_path(".ui_training"),
                             project_root / "neat_ai" / "trained_ai",
-                            project_root / ".ui_training",
                         ),
                         selected.card_ids,
                     )

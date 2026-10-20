@@ -6,8 +6,10 @@ import tempfile
 from dataclasses import asdict, dataclass, fields
 from pathlib import Path
 
+from py_game.runtime_paths import data_path
 
-DEFAULT_SETTINGS_PATH = Path(__file__).resolve().parents[1] / ".ui_settings.json"
+
+DEFAULT_SETTINGS_PATH = data_path(".ui_settings.json")
 
 
 @dataclass

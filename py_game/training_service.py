@@ -27,12 +27,15 @@ from py_game.matchup_presentation import (
     load_matchup_presentation,
 )
 from py_game.training_lifecycle import ResultArtifactStatus
+from py_game.runtime_paths import data_path
 from utils.database_utils import DBUtil
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-TRAIN_DB_PATH = PROJECT_ROOT / "train.db"
-JOB_ROOT = PROJECT_ROOT / ".ui_training"
+TRAIN_DB_PATH = data_path("train.db")
+JOB_ROOT = data_path(".ui_training")
+CARDS_DB_PATH = data_path("utils", "cards.db")
+DECKS_DB_PATH = data_path("utils", "decks.db")
 
 
 class TrainingKind(Enum):
@@ -827,7 +830,7 @@ class TrainingService:
 
         missing = deck_ids - set(deck_cards)
         if missing:
-            decks_path = PROJECT_ROOT / "utils" / "decks.db"
+            decks_path = DECKS_DB_PATH
             if decks_path.exists():
                 deck_connection = self._read_only_connection(decks_path)
                 try:
@@ -856,7 +859,7 @@ class TrainingService:
 
         card_names = {}
         all_card_ids = {card for cards in deck_cards.values() for card in cards}
-        cards_path = PROJECT_ROOT / "utils" / "cards.db"
+        cards_path = CARDS_DB_PATH
         if all_card_ids and cards_path.exists():
             card_connection = self._read_only_connection(cards_path)
             try:
@@ -1010,7 +1013,7 @@ class TrainingService:
         )
         return load_evolution_presentation(
             TRAIN_DB_PATH,
-            PROJECT_ROOT / "utils" / "cards.db",
+            CARDS_DB_PATH,
             training_id,
         )
 

@@ -19,12 +19,14 @@ from neat_ai.player_artifacts import (
     discover_player_artifacts as discover_manifest_artifacts,
     load_player_artifact,
 )
+from py_game.runtime_paths import data_path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 PLAYER_CONFIG_PATH = PROJECT_ROOT / "neat_ai" / "configs" / "neat_config_player.txt"
 EVALUATOR_CONFIG_PATH = PROJECT_ROOT / "neat_ai" / "configs" / "neat_config_evaluator.txt"
-TRAINED_AI_DIR = PROJECT_ROOT / "neat_ai" / "trained_ai"
+TRAINED_AI_DIR = data_path("trained_ai")
+BUNDLED_AI_DIR = PROJECT_ROOT / "neat_ai" / "trained_ai"
 
 
 class ControllerKind(Enum):
@@ -85,7 +87,7 @@ class ControllerSpec:
 
 def discover_player_artifacts(deck) -> list[PlayerArtifact]:
     return discover_manifest_artifacts(
-        (TRAINED_AI_DIR, PROJECT_ROOT / ".ui_training"),
+        (TRAINED_AI_DIR, BUNDLED_AI_DIR, data_path(".ui_training")),
         deck,
     )
 

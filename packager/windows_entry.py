@@ -49,6 +49,9 @@ def _run_training_module() -> bool:
 
 def main() -> None:
     _enter_bundle_root()
+    from py_game.runtime_paths import initialize_packaged_data
+
+    initialize_packaged_data()
     # Required when trainers create multiprocessing workers in a frozen app.
     multiprocessing.freeze_support()
     if _run_training_module():

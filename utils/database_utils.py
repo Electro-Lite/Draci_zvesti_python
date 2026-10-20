@@ -1,11 +1,11 @@
 import sqlite3
 import hashlib
-from pathlib import Path
 from typing import TYPE_CHECKING, Iterable
 from cards.mana import ManaColor
 from cards.power import Power
 from cards.card_type import CardType
 import cards.ability.abilities as abilities_module
+from py_game.runtime_paths import data_path
 from utils.retry_decorator import retry
 
 if TYPE_CHECKING:  # Only used for type hints, not runtime
@@ -25,11 +25,8 @@ class DBUtil():
 
     def __init__(self):
         # Dynamically find the folder containing THIS specific python file
-        base_dir = Path(__file__).parent.resolve()
-
-        # Create absolute paths to your databases
-        cards_path = base_dir / "cards.db"
-        decks_path = base_dir / "decks.db"
+        cards_path = data_path("utils", "cards.db")
+        decks_path = data_path("utils", "decks.db")
 
         # Connect using the absolute paths as strings
         self.conn_cards = sqlite3.connect(str(cards_path))

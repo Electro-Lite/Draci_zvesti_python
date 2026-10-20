@@ -4,6 +4,8 @@ import pickle
 from dataclasses import dataclass
 from pathlib import Path
 
+from py_game.runtime_paths import data_path
+
 import neat
 
 from cards.deck import Deck
@@ -14,7 +16,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 BUILDER_CONFIG_PATH = (
     PROJECT_ROOT / "neat_ai" / "configs" / "neat_config_builder.txt"
 )
-TRAINED_AI_DIR = PROJECT_ROOT / "neat_ai" / "trained_ai"
+TRAINED_AI_DIR = data_path("trained_ai")
+BUNDLED_AI_DIR = PROJECT_ROOT / "neat_ai" / "trained_ai"
 
 
 @dataclass(frozen=True)
@@ -34,7 +37,9 @@ class AdvisorOption:
 def discover_advisors() -> list[AdvisorOption]:
     options = [AdvisorOption(None, "Advisor: Off")]
     artifacts = list(TRAINED_AI_DIR.glob("best_builder*.pickle"))
-    ui_root = PROJECT_ROOT / ".ui_training"
+    if BUNDLED_AI_DIR != TRAINED_AI_DIR:
+        artifacts.extend(BUNDLED_AI_DIR.glob("best_builder*.pickle"))
+    ui_root = data_path(".ui_training")
     if ui_root.exists():
         artifacts.extend(
             ui_root.glob("*/trained_ai/best_builder*.pickle")

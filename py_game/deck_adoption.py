@@ -8,9 +8,10 @@ from uuid import uuid4
 
 from cards.deck import Deck
 from neat_ai.player_artifacts import clone_player_artifact
+from py_game.runtime_paths import data_path
 
 
-DEFAULT_PLAYER_LIBRARY = Path(__file__).resolve().parents[1] / "neat_ai" / "trained_ai"
+DEFAULT_PLAYER_LIBRARY = data_path("trained_ai")
 
 
 @dataclass(frozen=True)
