@@ -7,10 +7,15 @@ import time
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
+from urllib.parse import urlsplit
+
+from websockets.exceptions import ConnectionClosed, WebSocketException
+from websockets.sync.client import ClientConnection, connect as websocket_connect
 
 from .protocol import (
     APPLICATION_VERSION,
     FrameDecoder,
+    MAX_MESSAGE_SIZE,
     MessageType,
     ProtocolError,
     ProtocolMessage,
@@ -60,6 +65,7 @@ class SocketPeer:
         self._send_lock = threading.Lock()
         self._last_received = time.monotonic()
         self._last_heartbeat = time.monotonic()
+        self.latency_ms: float | None = None
         self.heartbeat_interval = float(heartbeat_interval)
         self.idle_timeout = float(idle_timeout)
         if self.heartbeat_interval <= 0 or self.idle_timeout <= 0:
@@ -124,7 +130,7 @@ class SocketPeer:
             while not self._stop.is_set():
                 now = time.monotonic()
                 if now - self._last_heartbeat >= self.heartbeat_interval:
-                    self.send(MessageType.PING, {})
+                    self.send(MessageType.PING, {"sent_at": now})
                     self._last_heartbeat = now
                 if now - self._last_received >= self.idle_timeout:
                     raise TimeoutError("LAN peer timed out")
@@ -144,9 +150,17 @@ class SocketPeer:
                         )
                         continue
                     if message.type == MessageType.PING.value:
-                        self.send(MessageType.PONG, {})
+                        self.send(MessageType.PONG, message.payload or {})
                         continue
                     if message.type == MessageType.PONG.value:
+                        sent_at = (message.payload or {}).get("sent_at")
+                        if isinstance(sent_at, (int, float)) and sent_at <= time.monotonic():
+                            measured = max(0.0, (time.monotonic() - sent_at) * 1000.0)
+                            self.latency_ms = (
+                                measured
+                                if self.latency_ms is None
+                                else self.latency_ms * 0.75 + measured * 0.25
+                            )
                         continue
                     self._emit("message", message=message)
         except (OSError, ProtocolError, ConnectionError, TimeoutError) as error:
@@ -359,6 +373,254 @@ class LanClient:
         if self._thread is not None:
             self._thread.join(timeout=1.0)
         self.state = ConnectionState.CLOSED
+
+
+class WebSocketPeer:
+    """Threaded WebSocket transport exposing the same interface as SocketPeer."""
+
+    def __init__(
+        self,
+        websocket: ClientConnection,
+        address: str,
+        *,
+        heartbeat_interval: float = 3.0,
+        idle_timeout: float = 15.0,
+    ):
+        self.websocket = websocket
+        self.address = address
+        self.state = ConnectionState.CONNECTED
+        self.events: queue.Queue[NetworkEvent] = queue.Queue()
+        self._outgoing: queue.Queue[bytes] = queue.Queue()
+        self._decoder = FrameDecoder()
+        self._incoming_sequence = SequenceGuard()
+        self._sequence = 0
+        self._send_lock = threading.Lock()
+        self._last_received = time.monotonic()
+        self._last_heartbeat = time.monotonic()
+        self.latency_ms: float | None = None
+        self.heartbeat_interval = float(heartbeat_interval)
+        self.idle_timeout = float(idle_timeout)
+        if self.heartbeat_interval <= 0 or self.idle_timeout <= 0:
+            raise ValueError("Heartbeat and idle timeout must be positive")
+        self._stop = threading.Event()
+        self._thread = threading.Thread(
+            target=self._run,
+            name="online-websocket-peer",
+            daemon=True,
+        )
+        self._thread.start()
+
+    @property
+    def alive(self) -> bool:
+        return self._thread.is_alive() and not self._stop.is_set()
+
+    def send(
+        self,
+        message_type: MessageType | str,
+        payload: dict[str, Any] | None = None,
+        *,
+        request_id: str | None = None,
+        match_id: str | None = None,
+    ) -> ProtocolMessage:
+        if self.state != ConnectionState.CONNECTED:
+            raise ConnectionError("Online server is not connected")
+        with self._send_lock:
+            message = ProtocolMessage(
+                type=(message_type.value if isinstance(message_type, MessageType) else message_type),
+                sequence=self._sequence,
+                request_id=request_id,
+                match_id=match_id,
+                payload=payload,
+            )
+            self._sequence += 1
+            self._outgoing.put(encode_message(message))
+        return message
+
+    def poll(self, limit: int = 100) -> list[NetworkEvent]:
+        result = []
+        for _ in range(limit):
+            try:
+                result.append(self.events.get_nowait())
+            except queue.Empty:
+                break
+        return result
+
+    def _emit(self, kind: str, message=None, detail: str = "") -> None:
+        self.events.put(NetworkEvent(kind, message, detail))
+
+    def _flush_outgoing(self) -> None:
+        while True:
+            try:
+                data = self._outgoing.get_nowait()
+            except queue.Empty:
+                return
+            self.websocket.send(data)
+
+    def _handle_data(self, data: bytes | str) -> None:
+        if isinstance(data, str):
+            raise ProtocolError("Online messages must use binary WebSocket frames")
+        self._last_received = time.monotonic()
+        for message in self._decoder.feed(data):
+            if not self._incoming_sequence.accept(message.sequence):
+                self._emit(
+                    "protocol_error",
+                    detail=f"Duplicate or out-of-order sequence {message.sequence}",
+                )
+                continue
+            if message.type == MessageType.PING.value:
+                self.send(MessageType.PONG, message.payload or {})
+                continue
+            if message.type == MessageType.PONG.value:
+                sent_at = (message.payload or {}).get("sent_at")
+                if isinstance(sent_at, (int, float)) and sent_at <= time.monotonic():
+                    measured = max(0.0, (time.monotonic() - sent_at) * 1000.0)
+                    self.latency_ms = (
+                        measured
+                        if self.latency_ms is None
+                        else self.latency_ms * 0.75 + measured * 0.25
+                    )
+                continue
+            self._emit("message", message=message)
+
+    def _run(self) -> None:
+        disconnect_detail = "Online server disconnected"
+        try:
+            while not self._stop.is_set():
+                now = time.monotonic()
+                if now - self._last_heartbeat >= self.heartbeat_interval:
+                    self.send(MessageType.PING, {"sent_at": now})
+                    self._last_heartbeat = now
+                if now - self._last_received >= self.idle_timeout:
+                    raise TimeoutError("Online server timed out")
+                self._flush_outgoing()
+                try:
+                    data = self.websocket.recv(timeout=0.01)
+                except TimeoutError:
+                    continue
+                self._handle_data(data)
+        except (OSError, ProtocolError, ConnectionError, ConnectionClosed, TimeoutError) as error:
+            disconnect_detail = str(error)
+            if not self._stop.is_set():
+                self.state = ConnectionState.ERROR
+                self._emit("error", detail=disconnect_detail)
+        finally:
+            try:
+                self.websocket.close()
+            except (OSError, ConnectionClosed):
+                pass
+            if self.state != ConnectionState.ERROR:
+                self.state = ConnectionState.DISCONNECTED
+            self._emit("disconnected", detail=disconnect_detail)
+
+    def close(self, reason: str = "Connection closed") -> None:
+        if self._stop.is_set():
+            return
+        try:
+            if self.state == ConnectionState.CONNECTED:
+                self.send(MessageType.DISCONNECT, {"reason": reason})
+                deadline = time.monotonic() + 0.15
+                while not self._outgoing.empty() and time.monotonic() < deadline:
+                    time.sleep(0.005)
+        except (ConnectionError, OSError, ConnectionClosed):
+            pass
+        self._stop.set()
+        try:
+            self.websocket.close()
+        except (OSError, ConnectionClosed):
+            pass
+        self._thread.join(timeout=1.0)
+        self.state = ConnectionState.CLOSED
+
+
+class OnlineClient(LanClient):
+    """WebSocket client for the public lobby relay.
+
+    The relay deliberately exposes the same peer/poll interface as LAN so the
+    authoritative match channel and remote choice strategy can be reused.
+    """
+
+    CONTROL_MESSAGES = {
+        MessageType.ONLINE_WELCOME.value,
+        MessageType.LOBBY_LIST.value,
+        MessageType.ONLINE_LOBBY.value,
+        MessageType.ONLINE_LOBBY_CLOSED.value,
+        MessageType.SERVER_STATUS.value,
+    }
+
+    def __init__(self):
+        super().__init__()
+        self.peer: WebSocketPeer | None = None
+        self._control_events: queue.Queue[NetworkEvent] = queue.Queue()
+        self._relay_events: queue.Queue[NetworkEvent] = queue.Queue()
+
+    def connect(self, url: str, port: int | None = None, timeout: float = 5.0) -> None:
+        if self.state in (ConnectionState.CONNECTING, ConnectionState.CONNECTED):
+            raise RuntimeError("Client is already connecting or connected")
+        if port is not None:
+            url = f"ws://{url}:{int(port)}/game"
+        parsed = urlsplit(url)
+        if parsed.scheme not in {"ws", "wss"} or not parsed.netloc:
+            raise ValueError("Online server URL must start with ws:// or wss://")
+        self.state = ConnectionState.CONNECTING
+        self._stop.clear()
+        self._thread = threading.Thread(
+            target=self._connect_websocket,
+            args=(url, timeout),
+            name="online-websocket-connect",
+            daemon=True,
+        )
+        self._thread.start()
+
+    def _connect_websocket(self, url: str, timeout: float) -> None:
+        websocket = None
+        try:
+            websocket = websocket_connect(
+                url,
+                open_timeout=timeout,
+                close_timeout=1,
+                max_size=MAX_MESSAGE_SIZE + 4,
+            )
+            if self._stop.is_set():
+                websocket.close()
+                return
+            self.peer = WebSocketPeer(websocket, url)
+            self.state = ConnectionState.CONNECTED
+            self.events.put(NetworkEvent("connected", detail=url))
+        except (OSError, TimeoutError, WebSocketException, ValueError) as error:
+            if websocket is not None:
+                websocket.close()
+            if not self._stop.is_set():
+                self.state = ConnectionState.ERROR
+                self.events.put(NetworkEvent("error", detail=str(error)))
+
+    @staticmethod
+    def _drain(source: queue.Queue, limit=100) -> list[NetworkEvent]:
+        events = []
+        for _ in range(limit):
+            try:
+                events.append(source.get_nowait())
+            except queue.Empty:
+                break
+        return events
+
+    def _harvest(self) -> None:
+        for event in super().poll():
+            if (
+                event.kind == "message"
+                and event.message
+                and event.message.type in self.CONTROL_MESSAGES
+            ):
+                self._control_events.put(event)
+            else:
+                self._relay_events.put(event)
+
+    def poll(self) -> list[NetworkEvent]:
+        self._harvest()
+        return self._drain(self._relay_events)
+
+    def poll_control(self) -> list[NetworkEvent]:
+        self._harvest()
+        return self._drain(self._control_events)
 
 
 def discover_local_ip() -> str:

@@ -6,6 +6,7 @@ from typing import Callable
 from uuid import uuid4
 
 from cards.ability.ability_target import AbilityTarget
+from cards.ability.abilities import can_use_on_play
 from choice_strategies.choice_strategy import PlayerChoiceStrategy
 from display_strategies.display_strategy_none import DisplayStrategyNone
 from py_game.battle_presentation import (
@@ -43,6 +44,7 @@ def serialize_card(card, local_player) -> dict | None:
         "ability_name": str(getattr(ability, "name", "")),
         "ability_description": str(getattr(ability, "description", "")),
         "ability_active": bool(getattr(ability, "is_active", False)),
+        "ability_on_play": bool(getattr(ability, "is_onPlay", False)),
         "owner": "local" if getattr(card, "owner", None) is local_player else "opponent",
     }
 
@@ -52,6 +54,12 @@ def serialize_game_state(board, local_player, opponent, *, status: str = "playin
     mana = None
     if getattr(board, "mana_pool", None):
         mana = _enum_value(board.mana_pool[0].color)
+    active_mana = getattr(board, "active_mana_colors", None)
+    mana_effects = (
+        sorted(_enum_value(color) for color in active_mana())
+        if active_mana is not None
+        else ([mana] if mana else [])
+    )
     dragon = serialize_card(getattr(board, "dragon", None), local_player)
     raw_battle = getattr(board, "battle_event", None)
     battle = None
@@ -75,6 +83,8 @@ def serialize_game_state(board, local_player, opponent, *, status: str = "playin
         "round": int(getattr(board, "round", 0)),
         "game_state": _enum_value(getattr(board, "game_state", None)),
         "mana": mana,
+        "mana_effects": mana_effects,
+        "mana_effects_blocked": bool(mana and not mana_effects),
         "turn": (
             "local"
             if getattr(board, "player_on_turn", None) is local_player
@@ -204,6 +214,9 @@ class RemoteChoiceStrategy(PlayerChoiceStrategy):
 
     def get_choice_pass(self) -> bool:
         hand = self.this_player.hand.cards
+        legal = self.legal_play_card_indices()
+        if not legal:
+            return True
 
         def choose(value):
             if value == "pass":
@@ -211,7 +224,7 @@ class RemoteChoiceStrategy(PlayerChoiceStrategy):
                 return True
             if not isinstance(value, int) or isinstance(value, bool):
                 raise ValueError("Play choice must be a hand index or pass")
-            if not 0 <= value < len(hand):
+            if value not in legal:
                 raise ValueError("Card index is outside the current hand")
             self._selected_card_index = value
             return False
@@ -219,11 +232,12 @@ class RemoteChoiceStrategy(PlayerChoiceStrategy):
         return self._request_valid(
             "play_or_pass",
             choose,
-            {"legal_indices": list(range(len(hand)))},
+            {"legal_indices": legal},
         )
 
     def get_choice_card(self):
         hand = self.this_player.hand.cards
+        legal = self.legal_play_card_indices()
 
         if self._selected_card_index is not None:
             selected_index = self._selected_card_index
@@ -234,19 +248,19 @@ class RemoteChoiceStrategy(PlayerChoiceStrategy):
         def select(value):
             if not isinstance(value, int) or isinstance(value, bool):
                 raise ValueError("Card choice must be a hand index")
-            if not 0 <= value < len(hand):
+            if value not in legal:
                 raise ValueError("Card index is outside the current hand")
             return hand.pop(value)
 
         self.selected_card = self._request_valid(
             "card",
             select,
-            {"legal_indices": list(range(len(hand)))},
+            {"legal_indices": legal},
         )
         return self.selected_card
 
     def get_choice_pos(self) -> int:
-        legal = [index for index, card in enumerate(self.info.game_board.positions) if card is None]
+        legal = self.legal_placement_positions()
 
         def select(value):
             if not isinstance(value, int) or isinstance(value, bool) or value not in legal:
@@ -261,7 +275,12 @@ class RemoteChoiceStrategy(PlayerChoiceStrategy):
         return self.selected_position
 
     def get_choice_use_ability(self) -> bool:
-        if self.selected_card is None or not self.selected_card.ability.is_active:
+        if self.selected_card is None or not can_use_on_play(self.selected_card.ability):
+            return False
+        can_activate = getattr(self.selected_card.ability, "can_activate", None)
+        if can_activate is not None and not can_activate(
+            self.selected_card, self.info.game_board
+        ):
             return False
         if (
             getattr(self.selected_card.ability, "requires_target", False)
@@ -276,6 +295,18 @@ class RemoteChoiceStrategy(PlayerChoiceStrategy):
     def legal_targets(self) -> list[int]:
         if self.selected_card is None:
             return []
+        custom_targets = getattr(
+            self.selected_card.ability,
+            "legal_target_positions",
+            None,
+        )
+        custom = (
+            custom_targets(self.selected_card, self.info.game_board)
+            if custom_targets is not None
+            else None
+        )
+        if custom is not None:
+            return list(custom)
         target_owner = getattr(self.selected_card.ability, "target_owner", AbilityTarget.ANY)
         if target_owner == AbilityTarget.DRAGON:
             return []
@@ -298,7 +329,7 @@ class RemoteChoiceStrategy(PlayerChoiceStrategy):
     def get_choice_ability_target(self) -> int:
         if self.selected_card is None:
             return 0
-        if not self.selected_card.ability.is_active:
+        if not can_use_on_play(self.selected_card.ability):
             return None
         if not getattr(self.selected_card.ability, "requires_target", False):
             return None
@@ -312,6 +343,28 @@ class RemoteChoiceStrategy(PlayerChoiceStrategy):
             return value
 
         return self._request_valid("target", select, {"legal_indices": legal})
+
+    def get_choice_ability_card(self):
+        if self.selected_card is None:
+            return None
+        hand = self.this_player.hand.cards
+        legal = self.selected_card.ability.legal_hand_card_indices(
+            self.selected_card,
+            self.info.game_board,
+        )
+        if not legal:
+            return None
+
+        def select(value):
+            if not isinstance(value, int) or isinstance(value, bool) or value not in legal:
+                raise ValueError("Ability card is not currently legal")
+            return hand[value]
+
+        return self._request_valid(
+            "ability_card",
+            select,
+            {"legal_indices": legal},
+        )
 
 
 def _raise(message):

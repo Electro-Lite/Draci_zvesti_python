@@ -5,10 +5,9 @@ from typing import TYPE_CHECKING
 import pygame as pg
 
 from py_game.menu.base_menu import Menu
-from py_game.menu.basic_play_menu import BasicPlayMenu
 from py_game.menu.deck_menu import DeckMenu
-from py_game.menu.lan_menu import LanMenu
 from py_game.menu.options_menu import OptionsMenu
+from py_game.menu.play_menu import PlayMenu
 from py_game.menu.training_menu import TrainingMenu
 
 if TYPE_CHECKING:
@@ -17,8 +16,7 @@ if TYPE_CHECKING:
 
 class MainMenu(Menu):
     ITEMS = (
-        "Local Match",
-        "LAN Match",
+        "Play",
         "Manage Decks",
         "AI Training",
         "Settings",
@@ -39,16 +37,14 @@ class MainMenu(Menu):
 
     def _activate(self):
         if self.selected == 0:
-            self._open_menu(BasicPlayMenu)
+            self._open_menu(PlayMenu)
         elif self.selected == 1:
-            self._open_menu(LanMenu)
-        elif self.selected == 2:
             self._open_menu(DeckMenu)
-        elif self.selected == 3:
+        elif self.selected == 2:
             self._open_menu(TrainingMenu)
-        elif self.selected == 4:
+        elif self.selected == 3:
             self._open_menu(OptionsMenu)
-        elif self.selected == 5:
+        elif self.selected == 4:
             self._credits_dialog()
         else:
             self.game.request_quit()

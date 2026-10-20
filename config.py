@@ -16,3 +16,9 @@ class Config():
     ### game config ###
     max_rounds = 10
     default_player_type = PlayerType.RND
+
+    ### online lobby server ###
+    # Cloudflare terminates TLS and proxies this secure WebSocket endpoint to
+    # the local online relay. Use ws://127.0.0.1:47888/game for local testing.
+    lobby_server_url = "wss://draci-zvesti.kluck.uk/game"
+    lobby_server_port = 47888

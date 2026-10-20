@@ -18,6 +18,16 @@ class ProtocolError(ValueError):
 
 
 class MessageType(str, Enum):
+    ONLINE_HELLO = "online_hello"
+    ONLINE_WELCOME = "online_welcome"
+    LIST_LOBBIES = "list_lobbies"
+    LOBBY_LIST = "lobby_list"
+    CREATE_ONLINE_LOBBY = "create_online_lobby"
+    JOIN_ONLINE_LOBBY = "join_online_lobby"
+    LEAVE_ONLINE_LOBBY = "leave_online_lobby"
+    ONLINE_LOBBY = "online_lobby"
+    ONLINE_LOBBY_CLOSED = "online_lobby_closed"
+    SERVER_STATUS = "server_status"
     HELLO = "hello"
     HELLO_ACCEPTED = "hello_accepted"
     ERROR = "error"

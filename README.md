@@ -22,13 +22,13 @@ images, checkpoints, and `train.db`.
 ```bash
 python3.12 -m venv .venv
 source .venv/bin/activate
-python -m pip install neat-python pygame pillow pandas numpy plotly
+python -m pip install neat-python pygame pillow pandas numpy plotly websockets
 ```
 
 Minimal runtime dependencies are:
 
 ```bash
-python -m pip install neat-python pygame pillow
+python -m pip install neat-python pygame pillow websockets
 ```
 
 Analysis notebooks and chart helpers additionally need:
