@@ -230,6 +230,15 @@ def play_card(player, choice_strategy, board, display_strategy):
     board.stage_card(card, position)
     display_strategy.display_board()
 
+    # A newly placed card can be eliminated immediately by an existing
+    # passive (for example, Upir weakening an adjacent 1-HP card). Its death
+    # ability has already resolved during stage_card(), so there is no staged
+    # card left whose optional on-play ability could be resolved.
+    if card not in board.positions:
+        player.record_card_play(card, False)
+        display_strategy.display_choice(card, position, False, None)
+        return card
+
     use_ability = choice_strategy.get_choice_use_ability()
     requires_hand_card = bool(
         use_ability

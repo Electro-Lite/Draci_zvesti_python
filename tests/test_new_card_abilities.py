@@ -7,12 +7,15 @@ from cards.ability.abilities import (
     PlaceSecondBeside,
     Plus1_1FromRed,
     Replace,
+    ReturnByDeath,
+    SidewaysMinus1,
     can_use_on_play,
 )
 from cards.card import Card
 from cards.mana import Mana, ManaColor
 from choice_strategies.choice_strategy_human_pygame import PygameChoiceStrategy
 from core.board import Board
+from core.game_loop import play_card
 
 
 def make_card(name, color, ability=None, *, owner=None, hp=2, damage=2):
@@ -108,6 +111,59 @@ class PlaceSecondBesideTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "only one commander"):
             board.stage_card(second, 1)
+
+
+class ImmediatePlacementDeathTests(unittest.TestCase):
+    def test_upir_killing_innosuv_skritek_does_not_resolve_unstaged_card(self):
+        player = SimpleNamespace(
+            hand=SimpleNamespace(cards=[]),
+            graveyard=[],
+            recorded=[],
+        )
+        player.record_card_play = (
+            lambda card, used: player.recorded.append((card, used))
+        )
+        enemy = SimpleNamespace(hand=SimpleNamespace(cards=[]), graveyard=[])
+        upir = make_card(
+            "Upir",
+            ManaColor.BLACK,
+            SidewaysMinus1(),
+            owner=enemy,
+            hp=1,
+            damage=1,
+        )
+        skritek = make_card(
+            "Innosuv skritek",
+            ManaColor.RED,
+            ReturnByDeath(),
+            hp=1,
+            damage=1,
+        )
+        board = make_board()
+        board.positions[0] = upir
+
+        class Choice:
+            def get_choice_card(self):
+                return skritek
+
+            def get_choice_pos(self):
+                return 1
+
+            def get_choice_use_ability(self):
+                raise AssertionError("A card eliminated on placement has no on-play prompt")
+
+        displayed = []
+        display = SimpleNamespace(
+            display_board=lambda: displayed.append("board"),
+            display_choice=lambda *args: displayed.append(args),
+        )
+
+        play_card(player, Choice(), board, display)
+
+        self.assertNotIn(skritek, board.positions)
+        self.assertIn(skritek, player.hand.cards)
+        self.assertEqual(player.recorded, [(skritek, False)])
+        self.assertEqual(displayed[-1], (skritek, 1, False, None))
 
 
 class PlusFromRedTests(unittest.TestCase):

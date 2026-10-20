@@ -179,7 +179,8 @@ class Board:
     ):
         """Compatibility helper for non-interactive callers."""
         self.stage_card(card, pos)
-        self.resolve_staged_card(card, use_ability, target_pos)
+        if card in self.positions:
+            self.resolve_staged_card(card, use_ability, target_pos)
 
     def remove_card(self,card:Card):
         card_pos = self.positions.index(card)
