@@ -105,7 +105,7 @@ class AdvancedNeatEditor:
         self.values[self.profile] = default_values(self.profile)
         self.editing_key = None
 
-    def overrides(self) -> dict[str, dict[str, str]]:
+    def _raw_overrides(self) -> dict[str, dict[str, str]]:
         raw = {}
         for profile in self.profiles:
             defaults = default_values(profile)
@@ -116,11 +116,17 @@ class AdvancedNeatEditor:
             }
             if changed:
                 raw[profile] = changed
-        return normalize_overrides(raw)
+        return raw
+
+    def overrides(self) -> dict[str, dict[str, str]]:
+        return normalize_overrides(self._raw_overrides())
 
     @property
     def changed_count(self) -> int:
-        return sum(len(values) for values in self.overrides().values())
+        # Editing is intentionally allowed to pass through temporary invalid
+        # states such as an empty numeric field. Validation belongs to Save and
+        # Apply, not to the render loop that displays this counter.
+        return sum(len(values) for values in self._raw_overrides().values())
 
     def named_configs(self) -> tuple[str, ...]:
         profiles = load_named_profiles(NAMED_CONFIG_PATH)

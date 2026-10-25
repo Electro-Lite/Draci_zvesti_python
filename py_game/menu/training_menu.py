@@ -2281,9 +2281,6 @@ class TrainingMenu(Menu):
                     self.game.BACK_KEY = False
                     return
                 if event.key in (pg.K_RETURN, pg.K_KP_ENTER, pg.K_TAB):
-                    if not editor.value(editor.editing_key).strip():
-                        self.advanced_message = "A NEAT parameter cannot be empty"
-                        return
                     editor.finish_edit()
                     self.game.START_KEY = False
                     return

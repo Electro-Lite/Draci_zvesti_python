@@ -75,6 +75,15 @@ class LayoutTests(unittest.TestCase):
         self.assertFalse(editor.begin_edit(locked.key))
         self.assertEqual(editor.profiles, ("evaluator",))
 
+    def test_advanced_neat_editor_allows_empty_text_until_export(self):
+        editor = AdvancedNeatEditor(TrainingKind.DECK_BUILDER)
+        key = "DefaultReproduction.min_species_size"
+        editor.values["builder"][key] = ""
+
+        self.assertEqual(editor.changed_count, 1)
+        with self.assertRaisesRegex(ValueError, "cannot be empty"):
+            editor.overrides()
+
     def test_advanced_neat_named_configuration_round_trip(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "named.json"
