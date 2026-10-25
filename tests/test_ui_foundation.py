@@ -23,6 +23,7 @@ from py_game.ui.training_cockpit import (
     training_cockpit_layout,
 )
 from py_game.ui.widgets import Button, DragController, TextInput
+from py_game.ui.neat_advanced import AdvancedNeatEditor, FIELDS_PER_PAGE
 from py_game.training_service import TrainingKind
 from utils.database_utils import DBUtil
 
@@ -54,6 +55,38 @@ class LayoutTests(unittest.TestCase):
         self.assertEqual(columns[0].x, area.x)
         self.assertEqual(columns[-1].right, area.right)
         self.assertLess(columns[0].right, columns[1].x)
+
+    def test_advanced_neat_editor_paginates_every_parameter(self):
+        editor = AdvancedNeatEditor(TrainingKind.DECK_BUILDER)
+
+        self.assertEqual(editor.profiles, ("builder", "evaluator"))
+        visited = []
+        for page in range(editor.page_count):
+            editor.page = page
+            visited.extend(field.key for field in editor.page_fields)
+
+        self.assertEqual(visited, [field.key for field in editor.fields])
+        self.assertLessEqual(len(editor.page_fields), FIELDS_PER_PAGE)
+
+    def test_advanced_neat_editor_keeps_encoding_dimensions_locked(self):
+        editor = AdvancedNeatEditor(TrainingKind.MATCHUP_EVALUATION)
+        locked = next(field for field in editor.fields if field.option == "num_inputs")
+
+        self.assertFalse(editor.begin_edit(locked.key))
+        self.assertEqual(editor.profiles, ("evaluator",))
+
+    def test_advanced_neat_named_configuration_round_trip(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "named.json"
+            with patch("py_game.ui.neat_advanced.NAMED_CONFIG_PATH", path):
+                editor = AdvancedNeatEditor(TrainingKind.PLAYER_DECK)
+                editor.values["builder"]["NEAT.pop_size"] = "27"
+                editor.save_named("Wide populations")
+
+                restored = AdvancedNeatEditor(TrainingKind.PLAYER_DECK)
+                restored.load_named("Wide populations")
+
+        self.assertEqual(restored.values["builder"]["NEAT.pop_size"], "27")
 
     def test_card_size_respects_height_and_area(self):
         metrics = LayoutMetrics.from_size(800, 600)

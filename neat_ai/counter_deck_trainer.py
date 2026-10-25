@@ -18,6 +18,8 @@ from time import time
 
 import neat
 
+from neat_ai.config_profiles import config_path
+
 from choice_strategies.choice_strategy_ai_neat import PlayerChoiceStrategyNeat
 from core.game_loop import run as run_game
 from core.player import Player
@@ -373,14 +375,14 @@ def train_counter_decks(subject_deck, settings: CounterDeckTrainerSettings | Non
         neat.DefaultReproduction,
         neat.DefaultSpeciesSet,
         neat.DefaultStagnation,
-        str(local_dir / "configs" / "neat_config_builder.txt"),
+        str(config_path("builder")),
     )
     controller_config = neat.Config(
         neat.DefaultGenome,
         neat.DefaultReproduction,
         neat.DefaultSpeciesSet,
         neat.DefaultStagnation,
-        str(local_dir / "configs" / "neat_config_evaluator.txt"),
+        str(config_path("evaluator")),
     )
     random.seed(settings.seed)
     builder_population = neat.Population(builder_config)

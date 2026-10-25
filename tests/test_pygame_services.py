@@ -1091,6 +1091,43 @@ class PygameServiceTests(unittest.TestCase):
         self.assertEqual(job.request["run_label"], "training-run")
         popen.assert_called_once()
 
+    def test_training_service_materializes_private_advanced_neat_configs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            process = SimpleNamespace(pid=456, poll=lambda: None)
+            with (
+                patch("py_game.training_service.JOB_ROOT", Path(directory)),
+                patch("py_game.training_service.subprocess.Popen", return_value=process) as popen,
+            ):
+                service = TrainingService()
+                job = service.start(
+                    TrainingRequest(
+                        kind=TrainingKind.PLAYER_DECK,
+                        deck_id="Starter Blue_1",
+                        neat_config_overrides={
+                            "builder": {"NEAT.pop_size": "7"},
+                            "evaluator": {"NEAT.pop_size": "9"},
+                        },
+                    )
+                )
+                environment = popen.call_args.kwargs["env"]
+                builder_path = Path(environment["NEAT_BUILDER_CONFIG_PATH"])
+                evaluator_path = Path(environment["NEAT_EVALUATOR_CONFIG_PATH"])
+                self.assertEqual(builder_path.parent, Path(directory) / job.job_id / "neat_configs")
+                self.assertIn("pop_size = 7", builder_path.read_text())
+                self.assertIn("pop_size = 9", evaluator_path.read_text())
+
+        self.assertEqual(job.request["neat_config_overrides"]["builder"]["NEAT.pop_size"], "7")
+
+    def test_training_validation_rejects_locked_neat_dimensions(self):
+        with self.assertRaisesRegex(ValueError, "fixed by the game encoding"):
+            TrainingRequest(
+                kind=TrainingKind.PLAYER_DECK,
+                deck_id="Starter Blue_1",
+                neat_config_overrides={
+                    "evaluator": {"DefaultGenome.num_inputs": "42"},
+                },
+            ).validate()
+
     def test_training_service_stops_only_processes_owned_by_this_ui(self):
         process = SimpleNamespace(
             pid=4321,

@@ -10,6 +10,8 @@ from typing import Callable
 
 import neat
 
+from neat_ai.config_profiles import config_path as configured_neat_path
+
 from choice_strategies.choice_strategy_ai_neat import PlayerChoiceStrategyNeat
 from core.game_loop import GameResult, run as run_game
 from core.player import Player
@@ -404,8 +406,7 @@ def train_deck(
     controller_callback: Callable[[object, object], None] | None = None,
 ) -> list[float]:
     settings = settings or EvaluatorSettings()
-    local_dir = os.path.dirname(__file__)
-    config_path = os.path.join(local_dir, "configs/neat_config_evaluator.txt")
+    config_path = str(configured_neat_path("evaluator"))
     config = neat.Config(
         neat.DefaultGenome,
         neat.DefaultReproduction,

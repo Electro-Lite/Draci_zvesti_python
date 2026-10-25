@@ -15,6 +15,8 @@ from time import ctime, time
 
 import neat
 
+from neat_ai.config_profiles import config_path
+
 from neat_ai.ai_training_logger import AITrainingLogger, Genome, MatchDBT, Training
 from neat_ai.deck_builder import build_deck
 from neat_ai.deck_evaluator import (
@@ -453,8 +455,8 @@ def train_deck_builder(settings: BuilderSettings):
 
     local_dir = Path(__file__).resolve().parent
     artifact_root = Path(os.environ.get("TRAINING_ARTIFACT_DIR", local_dir))
-    builder_config_path = local_dir / "configs" / "neat_config_builder.txt"
-    evaluator_config_path = local_dir / "configs" / "neat_config_evaluator.txt"
+    builder_config_path = config_path("builder")
+    evaluator_config_path = config_path("evaluator")
     builder_config_text = builder_config_path.read_text()
     evaluator_config_text = evaluator_config_path.read_text()
     config = neat.Config(

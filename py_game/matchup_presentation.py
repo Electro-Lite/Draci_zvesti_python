@@ -269,7 +269,16 @@ def load_matchup_presentation(
         ),
         None,
     )
-    pop_size = evaluator_population_size() if population_size is None else population_size
+    if population_size is None:
+        try:
+            configured_population = int(
+                request["neat_config_overrides"]["evaluator"]["NEAT.pop_size"]
+            )
+        except (KeyError, TypeError, ValueError):
+            configured_population = 0
+        pop_size = configured_population or evaluator_population_size()
+    else:
+        pop_size = population_size
     completed_generations = max(
         max((row.generation for row in checkpoints), default=0),
         max(0, completed_generations or 0),

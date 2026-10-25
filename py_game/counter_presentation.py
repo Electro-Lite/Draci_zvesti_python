@@ -151,6 +151,15 @@ def _number(value, default=0.0) -> float:
         return default
 
 
+def _request_population_size(request, profile: str) -> int | None:
+    try:
+        value = request["neat_config_overrides"][profile]["NEAT.pop_size"]
+    except (KeyError, TypeError):
+        return None
+    parsed = _integer(value, -1)
+    return parsed if parsed > 0 else None
+
+
 def _population_size(path: Path) -> int:
     parser = configparser.ConfigParser()
     try:
@@ -347,12 +356,14 @@ def load_counter_presentation(
         else 0
     )
     builder_size = (
-        _population_size(BUILDER_CONFIG)
+        _request_population_size(request, "builder")
+        or _population_size(BUILDER_CONFIG)
         if builder_population_size is None
         else max(0, builder_population_size)
     )
     controller_size = (
-        _population_size(EVALUATOR_CONFIG)
+        _request_population_size(request, "evaluator")
+        or _population_size(EVALUATOR_CONFIG)
         if controller_population_size is None
         else max(0, controller_population_size)
     )

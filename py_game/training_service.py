@@ -10,7 +10,7 @@ import subprocess
 import sys
 from uuid import uuid4
 from collections import Counter, defaultdict
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, dataclass, field, replace
 from enum import Enum
 from pathlib import Path
 
@@ -29,6 +29,7 @@ from py_game.matchup_presentation import (
 from py_game.training_lifecycle import ResultArtifactStatus
 from py_game.runtime_paths import data_path
 from utils.database_utils import DBUtil
+from neat_ai.config_profiles import materialize_configs, validate_overrides
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -57,8 +58,20 @@ class TrainingRequest:
     workers: int = 12
     holdout_seed_pairs: int = 20
     evaluation_games: int = 1_000
+    neat_config_overrides: dict[str, dict[str, str]] = field(default_factory=dict)
 
     def validate(self) -> None:
+        normalized_configs = validate_overrides(self.neat_config_overrides)
+        allowed_profiles = (
+            {"evaluator"}
+            if self.kind == TrainingKind.MATCHUP_EVALUATION
+            else {"builder", "evaluator"}
+        )
+        unexpected = set(normalized_configs) - allowed_profiles
+        if unexpected:
+            raise ValueError(
+                f"NEAT configuration is not used by this mission: {sorted(unexpected)[0]}"
+            )
         if not isinstance(self.run_label, str) or not self.run_label.strip():
             raise ValueError("Run label cannot be empty")
         if len(self.run_label.strip()) > 64:
@@ -358,6 +371,18 @@ class TrainingService:
         environment["PLAYER_TRAINING_SUMMARY_PATH"] = str(summary_path)
         environment["TRAINING_TELEMETRY_PATH"] = str(telemetry_path)
         environment["PYTHONUNBUFFERED"] = "1"
+        config_profiles = (
+            ("evaluator",)
+            if request.kind == TrainingKind.MATCHUP_EVALUATION
+            else ("builder", "evaluator")
+        )
+        environment.update(
+            materialize_configs(
+                request.neat_config_overrides,
+                job_dir / "neat_configs",
+                profiles=config_profiles,
+            )
+        )
         log_file = log_path.open("w")
         try:
             process = subprocess.Popen(

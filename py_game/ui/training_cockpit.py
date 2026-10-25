@@ -467,6 +467,8 @@ def _wide_layout(metrics, kind, header, body, gap):
     controls["back"] = RectSpec(rail_inner.x, bottom_y, rail_inner.width, target)
     bottom_y -= target + 8
     controls["about"] = RectSpec(rail_inner.x, bottom_y, rail_inner.width, target)
+    bottom_y -= target + 8
+    controls["advanced"] = RectSpec(rail_inner.x, bottom_y, rail_inner.width, target)
 
     inner = config.inset(pad)
     chip_y = inner.y + 58
@@ -614,7 +616,10 @@ def _compact_layout(metrics, kind, header, body, gap, scroll):
     actions = RectSpec(body.x, logical_y, content_width, action_height)
     panels["actions"] = actions
     action_inner = actions.inset(gap)
-    about, runs, back = _columns(action_inner, (1, 1, 1), max(4, gap // 2))
+    advanced, about, runs, back = _columns(
+        action_inner, (1, 1, 1, 1), max(4, gap // 2)
+    )
+    controls["advanced"] = advanced
     controls["about"] = about
     controls["runs"] = runs
     controls["back"] = back

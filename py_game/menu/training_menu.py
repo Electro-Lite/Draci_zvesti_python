@@ -5,12 +5,14 @@ import math
 import queue
 import sqlite3
 import threading
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pygame as pg
 
 from neat_ai.player_artifacts import discover_player_artifacts as discover_manifest_artifacts
+from neat_ai.config_profiles import PROFILE_LABELS, validate_overrides
 from neat_ai.training_plan import matchup_checkpoints
 from py_game.counter_presentation import (
     COMPARISON_TARGET,
@@ -73,6 +75,7 @@ from py_game.ui.training_runs import (
     run_title,
 )
 from py_game.ui.widgets import Button, TextInput
+from py_game.ui.neat_advanced import AdvancedNeatEditor, FIELDS_PER_PAGE
 from py_game.training_lifecycle import (
     ACTIVE_STATUSES,
     ArenaDestination,
@@ -153,6 +156,18 @@ class TrainingMenu(Menu):
                 ("Deck-builder rehearsal", "1 outer generation, 50 inner, 12 matches, one seed; catch setup issues."),
                 ("Final deck study", "10 outer, 65 inner, 12 matches, four seeds, 20 holdouts; expect a long run."),
                 ("Arena sections", "Overview shows live operation; Learning, Evaluation, and Conclusions explain results."),
+            ),
+        ),
+        (
+            "Advanced NEAT configuration",
+            "Tune evolution only when the mission-level controls are not enough",
+            (
+                ("Configuration groups", "Deck evolution and counter finding expose separate deck-builder and controller/evaluator networks. Matchup evaluation needs only the controller/evaluator network."),
+                ("Pagination", "Each page contains eight parameters. Switch network groups with the tabs and pages with Left/Right or the page buttons."),
+                ("Named configurations", "Save a complete mission-specific setup under a name and load it into future runs. Applying a named setup does not alter the project defaults."),
+                ("Private job copies", "Every run receives its own validated config files in the run artifact directory, so later edits cannot change an active or historical run."),
+                ("Locked dimensions", "Input and output counts are visible but locked because the game-state encoder and legal-action decoder require exact dimensions."),
+                ("Safe experimentation", "Change one family of parameters at a time, save a baseline, and compare multiple seeded runs before drawing conclusions."),
             ),
         ),
     )
@@ -250,6 +265,15 @@ class TrainingMenu(Menu):
         self._insight_thread = None
         self.about_page = 0
         self.about_buttons = []
+        self.advanced_overrides = {kind: {} for kind in TrainingKind}
+        self.advanced_editor = None
+        self.advanced_buttons = []
+        self.advanced_field_rects = []
+        self.advanced_dialog = None
+        self.advanced_name_input = TextInput(max_length=48)
+        self.advanced_named_page = 0
+        self.advanced_named_selected = 0
+        self.advanced_message = ""
         self._dashboard_last_refresh = -1000
         self._refresh_runs(force=True)
 
@@ -581,6 +605,7 @@ class TrainingMenu(Menu):
             "preset_2",
             "preset_3",
             *fields,
+            "advanced",
             "about",
             "runs",
             "back",
@@ -686,6 +711,14 @@ class TrainingMenu(Menu):
         elif key == "about":
             self.view = "about"
             self.about_page = 0
+        elif key == "advanced":
+            self.advanced_editor = AdvancedNeatEditor(
+                self.kind,
+                self.advanced_overrides.get(self.kind, {}),
+            )
+            self.advanced_dialog = None
+            self.advanced_message = ""
+            self.view = "advanced"
         elif key == "runs":
             self.view = "runs"
             self.selected = 0
@@ -1091,6 +1124,9 @@ class TrainingMenu(Menu):
             compact=layout.mode == "compact",
         )
         if layout.mode == "wide":
+            self._draw_setup_button(
+                "advanced", "Advanced NEAT configuration >", compact=True
+            )
             self._draw_setup_button("about", "Training guide >", compact=True)
             self._draw_setup_button("back", "< Back to menu", compact=True)
             self._draw_setup_button("runs", "Open run library >", compact=True)
@@ -1235,6 +1271,7 @@ class TrainingMenu(Menu):
             panel = layout.panels.get("actions")
             if panel and panel.bottom > layout.viewport.y and panel.y < layout.viewport.bottom:
                 self._draw_cockpit_panel(panel)
+                self._draw_setup_button("advanced", "Advanced", compact=True)
                 self._draw_setup_button("about", "Guide", compact=True)
                 self._draw_setup_button("runs", "Runs", compact=True)
                 self._draw_setup_button("back", "Back", compact=True)
@@ -1341,6 +1378,11 @@ class TrainingMenu(Menu):
         )
 
     def _review_rows(self, request):
+        advanced = sum(
+            len(values)
+            for values in (request.neat_config_overrides or {}).values()
+        )
+        advanced_label = f"{advanced} override(s)" if advanced else "Project defaults"
         if request.kind == TrainingKind.PLAYER_DECK:
             return (
                 ("Deck under test", self._deck_label(request.deck_id)),
@@ -1349,6 +1391,7 @@ class TrainingMenu(Menu):
                 ("Workers", request.workers),
                 ("Games / counter deck", request.evaluation_games),
                 ("Counter population", "20 candidates per generation"),
+                ("Advanced NEAT", advanced_label),
             )
         if request.kind == TrainingKind.MATCHUP_EVALUATION:
             checkpoints = ", ".join(
@@ -1361,6 +1404,7 @@ class TrainingMenu(Menu):
                 ("Workers", request.workers),
                 ("Games / checkpoint", request.evaluation_games),
                 ("Checkpoints", checkpoints),
+                ("Advanced NEAT", advanced_label),
             )
         return (
             ("Seed set", ", ".join(map(str, request.seeds))),
@@ -1369,6 +1413,7 @@ class TrainingMenu(Menu):
             ("Evaluator workers", request.workers),
             ("Holdout seed pairs", request.holdout_seed_pairs),
             ("Engine", "20 target decks · 2 fixed outer workers"),
+            ("Advanced NEAT", advanced_label),
         )
 
     def _draw_setup_review(self):
@@ -1504,7 +1549,18 @@ class TrainingMenu(Menu):
             self.message = next(iter(validation.errors.values()), "Fix the highlighted settings")
             self.message_color = (235, 105, 105)
             return
-        self.setup_review_request = validation.request
+        try:
+            self.setup_review_request = replace(
+                validation.request,
+                neat_config_overrides=getattr(self, "advanced_overrides", {}).get(
+                    self.kind, {}
+                ),
+            )
+            self.setup_review_request.validate()
+        except ValueError as error:
+            self.message = str(error)
+            self.message_color = self.game.palette.danger
+            return
         self.setup_review_open = True
         self.setup_review_selected = 0
 
@@ -2011,7 +2067,331 @@ class TrainingMenu(Menu):
         if self.run_filter_open:
             self._draw_run_filter_dialog()
 
+    def _prepare_advanced_layout(self):
+        editor = self.advanced_editor
+        metrics = self.game.layout
+        margin = metrics.margin
+        header_bottom = margin + metrics.font_large + metrics.font_small + metrics.gap * 3
+        footer_height = max(44, metrics.target_height)
+        group_height = max(38, min(48, metrics.target_height))
+        panel = RectSpec(
+            margin,
+            header_bottom,
+            self.game.DISPLAY_W - margin * 2,
+            self.game.DISPLAY_H - header_bottom - margin,
+        )
+        group_y = panel.y + metrics.gap
+        group_width = min(280, (panel.width - metrics.gap * 3) // max(1, len(editor.profiles)))
+        buttons = [
+            Button(
+                f"profile:{index}",
+                label,
+                RectSpec(
+                    panel.x + metrics.gap + index * (group_width + metrics.gap),
+                    group_y,
+                    group_width,
+                    group_height,
+                ),
+                selected=index == editor.profile_index,
+            )
+            for index, label in enumerate(
+                PROFILE_LABELS[profile] for profile in editor.profiles
+            )
+        ]
+        field_top = group_y + group_height + metrics.gap
+        footer_y = panel.bottom - footer_height
+        field_height = max(28, (footer_y - field_top - metrics.gap) // FIELDS_PER_PAGE)
+        self.advanced_field_rects = []
+        for index, field in enumerate(editor.page_fields):
+            rect = RectSpec(
+                panel.x + metrics.gap,
+                field_top + index * field_height,
+                panel.width - metrics.gap * 2,
+                max(26, field_height - 4),
+            )
+            self.advanced_field_rects.append((field, rect))
+
+        footer = RectSpec(panel.x + metrics.gap, footer_y, panel.width - metrics.gap * 2, footer_height)
+        columns = metrics.columns(footer, (1, 1, 1, 1, 1, 1, 1), gap=max(3, metrics.gap // 2))
+        labels = (
+            ("back", "Back", True),
+            ("previous", "< Page", editor.page > 0),
+            ("next", "Page >", editor.page + 1 < editor.page_count),
+            ("reset", "Defaults", True),
+            ("load", "Load named", bool(editor.named_configs())),
+            ("save", "Save named", True),
+            ("apply", "Apply", True),
+        )
+        buttons.extend(
+            Button(key, label, rect, enabled=enabled)
+            for (key, label, enabled), rect in zip(labels, columns)
+        )
+        for button in buttons:
+            button.hovered = button.rect.contains(self.game.mouse_position)
+        self.advanced_buttons = buttons
+        return panel
+
+    def _advanced_action(self, key):
+        editor = self.advanced_editor
+        if key == "back":
+            self.view = "setup"
+            self.advanced_editor = None
+        elif key == "previous":
+            editor.change_page(-1)
+        elif key == "next":
+            editor.change_page(1)
+        elif key == "reset":
+            editor.reset_profile()
+            self.advanced_message = f"{editor.profile_label} restored to defaults"
+        elif key == "load":
+            self.advanced_dialog = "load"
+            self.advanced_named_page = 0
+            self.advanced_named_selected = 0
+        elif key == "save":
+            self.advanced_dialog = "save"
+            self.advanced_name_input.value = ""
+            self.advanced_name_input.focused = True
+        elif key == "apply":
+            try:
+                overrides = validate_overrides(editor.overrides())
+                self.advanced_overrides[self.kind] = overrides
+            except (OSError, RuntimeError, ValueError) as error:
+                self.advanced_message = str(error)
+                return
+            count = editor.changed_count
+            self.message = (
+                f"Advanced NEAT configuration applied · {count} override(s)"
+                if count
+                else "Advanced NEAT configuration uses defaults"
+            )
+            self.message_color = self.game.palette.accent
+            self.view = "setup"
+            self.advanced_editor = None
+        elif key.startswith("profile:"):
+            editor.switch_profile(int(key.split(":", 1)[1]))
+
+    def _advanced_dialog_rects(self):
+        panel = self.game.layout.centered_panel(0.70, 0.72, max_width=760)
+        gap = self.game.layout.gap
+        button_height = max(40, min(50, self.game.layout.target_height))
+        cancel = RectSpec(panel.x + gap, panel.bottom - gap - button_height, (panel.width - gap * 3) // 2, button_height)
+        confirm = RectSpec(cancel.right + gap, cancel.y, cancel.width, button_height)
+        return panel, cancel, confirm
+
+    def _advanced_named_page_metrics(self, panel):
+        row_height = max(32, min(42, self.game.layout.target_height))
+        available = max(1, panel.height - 64 - row_height - self.game.layout.gap * 2)
+        page_size = max(1, min(8, available // (row_height + 3)))
+        return row_height, page_size
+
+    def _check_advanced_dialog(self):
+        editor = self.advanced_editor
+        if self.advanced_dialog == "save":
+            for event in self.game.events:
+                if event.type != pg.KEYDOWN:
+                    continue
+                if event.key == pg.K_ESCAPE:
+                    self.game.BACK_KEY = False
+                    self.advanced_dialog = None
+                    self.advanced_name_input.focused = False
+                    return
+                if event.key in (pg.K_RETURN, pg.K_KP_ENTER):
+                    try:
+                        editor.save_named(self.advanced_name_input.value)
+                    except (OSError, ValueError) as error:
+                        self.advanced_name_input.error = str(error)
+                        return
+                    self.advanced_message = f"Saved named configuration: {self.advanced_name_input.value.strip()}"
+                    self.advanced_dialog = None
+                    self.advanced_name_input.focused = False
+                    self.game.START_KEY = False
+                    return
+                if self.advanced_name_input.handle_event(event) and event.key == pg.K_BACKSPACE:
+                    self.game.BACK_KEY = False
+            if self.game.mouse_clicked:
+                _panel, cancel, confirm = self._advanced_dialog_rects()
+                if cancel.contains(self.game.mouse_position):
+                    self.advanced_dialog = None
+                    self.advanced_name_input.focused = False
+                elif confirm.contains(self.game.mouse_position):
+                    try:
+                        editor.save_named(self.advanced_name_input.value)
+                    except (OSError, ValueError) as error:
+                        self.advanced_name_input.error = str(error)
+                        return
+                    self.advanced_message = f"Saved named configuration: {self.advanced_name_input.value.strip()}"
+                    self.advanced_dialog = None
+                    self.advanced_name_input.focused = False
+            return
+
+        names = editor.named_configs()
+        dialog_panel, _cancel, _confirm = self._advanced_dialog_rects()
+        _row_height, page_size = self._advanced_named_page_metrics(dialog_panel)
+        page_count = max(1, math.ceil(len(names) / page_size))
+        self.advanced_named_page = max(0, min(self.advanced_named_page, page_count - 1))
+        visible = names[
+            self.advanced_named_page * page_size :
+            self.advanced_named_page * page_size + page_size
+        ]
+        if self.game.BACK_KEY:
+            self.advanced_dialog = None
+            self.game.BACK_KEY = False
+            return
+        if self.game.LEFT_KEY:
+            self.advanced_named_page = max(0, self.advanced_named_page - 1)
+            self.advanced_named_selected = 0
+        elif self.game.RIGHT_KEY:
+            self.advanced_named_page = min(page_count - 1, self.advanced_named_page + 1)
+            self.advanced_named_selected = 0
+        elif self.game.UP_KEY and visible:
+            self.advanced_named_selected = (self.advanced_named_selected - 1) % len(visible)
+        elif self.game.DOWN_KEY and visible:
+            self.advanced_named_selected = (self.advanced_named_selected + 1) % len(visible)
+        if self.game.START_KEY and visible:
+            editor.load_named(visible[self.advanced_named_selected])
+            self.advanced_message = f"Loaded: {visible[self.advanced_named_selected]}"
+            self.advanced_dialog = None
+            self.game.START_KEY = False
+            return
+        if self.game.mouse_clicked:
+            panel, cancel, _confirm = self._advanced_dialog_rects()
+            row_height, _page_size = self._advanced_named_page_metrics(panel)
+            for index, name in enumerate(visible):
+                rect = RectSpec(panel.x + self.game.layout.gap, panel.y + 64 + index * (row_height + 3), panel.width - self.game.layout.gap * 2, row_height)
+                if rect.contains(self.game.mouse_position):
+                    editor.load_named(name)
+                    self.advanced_message = f"Loaded: {name}"
+                    self.advanced_dialog = None
+                    return
+            if cancel.contains(self.game.mouse_position):
+                self.advanced_dialog = None
+
+    def _check_advanced_input(self):
+        editor = self.advanced_editor
+        self._prepare_advanced_layout()
+        if self.advanced_dialog:
+            self._check_advanced_dialog()
+            return
+        if editor.editing_key:
+            for event in self.game.events:
+                if event.type != pg.KEYDOWN:
+                    continue
+                if event.key == pg.K_ESCAPE:
+                    editor.finish_edit(cancel=True)
+                    self.game.BACK_KEY = False
+                    return
+                if event.key in (pg.K_RETURN, pg.K_KP_ENTER, pg.K_TAB):
+                    if not editor.value(editor.editing_key).strip():
+                        self.advanced_message = "A NEAT parameter cannot be empty"
+                        return
+                    editor.finish_edit()
+                    self.game.START_KEY = False
+                    return
+                value = editor.value(editor.editing_key)
+                if event.key == pg.K_BACKSPACE:
+                    editor.set_edit_value(value[:-1])
+                    self.game.BACK_KEY = False
+                    return
+                if event.unicode and event.unicode.isprintable() and len(value) < 120:
+                    editor.set_edit_value(value + event.unicode)
+                    return
+            return
+        if self.game.BACK_KEY:
+            self._advanced_action("back")
+            return
+        if self.game.mouse_wheel:
+            editor.change_page(-1 if self.game.mouse_wheel > 0 else 1)
+        if self.game.UP_KEY and editor.page_fields:
+            editor.selected = (editor.selected - 1) % len(editor.page_fields)
+        elif self.game.DOWN_KEY and editor.page_fields:
+            editor.selected = (editor.selected + 1) % len(editor.page_fields)
+        elif self.game.LEFT_KEY:
+            editor.change_page(-1)
+        elif self.game.RIGHT_KEY:
+            editor.change_page(1)
+        if self.game.mouse_clicked:
+            for button in self.advanced_buttons:
+                if button.hit_test(self.game.mouse_position):
+                    self._advanced_action(button.key)
+                    return
+            for index, (field, rect) in enumerate(self.advanced_field_rects):
+                if rect.contains(self.game.mouse_position):
+                    editor.selected = index
+                    editor.begin_edit(field.key)
+                    return
+        if self.game.START_KEY and editor.page_fields:
+            editor.begin_edit(editor.page_fields[editor.selected].key)
+
+    def _draw_advanced_dialog(self):
+        shade = pg.Surface((self.game.DISPLAY_W, self.game.DISPLAY_H), pg.SRCALPHA)
+        shade.fill((0, 0, 0, 175))
+        self.game.display.blit(shade, (0, 0))
+        panel, cancel, confirm = self._advanced_dialog_rects()
+        self._draw_cockpit_panel(panel, accent=self.game.palette.accent)
+        if self.advanced_dialog == "save":
+            self.game.draw_text("Save named configuration", self.game.layout.font_large, panel.center[0], panel.y + 38)
+            input_rect = pg.Rect(panel.x + self.game.layout.gap, panel.y + 88, panel.width - self.game.layout.gap * 2, max(44, self.game.layout.target_height))
+            pg.draw.rect(self.game.display, self.game.palette.panel_alt, input_rect, border_radius=7)
+            pg.draw.rect(self.game.display, self.game.palette.accent, input_rect, 2, border_radius=7)
+            self.game.draw_text_left(self.advanced_name_input.value or "Configuration name", self.game.layout.font_normal, input_rect.x + 12, input_rect.centery, self.game.palette.text if self.advanced_name_input.value else self.game.palette.muted, input_rect.width - 24)
+            if self.advanced_name_input.error:
+                self.game.draw_text_left(self.advanced_name_input.error, self.game.layout.font_small, input_rect.x, input_rect.bottom + 20, self.game.palette.danger, input_rect.width)
+            buttons = (
+                Button("cancel", "Cancel", cancel),
+                Button("save", "Save", confirm),
+            )
+        else:
+            names = self.advanced_editor.named_configs()
+            row_height, page_size = self._advanced_named_page_metrics(panel)
+            page_count = max(1, math.ceil(len(names) / page_size))
+            visible = names[
+                self.advanced_named_page * page_size :
+                self.advanced_named_page * page_size + page_size
+            ]
+            self.game.draw_text("Load named configuration", self.game.layout.font_large, panel.center[0], panel.y + 38)
+            for index, name in enumerate(visible):
+                rect = RectSpec(panel.x + self.game.layout.gap, panel.y + 64 + index * (row_height + 3), panel.width - self.game.layout.gap * 2, row_height)
+                Button(f"named:{index}", name, rect, selected=index == self.advanced_named_selected).draw(self.game.display, pg.font.Font(self.game.font_name, self.game.layout.font_small), self.game.palette)
+            buttons = (
+                Button("cancel", "Cancel", cancel),
+                Button("page", f"Page {self.advanced_named_page + 1}/{page_count} · Left/Right", confirm, enabled=False),
+            )
+        for button in buttons:
+            button.draw(self.game.display, pg.font.Font(self.game.font_name, self.game.layout.font_small), self.game.palette)
+
+    def draw_advanced_neat(self):
+        editor = self.advanced_editor
+        self.draw_background()
+        panel = self._prepare_advanced_layout()
+        self.draw_title(
+            "Advanced NEAT configuration",
+            f"{self._mission_label(self.kind)} · {editor.profile_label} · page {editor.page + 1}/{editor.page_count}",
+        )
+        self._draw_cockpit_panel(panel, accent=self.game.palette.accent)
+        font = pg.font.Font(self.game.font_name, max(10, self.game.layout.font_small - 2))
+        for button in self.advanced_buttons:
+            button.draw(self.game.display, font, self.game.palette)
+        for index, (field, rect) in enumerate(self.advanced_field_rects):
+            selected = index == editor.selected
+            editing = field.key == editor.editing_key
+            box = pg.Rect(rect.x, rect.y, rect.width, rect.height)
+            pg.draw.rect(self.game.display, self.game.palette.hover if selected else self.game.palette.panel_alt, box, border_radius=6)
+            pg.draw.rect(self.game.display, self.game.palette.accent if selected else self.game.palette.border, box, 2 if selected else 1, border_radius=6)
+            label_width = max(170, rect.width * 54 // 100)
+            self.game.draw_text_left(f"{field.section}  /  {field.option}", max(9, self.game.layout.font_small - 3), rect.x + 10, rect.y + rect.height // 2, self.game.palette.muted if field.locked else self.game.palette.text, label_width - 16)
+            value = editor.value(field.key) + (" |" if editing else "")
+            self.game.draw_text_left(value, max(10, self.game.layout.font_small - 2), rect.x + label_width, rect.y + rect.height // 2, self.game.palette.muted if field.locked else self.game.palette.accent, rect.width - label_width - 10)
+            if field.locked:
+                self.game.draw_text_left("LOCKED", 8, rect.right - 58, rect.y + rect.height // 2, self.game.palette.muted, 52)
+        note = self.advanced_message or f"{editor.changed_count} override(s) · Enter edits · Left/Right changes page · encoding dimensions stay locked"
+        self.game.draw_text_left(note, max(9, self.game.layout.font_small - 3), panel.x + self.game.layout.gap, panel.bottom - max(50, self.game.layout.target_height) - 5, self.game.palette.accent, panel.width - self.game.layout.gap * 2)
+        if self.advanced_dialog:
+            self._draw_advanced_dialog()
+
     def check_input(self):
+        if self.view == "advanced":
+            self._check_advanced_input()
+            return
         if self.view == "setup":
             self._check_setup_input()
             return
@@ -2081,6 +2461,15 @@ class TrainingMenu(Menu):
                 if self.view != "runs":
                     continue
                 self.draw_training_runs()
+                self.blit_screen()
+                continue
+            if self.view == "advanced":
+                self.check_input()
+                if not self.run_display:
+                    break
+                if self.view != "advanced":
+                    continue
+                self.draw_advanced_neat()
                 self.blit_screen()
                 continue
             self.check_input()

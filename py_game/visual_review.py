@@ -49,6 +49,7 @@ from py_game.evolution_presentation import (
     EvolutionPresentation,
 )
 from py_game.training_lifecycle import ResultArtifactStatus
+from py_game.ui.neat_advanced import AdvancedNeatEditor
 from py_game.network.lobby import HostLobbyController
 from py_game.training_service import (
     MatchupInsight,
@@ -280,6 +281,20 @@ def _training_builder(game, output, size):
         menu.setup_scroll = menu._current_setup_layout().max_scroll
         menu.draw_training_cockpit()
         _save(game, output, "training-workbench-builder-bottom", size)
+
+
+def _training_advanced(game, output, size):
+    menu = TrainingMenu(game)
+    menu.refresh_layout()
+    menu.cockpit.switch(TrainingKind.DECK_BUILDER)
+    menu.advanced_editor = AdvancedNeatEditor(TrainingKind.DECK_BUILDER)
+    menu.advanced_editor.values["builder"]["NEAT.pop_size"] = "32"
+    menu.draw_advanced_neat()
+    _save(game, output, "training-advanced-builder", size)
+    menu.advanced_editor.switch_profile(1)
+    menu.advanced_editor.page = 2
+    menu.draw_advanced_neat()
+    _save(game, output, "training-advanced-evaluator", size)
 
 
 def _training_review(game, output, size):
@@ -1129,6 +1144,7 @@ def generate(output: Path, sizes=REVIEW_SIZES) -> list[Path]:
         _training,
         _training_matchup_setup,
         _training_builder,
+        _training_advanced,
         _training_review,
         _training_runs,
         _training_runs_filter,
