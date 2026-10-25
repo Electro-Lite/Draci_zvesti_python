@@ -1,8 +1,16 @@
 # Online lobby server
 
-The online mode uses a small WebSocket relay. The server owns lobby discovery and
-forwards traffic between two players; game rules remain authoritative on the
-lobby host's client.
+The online mode uses one WebSocket service for native and browser clients. A
+native-created lobby retains the lightweight relay model, with game rules
+authoritative on the native host. A browser-created lobby is server-authoritative:
+the server reconstructs both submitted decks from trusted card definitions,
+runs the existing Python rules engine, validates choices, and emits a separate
+private state snapshot for each player.
+
+The browser client is served from the password-protected `/play/` path and uses
+the password-protected `/browser-game` WebSocket endpoint. Its decks live in
+browser storage; there are no browser accounts and no AI or training
+functionality. Native clients continue to use `/game`.
 
 ## Configure clients
 
@@ -22,9 +30,17 @@ python -m py_game.network.online_server \
   --max-lobbies 100
 ```
 
-The relay uses no
-game databases or image assets and keeps all lobbies in memory, so restarting
-it closes current lobbies and matches.
+The service keeps lobbies and active matches in memory, so restarting it closes
+current lobbies and matches. Browser-hosted games read trusted card definitions
+from `utils/cards.db`; submitted clients cannot override card stats or abilities.
+
+Browser matches use resumable session tokens stored by the browser. A dropped
+transport pauses the match without consuming the active choice timeout. The
+server waits 10 seconds before reporting the player as disconnected, keeps the
+match available for reconnection, and replays the private state and pending
+choice after the player returns. The connected opponent may keep waiting or
+explicitly end the match. Restarting the service still invalidates these
+in-memory sessions.
 
 Lobby passwords are salted and hashed in server memory and are never returned
 in lobby listings. Cloudflare terminates public TLS; the relay listens only on
@@ -32,15 +48,12 @@ loopback and receives the private HTTP/WebSocket hop from `cloudflared`.
 
 ## Cloudflare Tunnel
 
-Run the static download page on port 4173 and the relay on port 47888. Route the
-WebSocket path before the website catch-all:
+Run the static download page on port 4173 and the relay on port 47888. Route
+Cloudflare to Caddy on port 4173; Caddy authenticates and proxies
+`/browser-game`, while `/game` remains the lightweight native-client relay:
 
 ```yaml
 ingress:
-  - hostname: draci-zvesti.kluck.uk
-    path: ^/game(?:/.*)?$
-    service: http://127.0.0.1:47888
-
   - hostname: draci-zvesti.kluck.uk
     service: http://127.0.0.1:4173
 

@@ -1,0 +1,685 @@
+{
+  "schemaVersion": 1,
+  "cards": [
+    {
+      "id": "Arcimag_1",
+      "name": "Arcimag",
+      "power": 1,
+      "color": "RED",
+      "hp": 0,
+      "dmg": 0,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "+1/+1 from red cards",
+        "description": "Gets +1 attack and +1 hp for every other red card in play."
+      },
+      "image": "card-images/detail/Arcimag_1.webp",
+      "thumbnail": "card-images/thumb/Arcimag_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Asketa_1",
+      "name": "Asketa",
+      "power": 0,
+      "color": "RED",
+      "hp": 1,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 2,
+        "hp": 2
+      },
+      "ability": {
+        "name": "no Ability",
+        "description": ""
+      },
+      "image": "card-images/detail/Asketa_1.webp",
+      "thumbnail": "card-images/thumb/Asketa_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Bard_1",
+      "name": "Bard",
+      "power": 1,
+      "color": "BLUE",
+      "hp": 1,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Decrease dragon attack",
+        "description": "Decrease dragon damage by 1, or by 2 on blue mana, while this card is alive"
+      },
+      "image": "card-images/detail/Bard_1.webp",
+      "thumbnail": "card-images/thumb/Bard_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Bozevtelic_1",
+      "name": "Bozevtelic",
+      "power": 2,
+      "color": "GREEN",
+      "hp": 5,
+      "dmg": 5,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "no Ability",
+        "description": ""
+      },
+      "image": "card-images/detail/Bozevtelic_1.webp",
+      "thumbnail": "card-images/thumb/Bozevtelic_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Devocius_1",
+      "name": "Devocius",
+      "power": 2,
+      "color": "GREEN",
+      "hp": 1,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Blue mana is also active",
+        "description": "While this card is in play, all cards behave as though blue mana were also active."
+      },
+      "image": "card-images/detail/Devocius_1.webp",
+      "thumbnail": "card-images/thumb/Devocius_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Draci Fanatik_1",
+      "name": "Draci Fanatik",
+      "power": 1,
+      "color": "BLACK",
+      "hp": 1,
+      "dmg": 9,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "no Ability",
+        "description": ""
+      },
+      "image": "card-images/detail/Draci-Fanatik_1.webp",
+      "thumbnail": "card-images/thumb/Draci-Fanatik_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Draci posluhovac_1",
+      "name": "Draci posluhovac",
+      "power": 1,
+      "color": "BLACK",
+      "hp": 2,
+      "dmg": 0,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Heal dragon by 1",
+        "description": "Heal dragon 1 hp after each round of combat"
+      },
+      "image": "card-images/detail/Draci-posluhovac_1.webp",
+      "thumbnail": "card-images/thumb/Draci-posluhovac_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Dummy_1",
+      "name": "Dummy",
+      "power": 0,
+      "color": "BLACK",
+      "hp": 1,
+      "dmg": 0,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "no Ability",
+        "description": ""
+      },
+      "image": "card-images/detail/Dummy_1.webp",
+      "thumbnail": "card-images/thumb/Dummy_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Goblin_1",
+      "name": "Goblin",
+      "power": 1,
+      "color": "BLACK",
+      "hp": 1,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Fill board with goblins",
+        "description": "Take all goblins from your deck and hand. Place as many as possible on game board left to right. Remaining goblins are discarded."
+      },
+      "image": "card-images/detail/Goblin_1.webp",
+      "thumbnail": "card-images/thumb/Goblin_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Goblin king_1",
+      "name": "Goblin king",
+      "power": 1,
+      "color": "RED",
+      "hp": 2,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Get buff from goblins",
+        "description": "Get +1/1 for each goblin on board."
+      },
+      "image": "card-images/detail/Goblin-king_1.webp",
+      "thumbnail": "card-images/thumb/Goblin-king_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Gorax_1",
+      "name": "Gorax",
+      "power": 2,
+      "color": "RED",
+      "hp": 1,
+      "dmg": 2,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Red mana is also active",
+        "description": "While this card is in play, all cards behave as though red mana were also active."
+      },
+      "image": "card-images/detail/Gorax_1.webp",
+      "thumbnail": "card-images/thumb/Gorax_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Innosuv Fanatik_1",
+      "name": "Innosuv Fanatik",
+      "power": 0,
+      "color": "RED",
+      "hp": 1,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Burn All",
+        "description": "Removes all cards with 1 or less HP."
+      },
+      "image": "card-images/detail/Innosuv-Fanatik_1.webp",
+      "thumbnail": "card-images/thumb/Innosuv-Fanatik_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Innosuv skritek_1",
+      "name": "Innosuv skritek",
+      "power": 1,
+      "color": "RED",
+      "hp": 1,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Return on death",
+        "description": "When this card dies, it returns to owners hand"
+      },
+      "image": "card-images/detail/Innosuv-skritek_1.webp",
+      "thumbnail": "card-images/thumb/Innosuv-skritek_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Inosuv fanatik_1",
+      "name": "Inosuv fanatik",
+      "power": 0,
+      "color": "RED",
+      "hp": 1,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Burn All",
+        "description": "Removes all cards with 1 or less HP."
+      },
+      "image": "card-images/detail/Inosuv-fanatik_1.webp",
+      "thumbnail": "card-images/thumb/Inosuv-fanatik_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Kardif_1",
+      "name": "Kardif",
+      "power": 2,
+      "color": "GREEN",
+      "hp": 1,
+      "dmg": 2,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Black mana is also active",
+        "description": "While this card is in play, all cards behave as though black mana were also active."
+      },
+      "image": "card-images/detail/Kardif_1.webp",
+      "thumbnail": "card-images/thumb/Kardif_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Katapult_1",
+      "name": "Katapult",
+      "power": 1,
+      "color": "BLUE",
+      "hp": 1,
+      "dmg": 0,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Blue cards in front hit dragon",
+        "description": "When a dragon enters play, it loses 1 hp for each blue card positioned before this card."
+      },
+      "image": "card-images/detail/Katapult_1.webp",
+      "thumbnail": "card-images/thumb/Katapult_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Kvasimir EXPLOSIVE_1",
+      "name": "Kvasimir EXPLOSIVE",
+      "power": 0,
+      "color": "BLACK",
+      "hp": 1,
+      "dmg": 0,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Explode on death",
+        "description": "When hp goes bellow 0, direct neighbors take 2 dmg"
+      },
+      "image": "card-images/detail/Kvasimir-EXPLOSIVE_1.webp",
+      "thumbnail": "card-images/thumb/Kvasimir-EXPLOSIVE_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Lucisnik_1",
+      "name": "Lucisnik",
+      "power": 0,
+      "color": "BLUE",
+      "hp": 1,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Front +1 Attack",
+        "description": "Gives +1 attack to all friendly cards in front."
+      },
+      "image": "card-images/detail/Lucisnik_1.webp",
+      "thumbnail": "card-images/thumb/Lucisnik_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Mag ohne_1",
+      "name": "Mag ohne",
+      "power": 1,
+      "color": "RED",
+      "hp": 2,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 1,
+        "hp": 1
+      },
+      "ability": {
+        "name": "Hit entering dragon for 2 dmg",
+        "description": "When dragon is revealed, he immediately suffers 2 dmg"
+      },
+      "image": "card-images/detail/Mag-ohne_1.webp",
+      "thumbnail": "card-images/thumb/Mag-ohne_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Melisenda_1",
+      "name": "Melisenda",
+      "power": 2,
+      "color": "GREEN",
+      "hp": 1,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Block mana effects",
+        "description": "While this card is in play, real and additionally activated mana colors have no effect."
+      },
+      "image": "card-images/detail/Melisenda_1.webp",
+      "thumbnail": "card-images/thumb/Melisenda_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Nepotrebny novic_1",
+      "name": "Nepotrebny novic",
+      "power": 0,
+      "color": "RED",
+      "hp": 1,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Replace allied card",
+        "description": "When this enters play, you may replace another allied card and return that card to your hand."
+      },
+      "image": "card-images/detail/Nepotrebny-novic_1.webp",
+      "thumbnail": "card-images/thumb/Nepotrebny-novic_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Novic_1",
+      "name": "Novic",
+      "power": 0,
+      "color": "RED",
+      "hp": 2,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 1,
+        "hp": 1
+      },
+      "ability": {
+        "name": "no Ability",
+        "description": ""
+      },
+      "image": "card-images/detail/Novic_1.webp",
+      "thumbnail": "card-images/thumb/Novic_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Paladin_1",
+      "name": "Paladin",
+      "power": 1,
+      "color": "BLUE",
+      "hp": 2,
+      "dmg": 2,
+      "manaBonus": {
+        "dmg": 1,
+        "hp": 1
+      },
+      "ability": {
+        "name": "Go First",
+        "description": "Moves this card to the first position."
+      },
+      "image": "card-images/detail/Paladin_1.webp",
+      "thumbnail": "card-images/thumb/Paladin_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Panos_1",
+      "name": "Panos",
+      "power": 0,
+      "color": "BLUE",
+      "hp": 1,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Sideways +1",
+        "description": "Gives +1 attack and +1 hp to adjacent friendly cards."
+      },
+      "image": "card-images/detail/Panos_1.webp",
+      "thumbnail": "card-images/thumb/Panos_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Pesak_1",
+      "name": "Pesak",
+      "power": 0,
+      "color": "BLUE",
+      "hp": 2,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 1,
+        "hp": 1
+      },
+      "ability": {
+        "name": "no Ability",
+        "description": ""
+      },
+      "image": "card-images/detail/Pesak_1.webp",
+      "thumbnail": "card-images/thumb/Pesak_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Skret_1",
+      "name": "Skret",
+      "power": 0,
+      "color": "BLACK",
+      "hp": 2,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 1,
+        "hp": 1
+      },
+      "ability": {
+        "name": "no Ability",
+        "description": ""
+      },
+      "image": "card-images/detail/Skret_1.webp",
+      "thumbnail": "card-images/thumb/Skret_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Strazny_1",
+      "name": "Strazny",
+      "power": 0,
+      "color": "BLUE",
+      "hp": 1,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 1,
+        "hp": 1
+      },
+      "ability": {
+        "name": "Go Before 1",
+        "description": "Moves this card before the previous card."
+      },
+      "image": "card-images/detail/Strazny_1.webp",
+      "thumbnail": "card-images/thumb/Strazny_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Upir_1",
+      "name": "Upir",
+      "power": 1,
+      "color": "BLACK",
+      "hp": 1,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Sideways -1",
+        "description": "Gives -1 attack and -1 hp to adjacent cards. -2 on black mana"
+      },
+      "image": "card-images/detail/Upir_1.webp",
+      "thumbnail": "card-images/thumb/Upir_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Velitel straze_1",
+      "name": "Velitel straze",
+      "power": 1,
+      "color": "BLUE",
+      "hp": 1,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 1,
+        "hp": 1
+      },
+      "ability": {
+        "name": "Place second beside",
+        "description": "When this enters play, you may place a second card beside it. You may have only one commander on the board."
+      },
+      "image": "card-images/detail/Velitel-straze_1.webp",
+      "thumbnail": "card-images/thumb/Velitel-straze_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Zabijak_1",
+      "name": "Zabijak",
+      "power": 1,
+      "color": "BLACK",
+      "hp": 1,
+      "dmg": 2,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Attack Next",
+        "description": "Atacks card directly in front of him"
+      },
+      "image": "card-images/detail/Zabijak_1.webp",
+      "thumbnail": "card-images/thumb/Zabijak_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "dragon_black_1",
+      "name": "dragon_black",
+      "power": 0,
+      "color": "BLACK",
+      "hp": 5,
+      "dmg": 5,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Eat First",
+        "description": "Removes the first card from the board."
+      },
+      "image": "card-images/detail/dragon_black_1.webp",
+      "thumbnail": "card-images/thumb/dragon_black_1.webp",
+      "type": "DRAGON"
+    },
+    {
+      "id": "dragon_blue_1",
+      "name": "dragon_blue",
+      "power": 0,
+      "color": "BLUE",
+      "hp": 5,
+      "dmg": 5,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Invert board",
+        "description": "First card becomes last, last becomes first, etc.."
+      },
+      "image": "card-images/detail/dragon_blue_1.webp",
+      "thumbnail": "card-images/thumb/dragon_blue_1.webp",
+      "type": "DRAGON"
+    },
+    {
+      "id": "dragon_green_1",
+      "name": "dragon_green",
+      "power": 0,
+      "color": "GREEN",
+      "hp": 6,
+      "dmg": 6,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "no Ability",
+        "description": ""
+      },
+      "image": "card-images/detail/dragon_green_1.webp",
+      "thumbnail": "card-images/thumb/dragon_green_1.webp",
+      "type": "DRAGON"
+    },
+    {
+      "id": "dragon_red_1",
+      "name": "dragon_red",
+      "power": 0,
+      "color": "RED",
+      "hp": 5,
+      "dmg": 5,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Burn All",
+        "description": "Removes all cards with 1 or less HP."
+      },
+      "image": "card-images/detail/dragon_red_1.webp",
+      "thumbnail": "card-images/thumb/dragon_red_1.webp",
+      "type": "DRAGON"
+    }
+  ],
+  "presets": [
+    {
+      "id": "Starter Blue_1",
+      "name": "Starter Blue",
+      "cardIds": [
+        "Lucisnik_1",
+        "Lucisnik_1",
+        "Paladin_1",
+        "Paladin_1",
+        "Panos_1",
+        "Panos_1",
+        "Pesak_1",
+        "Pesak_1",
+        "Strazny_1",
+        "Strazny_1"
+      ]
+    },
+    {
+      "id": "Killer Queen_1",
+      "name": "Killer Queen",
+      "cardIds": [
+        "Zabijak_1",
+        "Zabijak_1",
+        "Zabijak_1",
+        "Zabijak_1",
+        "Asketa_1",
+        "Asketa_1",
+        "Novic_1",
+        "Novic_1",
+        "Novic_1",
+        "Novic_1"
+      ]
+    }
+  ]
+}

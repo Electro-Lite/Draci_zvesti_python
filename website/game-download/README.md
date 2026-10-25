@@ -31,3 +31,11 @@ chunks are reassembled and decrypted in the visitor's browser.
 
 Do not place raw installers or source archives in `dist`; only the generated
 encrypted chunks should be hosted.
+
+## Browser arena
+
+The human-only browser client is available below `dist/play` and is served at
+the password-protected `/play/` path. It stores decks locally and connects to
+the password-protected online WebSocket service at `/browser-game`. Native game
+clients continue to use `/game`. See `dist/play/README.md` for catalogue
+generation and asset details.

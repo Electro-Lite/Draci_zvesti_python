@@ -1863,6 +1863,9 @@ class Game():
             if self.SKIP_ABILITY_KEY:
                 self._send_client_action(client, request, False)
                 return True
+        if choice_type == "continue" and (self.START_KEY or self.mouse_clicked):
+            self._send_client_action(client, request, True)
+            return True
         for event in self.events:
             if (
                 event.type == pygame.MOUSEBUTTONDOWN
@@ -1960,6 +1963,9 @@ class Game():
                 return True
             if choice_type == "use_ability":
                 self._send_client_action(client, request, self.binary_choice)
+                return True
+            if choice_type == "continue":
+                self._send_client_action(client, request, True)
                 return True
         return False
 

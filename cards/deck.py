@@ -1,6 +1,4 @@
 from collections import Counter
-import sqlite3
-from utils.database_utils import DBUtil
 from cards.card import Card
 class Deck():
     

@@ -1,4 +1,3 @@
-from cards.dragons          import get_dragons
 from cards.card             import Card
 from cards.mana             import get_mana_pool_shuffled, Mana
 from cards.ability.abilities import can_use_on_play, is_commander
@@ -8,9 +7,15 @@ from core.enums.game_state  import GameState
 # clear = lambda: system('cls')
 
 class Board:
-    def __init__(self):
+    def __init__(self, dragons=None):
         self.positions  = [None,None,None,None,None,None,] # 6 mist na stole
-        self.dragons    = get_dragons() # [] with dragon instances
+        if dragons is None:
+            # Keep database-backed dragon loading for native games, but import
+            # it only when needed. Dedicated servers inject trusted read-only
+            # dragon definitions and never need the writable DB utility.
+            from cards.dragons import get_dragons
+            dragons = get_dragons()
+        self.dragons    = list(dragons) # [] with dragon instances
         self.mana_pool  = get_mana_pool_shuffled()
         self.winner         = None  # for pygame, #TODO move to display strategy pygame
         self.game_running   = True  # for pygame, #TODO move to display strategy pygame

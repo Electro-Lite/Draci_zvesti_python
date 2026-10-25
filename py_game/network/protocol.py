@@ -43,6 +43,7 @@ class MessageType(str, Enum):
     PING = "ping"
     PONG = "pong"
     DISCONNECT = "disconnect"
+    PEER_CONNECTION_STATUS = "peer_connection_status"
 
 
 @dataclass(frozen=True)
