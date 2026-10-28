@@ -19,6 +19,7 @@ class ChoiceType(Enum):
     TARGET = 5
     PLAY_OR_PASS = 6
     ABILITY_CARD = 7
+    GRAVEYARD_CARD = 8
 
 
 class PygameChoiceStrategy(PlayerChoiceStrategy):
@@ -31,6 +32,7 @@ class PygameChoiceStrategy(PlayerChoiceStrategy):
         self.do_exit = False
         self.selected_card = None
         self.selected_position = None
+        self.zone_choice_cards = []
 
     def _wait_for_input(self, waiting_for: ChoiceType):
         self.waiting_for = waiting_for
@@ -168,3 +170,20 @@ class PygameChoiceStrategy(PlayerChoiceStrategy):
         if self.this_player.hand.cards.index(selected) not in legal:
             raise ValueError("Selected card is not legal for this ability")
         return selected
+
+    def get_choice_zone_card(self, cards, *, zone, board, source_card=None):
+        candidates = list(cards)
+        if not candidates:
+            return None
+        self.zone_choice_cards = candidates
+        board.pending_choice_player = self.this_player
+        board.pending_zone_cards = candidates
+        try:
+            selected = self._wait_for_input(ChoiceType.GRAVEYARD_CARD)
+            if selected not in candidates:
+                raise ValueError("Selected card is no longer available in the graveyard")
+            return selected
+        finally:
+            self.zone_choice_cards = []
+            board.pending_zone_cards = []
+            board.pending_choice_player = None

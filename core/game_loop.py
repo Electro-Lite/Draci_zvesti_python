@@ -16,6 +16,16 @@ Player      = p.Player
 GameInfo    = gi.GameInfo
 
 
+def _remove_card(board, card, *, cause=None, source=None):
+    """Resolve contextual deaths while remaining compatible with simple boards."""
+    try:
+        board.remove_card(card, cause=cause, source=source)
+    except TypeError as exc:
+        if "unexpected keyword argument" not in str(exc):
+            raise
+        board.remove_card(card)
+
+
 @dataclass(frozen=True)
 class GameResult:
     player_1_score: int
@@ -113,9 +123,9 @@ def run(
         dragon_slain_by = None
         player_1.passed = False
         player_2.passed = False
+        turn_count = 0
 
         if current_round != 1:
-            board.clear_round(player_1, player_2)
             player_1.draw_cards(3)
             player_2.draw_cards(3)
         player_1.hand.sort()
@@ -123,6 +133,7 @@ def run(
 
         # reveal mana
         board.cycle_mana()
+        board.recalculate()
         display_strategy.display_mana()
         display_strategy.display_status()
         ### TODO update game info ###
@@ -143,12 +154,14 @@ def run(
                 choice_strategy.begin_turn_choices()
             try:
                 # pass?
-                Player_choice_pass = (
-                    choice_strategy.get_choice_pass()
-                    if not player_on_turn.passed and player_on_turn.hand.cards
-                    else True
-                )
-                if Player_choice_pass or len(player_on_turn.hand.cards) <= 0:
+                if turn_count >= Config.turn_count_limit:
+                    player_choice_pass = True
+                elif not player_on_turn.passed and player_on_turn.hand.cards:
+                    player_choice_pass = choice_strategy.get_choice_pass()
+                else:
+                    player_choice_pass = True
+                turn_count += 1
+                if player_choice_pass or len(player_on_turn.hand.cards) <= 0:
                     player_on_turn.passed = True
 
                 if not player_on_turn.passed:
@@ -193,12 +206,32 @@ def run(
             run = False  # end match
             board.winner        = winner # for pygame, #TODO move to display strategy pygame
 
-        if player_1.get_card_count() + player_2.get_card_count() <= 0:
+        if (
+            player_1.get_card_count()
+            + player_2.get_card_count()
+            + len(board.unique_cards())
+            <= 0
+        ):
             winner = get_winner(player_1, player_2)
             display_strategy.display_game_result(winner)
             run = False  # end match
             board.winner        = winner # for pygame, #TODO move to display strategy pygame
         board.game_running = run # for pygame, #TODO move to display strategy pygame
+
+        # Resolve survivor effects while the post-combat board is still intact.
+        for survivor in list(board.unique_cards()):
+            ability = getattr(survivor, "ability", None)
+            if (
+                ability
+                and getattr(ability, "is_onRoundEnd", False)
+                and survivor in board.positions
+                and not board.card_effects_blocked(survivor)
+            ):
+                ability.apply_onRoundEnd(
+                    survivor,
+                    board,
+                    {"player_1": player_1, "player_2": player_2},
+                )
 
         ### clean-up board ###
         board.clear_round(player_1=player_1, player_2=player_2)
@@ -222,14 +255,15 @@ def run(
     )
 
 
-def play_card(player, choice_strategy, board, display_strategy):
-    """Stage a card visibly, then resolve its optional ability choices."""
-    card = choice_strategy.get_choice_card()
-    position = choice_strategy.get_choice_pos()
-    card.owner = player
-    board.stage_card(card, position)
-    display_strategy.display_board()
-
+def _resolve_entered_card(
+    player,
+    card,
+    position,
+    choice_strategy,
+    board,
+    display_strategy,
+):
+    """Resolve one card's on-play choices, including cards summoned by cards."""
     # A newly placed card can be eliminated immediately by an existing
     # passive (for example, Upir weakening an adjacent 1-HP card). Its death
     # ability has already resolved during stage_card(), so there is no staged
@@ -237,9 +271,19 @@ def play_card(player, choice_strategy, board, display_strategy):
     if card not in board.positions:
         player.record_card_play(card, False)
         display_strategy.display_choice(card, position, False, None)
-        return card
+        return
 
-    use_ability = choice_strategy.get_choice_use_ability()
+    effects_blocked = bool(
+        getattr(board, "card_effects_blocked", lambda candidate: False)(card)
+    )
+    automatic = bool(getattr(card.ability, "auto_activate_on_play", False))
+    use_ability = (
+        False
+        if effects_blocked
+        else True
+        if automatic
+        else choice_strategy.get_choice_use_ability()
+    )
     requires_hand_card = bool(
         use_ability
         and getattr(card.ability, "requires_hand_card", False)
@@ -249,6 +293,8 @@ def play_card(player, choice_strategy, board, display_strategy):
         if requires_hand_card
         else None
     )
+    if requires_hand_card:
+        card.ability.pending_hand_card = ability_card
     requires_target = bool(
         use_ability
         and getattr(card.ability, "requires_target", False)
@@ -266,6 +312,49 @@ def play_card(player, choice_strategy, board, display_strategy):
     board.resolve_staged_card(card, use_ability, ability_args)
     player.record_card_play(card, use_ability)
     display_strategy.display_choice(card, position, use_ability, target)
+
+
+def _prepare_nested_choice(choice_strategy, card, position):
+    """Point every controller implementation at a newly entered nested card."""
+    for attribute in ("selected_card", "_selected_card"):
+        if hasattr(choice_strategy, attribute):
+            setattr(choice_strategy, attribute, card)
+    for attribute in ("selected_position", "_selected_position"):
+        if hasattr(choice_strategy, attribute):
+            setattr(choice_strategy, attribute, position)
+
+
+def play_card(player, choice_strategy, board, display_strategy):
+    """Stage a card and resolve the complete chain of cards entering play."""
+    card = choice_strategy.get_choice_card()
+    position = choice_strategy.get_choice_pos()
+    card.owner = player
+    board.stage_card(card, position)
+    display_strategy.display_board()
+    _resolve_entered_card(
+        player,
+        card,
+        position,
+        choice_strategy,
+        board,
+        display_strategy,
+    )
+
+    pending_entries = getattr(board, "pending_entry_cards", [])
+    while pending_entries:
+        nested_card, nested_position = pending_entries.pop(0)
+        nested_player = nested_card.owner
+        nested_strategy = nested_player.choice_strategy
+        _prepare_nested_choice(nested_strategy, nested_card, nested_position)
+        display_strategy.display_board()
+        _resolve_entered_card(
+            nested_player,
+            nested_card,
+            nested_position,
+            nested_strategy,
+            board,
+            display_strategy,
+        )
     return card
 
 
@@ -274,7 +363,11 @@ def _apply_dragon_move_abilities(board, dragon, display_strategy, position):
     board.dragon_position = position
     for card in board.positions:
         ability = getattr(card, "ability", None) if card else None
-        if ability and getattr(ability, "is_onDragonMove", False):
+        if (
+            ability
+            and getattr(ability, "is_onDragonMove", False)
+            and not board.card_effects_blocked(card)
+        ):
             ability.apply_onDragonMove(card, board, dragon)
             display_strategy.display_dragon_vs_card()
 
@@ -299,7 +392,11 @@ def battle_dragon(board: Board, display_strategy: DisplayStrategy) -> Player:  #
     # Dispatch reveal hooks; each ability owns its effect and presentation event.
     for slot, card in enumerate(board.positions):
         ability = getattr(card, "ability", None) if card else None
-        if ability and getattr(ability, "is_onDragonReveal", False):
+        if (
+            ability
+            and getattr(ability, "is_onDragonReveal", False)
+            and not board.card_effects_blocked(card)
+        ):
             ability.apply_onDragonReveal(card, board, dragon)
             display_strategy.display_dragon()
             if dragon.slain_by is not None:
@@ -307,7 +404,11 @@ def battle_dragon(board: Board, display_strategy: DisplayStrategy) -> Player:  #
                 winning_slot = slot
                 break
     ### activate dragon ability ###
-    if dragon.hp > 0 and dragon.ability.is_active:
+    if (
+        dragon.hp > 0
+        and dragon.ability.is_active
+        and not board.card_effects_blocked(dragon)
+    ):
         dragon.ability.activate(dragon, board)
         board.battle_event = {
             "phase": "dragon_ability",
@@ -365,7 +466,7 @@ def battle_dragon(board: Board, display_strategy: DisplayStrategy) -> Player:  #
             winning_card = card
             winning_slot = x
             break
-        board.remove_card(card)
+        _remove_card(board, card, cause="dragon_combat", source=dragon)
         if dragon.hp <= 0:
             dragon.slain_by = card.owner
             winning_card = card

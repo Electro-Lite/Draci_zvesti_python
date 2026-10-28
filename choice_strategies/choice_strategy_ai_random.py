@@ -94,3 +94,7 @@ class ChoiceStrategyAIRandom(PlayerChoiceStrategy):
             self.info.game_board,
         )
         return self.this_player.hand.cards[choice(legal)] if legal else None
+
+    def get_choice_zone_card(self, cards, *, zone, board, source_card=None):
+        candidates = list(cards)
+        return choice(candidates) if candidates else None

@@ -161,8 +161,11 @@ class ChoiceStrategyPygame(PlayerChoiceStrategy):
                     legal_positions.append(index)
 
         print("\n🎯 Choose ability target:")
+        option_labels = getattr(source.ability, "option_labels", ())
         for i, card in enumerate(positions):
-            if i in legal_positions and card is None:
+            if i in legal_positions and i < len(option_labels):
+                print(f"  [{i}] {option_labels[i]}")
+            elif i in legal_positions and card is None:
                 print(f"  [{i}] EMPTY")
             elif i in legal_positions:
                 print(f"  [{i}] Player_{card.owner.id} - {card.name} (DMG:{card.dmg}, HP:{card.hp})")
@@ -209,4 +212,24 @@ class ChoiceStrategyPygame(PlayerChoiceStrategy):
             "▶ Choose the second card: ",
             validate,
             lambda: cards[legal[0]],
+        )
+
+    def get_choice_zone_card(self, cards, *, zone, board, source_card=None):
+        candidates = list(cards)
+        if not candidates:
+            return None
+        print(f"\nChoose a card from your {zone}:")
+        for index, candidate in enumerate(candidates):
+            print(f"  [{index}] {candidate.name}")
+
+        def validate(user_in):
+            index = int(user_in)
+            if not 0 <= index < len(candidates):
+                raise ValueError("That card is not available")
+            return candidates[index]
+
+        return self._retry_input(
+            "▶ Choose card: ",
+            validate,
+            lambda: candidates[0],
         )

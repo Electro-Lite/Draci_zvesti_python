@@ -53,7 +53,8 @@ def load_authoritative_card(card_id: str):
         row = connection.execute(
             """
             SELECT owner, id, name, power, color, hp, dmg, color_dmg_buff,
-                   color_hp_buff, ability, image, type
+                   color_hp_buff, ability, image, type, secondary_color,
+                   secondary_color_dmg_buff, secondary_color_hp_buff
             FROM cards WHERE id = ?
             """,
             (card_id,),
@@ -74,6 +75,8 @@ def load_authoritative_card(card_id: str):
         ability=getattr(abilities_module, row[9])(),
         image=row[10],
         type=CardType[row[11]],
+        secondary_color=ManaColor[row[12]] if row[12] else None,
+        secondary_color_buf=[int(row[13] or 0), int(row[14] or 0)],
     )
 
 

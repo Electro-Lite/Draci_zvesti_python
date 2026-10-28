@@ -35,6 +35,27 @@ class AbilityId(Enum):
     PLUS_1_1_SIDEWAYS                   = 30
     HIT_DRAGON_BLUE_INFRONT_DMG         = 33
     PLUS_1_1_FROM_RED                   = 34
+    INVERT_REDUCTIONS                   = 35
+    INVERT_BOARD_ON_PLAY                = 36
+    EAT_HIGHEST_HP                      = 37
+    SWAP_AND_ATTACK                     = 38
+    SWAP_AND_BUFF_SIDEWAYS              = 39
+    CHOOSE_MANA_ON                      = 40
+    EAT_FRONT                           = 41
+    OCCUPY_TWO                          = 42
+    IMMUTABLE_POSITION                  = 43
+    SHUFFLE_SIDE                        = 44
+    RETURN_ALLIES_ROUND_END             = 45
+    STAY_ON_BOARD                       = 46
+    HEAL_EATER_DRAGON                   = 47
+    PLACE_BLACK_BESIDE                  = 48
+    RETURN_DISCARD                      = 49
+    ATTACK_FRONT_ON_DRAGON              = 50
+    BLOCK_BLACK_EFFECTS                 = 51
+    SHOOT_ONE_HP                        = 52
+    RESURRECT_STRONGER                  = 53
+    SIDEWAYS_MINUS_RESURRECT            = 54
+    SUMMON_ELSENHORN_BLOCK_BLACK        = 55
 
 #   Dragons
     EAT_FIRST                           = 31

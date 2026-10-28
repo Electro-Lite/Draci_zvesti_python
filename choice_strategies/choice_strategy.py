@@ -23,6 +23,11 @@ class PlayerChoiceStrategy:
     def get_choice_ability_card(self):
         raise NotImplementedError
 
+    def get_choice_zone_card(self, cards, *, zone, board, source_card=None):
+        """Choose one card from a non-hand zone during triggered resolution."""
+        candidates = list(cards)
+        return candidates[0] if candidates else None
+
     def legal_play_card_indices(self):
         hand = self.this_player.hand.cards
         board = getattr(getattr(self, "info", None), "game_board", None)
@@ -33,6 +38,7 @@ class PlayerChoiceStrategy:
             index
             for index, card in enumerate(hand)
             if can_stage(card, self.this_player)
+            and bool(board.legal_placement_positions(card, self.this_player))
         ]
 
     def legal_placement_positions(self, card=None):

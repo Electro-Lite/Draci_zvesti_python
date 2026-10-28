@@ -15,6 +15,7 @@ class Config():
     
     ### game config ###
     max_rounds = 10
+    turn_count_limit = 50
     default_player_type = PlayerType.RND
 
     ### online lobby server ###

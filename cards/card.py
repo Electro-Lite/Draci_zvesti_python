@@ -22,11 +22,15 @@ class Card:
         dmg:int             = 0,
         ability:"Ability"   = None,
         image:str           = None, # path to image
-        type:CardType       = CardType.PLAYER
+        type:CardType       = CardType.PLAYER,
+        secondary_color:"ManaColor" = None,
+        secondary_color_buf = None,
     ) -> None:
         self.init_args = [id, name, power, color,
                           color_buf if color_buf is not None else [0, 0],
-                          hp, dmg, ability, image, type]
+                          hp, dmg, ability, image, type,
+                          secondary_color,
+                          secondary_color_buf if secondary_color_buf is not None else [0, 0]]
 
         self.owner      = owner
         self.id         = id  # database given
@@ -34,6 +38,10 @@ class Card:
         self.power      = power
         self.color      = color
         self.color_buf  = color_buf if color_buf is not None else [0, 0]
+        self.secondary_color = secondary_color
+        self.secondary_color_buf = (
+            secondary_color_buf if secondary_color_buf is not None else [0, 0]
+        )
         self.hp         = hp
         self.dmg        = dmg
         self.ability    = ability
@@ -55,7 +63,24 @@ class Card:
          self.dmg,
          self.ability,
          self.image,
-         self.type) = self.init_args.copy() #ensures you don’t accidentally mutate the original list when restoring
+         self.type,
+         self.secondary_color,
+         self.secondary_color_buf) = self.init_args.copy() #ensures you don’t accidentally mutate the original list when restoring
+
+    @property
+    def mana_bonuses(self):
+        """Mana bonuses keyed by every printed card color.
+
+        Existing single-color cards continue to use ``color``/``color_buf``.
+        Dual-color cards may define an independent bonus for the second color.
+        """
+        bonuses = {self.color: self.color_buf}
+        if self.secondary_color is not None:
+            bonuses[self.secondary_color] = self.secondary_color_buf
+        return bonuses
+
+    def has_color(self, color) -> bool:
+        return color in (self.color, self.secondary_color)
         
     def get_neat_ids(self):
         neat_ids  = []

@@ -39,7 +39,12 @@ def serialize_card(card, local_player) -> dict | None:
         "max_hp": max(1, int(max_hp)),
         "dmg": int(card.dmg),
         "color": _enum_value(card.color),
+        "secondary_color": _enum_value(getattr(card, "secondary_color", None)),
         "mana_bonus": {"dmg": mana_dmg, "hp": mana_hp},
+        "secondary_mana_bonus": {
+            "dmg": int(getattr(card, "secondary_color_buf", (0, 0))[0]),
+            "hp": int(getattr(card, "secondary_color_buf", (0, 0))[1]),
+        },
         "power": _enum_value(card.power),
         "ability_name": str(getattr(ability, "name", "")),
         "ability_description": str(getattr(ability, "description", "")),
@@ -342,7 +347,11 @@ class RemoteChoiceStrategy(PlayerChoiceStrategy):
                 raise ValueError("Ability target is not currently legal")
             return value
 
-        return self._request_valid("target", select, {"legal_indices": legal})
+        option_labels = getattr(self.selected_card.ability, "option_labels", ())
+        extra = {"legal_indices": legal}
+        if option_labels:
+            extra["option_labels"] = list(option_labels)
+        return self._request_valid("target", select, extra)
 
     def get_choice_ability_card(self):
         if self.selected_card is None:
@@ -364,6 +373,26 @@ class RemoteChoiceStrategy(PlayerChoiceStrategy):
             "ability_card",
             select,
             {"legal_indices": legal},
+        )
+
+    def get_choice_zone_card(self, cards, *, zone, board, source_card=None):
+        candidates = list(cards)
+        if not candidates:
+            return None
+        legal = list(range(len(candidates)))
+
+        def select(value):
+            if not isinstance(value, int) or isinstance(value, bool) or value not in legal:
+                raise ValueError(f"Card index is outside the current {zone}")
+            return candidates[value]
+
+        return self._request_valid(
+            f"{zone}_card",
+            select,
+            {
+                "legal_indices": legal,
+                "cards": [serialize_card(card, self.this_player) for card in candidates],
+            },
         )
 
 

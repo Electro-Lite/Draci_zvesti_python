@@ -49,9 +49,21 @@ class DBUtil():
                             color_hp_buff INTEGER,
                             ability TEXT,
                             image TEXT,
-                            type TEXT
+                            type TEXT,
+                            secondary_color TEXT,
+                            secondary_color_dmg_buff INTEGER DEFAULT 0,
+                            secondary_color_hp_buff INTEGER DEFAULT 0
                        )
                        ''')
+        self.conn_cards.commit()
+
+        self._ensure_column(self.conn_cards, "cards", "secondary_color", "TEXT")
+        self._ensure_column(
+            self.conn_cards, "cards", "secondary_color_dmg_buff", "INTEGER DEFAULT 0"
+        )
+        self._ensure_column(
+            self.conn_cards, "cards", "secondary_color_hp_buff", "INTEGER DEFAULT 0"
+        )
         self.conn_cards.commit()
 
         cursor = self.conn_decks.cursor()
@@ -145,6 +157,15 @@ class DBUtil():
         color_buf  = (dmg_buff, hp_buff)
         ability    = getattr(abilities_module, row[9])()
         type       = CardType[row[11]] if len(row) > 11 else CardType.PLAYER
+        secondary_color = (
+            ManaColor[row[12]]
+            if len(row) > 12 and row[12]
+            else None
+        )
+        secondary_color_buf = (
+            int(row[13] or 0) if len(row) > 13 else 0,
+            int(row[14] or 0) if len(row) > 14 else 0,
+        )
 
         return Card(
             owner       = row[0],
@@ -157,7 +178,9 @@ class DBUtil():
             color_buf   = color_buf,
             ability     = ability,
             image       = row[10] if len(row) > 10 else None,
-            type        = type
+            type        = type,
+            secondary_color=secondary_color,
+            secondary_color_buf=secondary_color_buf,
         )
 
     # ----------------------
@@ -175,6 +198,11 @@ class DBUtil():
         except Exception:
             color_dmg_buff = 0
             color_hp_buff  = 0
+        secondary_color = getattr(card, "secondary_color", None)
+        secondary_color_name = getattr(secondary_color, "name", secondary_color)
+        secondary_buf = getattr(card, "secondary_color_buf", (0, 0))
+        secondary_dmg_buff = int(secondary_buf[0] or 0)
+        secondary_hp_buff = int(secondary_buf[1] or 0)
 
         cursor = self.conn_cards.cursor()
 
@@ -206,23 +234,30 @@ class DBUtil():
                                 color_hp_buff    = ?,
                                 ability          = ?,
                                 image            = ?,
-                                type             = ?
+                                type             = ?,
+                                secondary_color = ?,
+                                secondary_color_dmg_buff = ?,
+                                secondary_color_hp_buff = ?
                            WHERE id = ?
                            ''', (
                                card.owner, card.name, card.power, card.color, card.hp, card.dmg,
                                color_dmg_buff, color_hp_buff, card.ability.__class__.__name__,
-                               card.image, card.type, card.id
+                               card.image, card.type, secondary_color_name,
+                               secondary_dmg_buff, secondary_hp_buff, card.id
                            ))
         else:
             cursor.execute('''
                            INSERT INTO cards (
                                owner, id, name, power, color, hp, dmg,
                                color_dmg_buff, color_hp_buff, ability, image, type
-                           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                               , secondary_color, secondary_color_dmg_buff,
+                               secondary_color_hp_buff
+                           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                            ''', (
                                card.owner, card.id, card.name, card.power, card.color, card.hp,
                                card.dmg, color_dmg_buff, color_hp_buff, card.ability.__class__.__name__,
-                               card.image, card.type
+                               card.image, card.type, secondary_color_name,
+                               secondary_dmg_buff, secondary_hp_buff
                            ))
         self.conn_cards.commit()
 
@@ -232,6 +267,8 @@ class DBUtil():
         cursor.execute('''
                        SELECT owner, id, name, power, color, hp, dmg,
                               color_dmg_buff, color_hp_buff, ability, image, type
+                              , secondary_color, secondary_color_dmg_buff,
+                              secondary_color_hp_buff
                        FROM cards WHERE id = ?
                        ''', (card_id,))
         row = cursor.fetchone()
@@ -243,6 +280,8 @@ class DBUtil():
         cursor.execute('''
                        SELECT owner, id, name, power, color, hp, dmg,
                               color_dmg_buff, color_hp_buff, ability, image, type
+                              , secondary_color, secondary_color_dmg_buff,
+                              secondary_color_hp_buff
                        FROM cards
                        ''')
         rows = cursor.fetchall()
@@ -254,6 +293,8 @@ class DBUtil():
         cursor.execute('''
                        SELECT owner, id, name, power, color, hp, dmg,
                               color_dmg_buff, color_hp_buff, ability, image, type
+                              , secondary_color, secondary_color_dmg_buff,
+                              secondary_color_hp_buff
                        FROM cards Where type = 'PLAYER'
                        ''')
         rows = cursor.fetchall()

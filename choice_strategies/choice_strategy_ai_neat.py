@@ -129,3 +129,18 @@ class PlayerChoiceStrategyNeat(PlayerChoiceStrategy):
         )
         index = self._argmax(HAND_CARD, legal)
         return self.this_player.hand.cards[index]
+
+    def get_choice_zone_card(self, cards, *, zone, board, source_card=None):
+        candidates = list(cards)
+        if not candidates:
+            return None
+        previous_turn = self.info.player_on_turn
+        self.info.player_on_turn = self.this_player
+        try:
+            outputs = list(self.this_player.net.activate(self.info.get_game_info()))
+        finally:
+            self.info.player_on_turn = previous_turn
+        values = outputs[HAND_CARD]
+        legal = range(min(len(candidates), len(values)))
+        index = max(legal, key=lambda item: (values[item], -item))
+        return candidates[index]
