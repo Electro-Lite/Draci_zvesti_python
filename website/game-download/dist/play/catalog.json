@@ -2,6 +2,30 @@
   "schemaVersion": 1,
   "cards": [
     {
+      "id": "Alchymista_Berig_1",
+      "name": "Alchymista Berig",
+      "power": 2,
+      "color": "GREEN",
+      "hp": 1,
+      "dmg": 0,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Reverse the row",
+        "description": "When this enters play, reverse the entire row."
+      },
+      "image": "card-images/detail/Alchymista_Berig_1.webp",
+      "thumbnail": "card-images/thumb/Alchymista_Berig_1.webp",
+      "type": "PLAYER"
+    },
+    {
       "id": "Arcimag_1",
       "name": "Arcimag",
       "power": 1,
@@ -9,6 +33,11 @@
       "hp": 0,
       "dmg": 0,
       "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
         "dmg": 0,
         "hp": 0
       },
@@ -31,6 +60,11 @@
         "dmg": 2,
         "hp": 2
       },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
       "ability": {
         "name": "no Ability",
         "description": ""
@@ -47,6 +81,11 @@
       "hp": 1,
       "dmg": 1,
       "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
         "dmg": 0,
         "hp": 0
       },
@@ -69,12 +108,89 @@
         "dmg": 0,
         "hp": 0
       },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
       "ability": {
         "name": "no Ability",
         "description": ""
       },
       "image": "card-images/detail/Bozevtelic_1.webp",
       "thumbnail": "card-images/thumb/Bozevtelic_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Cikanka_modra_1",
+      "name": "Cikánka modrá",
+      "power": 1,
+      "color": "BLUE",
+      "hp": 1,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "secondaryColor": "GREEN",
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Blue mana is also active",
+        "description": "While this card is in play, all cards behave as though blue mana were also active."
+      },
+      "image": "card-images/detail/Cikanka_modra_1.webp",
+      "thumbnail": "card-images/thumb/Cikanka_modra_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Cikanka_cerna_1",
+      "name": "Cikánka černá",
+      "power": 1,
+      "color": "BLACK",
+      "hp": 1,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "secondaryColor": "GREEN",
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Black mana is also active",
+        "description": "While this card is in play, all cards behave as though black mana were also active."
+      },
+      "image": "card-images/detail/Cikanka_cerna_1.webp",
+      "thumbnail": "card-images/thumb/Cikanka_cerna_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Cikanka_cervena_1",
+      "name": "Cikánka červená",
+      "power": 1,
+      "color": "RED",
+      "hp": 1,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "secondaryColor": "GREEN",
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Red mana is also active",
+        "description": "While this card is in play, all cards behave as though red mana were also active."
+      },
+      "image": "card-images/detail/Cikanka_cervena_1.webp",
+      "thumbnail": "card-images/thumb/Cikanka_cervena_1.webp",
       "type": "PLAYER"
     },
     {
@@ -88,6 +204,11 @@
         "dmg": 0,
         "hp": 0
       },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
       "ability": {
         "name": "Blue mana is also active",
         "description": "While this card is in play, all cards behave as though blue mana were also active."
@@ -97,13 +218,66 @@
       "type": "PLAYER"
     },
     {
+      "id": "Don_Carlos_1",
+      "name": "Don Carlos",
+      "power": 2,
+      "color": "GREEN",
+      "hp": 3,
+      "dmg": 2,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Eat the character in front",
+        "description": "When this enters play, eat the character directly in front."
+      },
+      "image": "card-images/detail/Don_Carlos_1.webp",
+      "thumbnail": "card-images/thumb/Don_Carlos_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Don_Juan_1",
+      "name": "Don Juan",
+      "power": 1,
+      "color": "BLUE",
+      "hp": 1,
+      "dmg": 0,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Heal the dragon that eats this",
+        "description": "A dragon that defeats this card heals to full health."
+      },
+      "image": "card-images/detail/Don_Juan_1.webp",
+      "thumbnail": "card-images/thumb/Don_Juan_1.webp",
+      "type": "PLAYER"
+    },
+    {
       "id": "Draci Fanatik_1",
       "name": "Draci Fanatik",
       "power": 1,
       "color": "BLACK",
       "hp": 1,
-      "dmg": 9,
+      "dmg": 0,
       "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
         "dmg": 0,
         "hp": 0
       },
@@ -126,6 +300,11 @@
         "dmg": 0,
         "hp": 0
       },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
       "ability": {
         "name": "Heal dragon by 1",
         "description": "Heal dragon 1 hp after each round of combat"
@@ -145,12 +324,65 @@
         "dmg": 0,
         "hp": 0
       },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
       "ability": {
         "name": "no Ability",
         "description": ""
       },
       "image": "card-images/detail/Dummy_1.webp",
       "thumbnail": "card-images/thumb/Dummy_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Erzika_1",
+      "name": "Eržika",
+      "power": 2,
+      "color": "GREEN",
+      "hp": 2,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Choose an additional mana",
+        "description": "Choose red, black, or blue mana when this enters play."
+      },
+      "image": "card-images/detail/Erzika_1.webp",
+      "thumbnail": "card-images/thumb/Erzika_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Giovanni_Luppino_1",
+      "name": "Giovanni Luppino",
+      "power": 2,
+      "color": "GREEN",
+      "hp": 1,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Invert reductions",
+        "description": "Attack and health reductions increase those stats instead."
+      },
+      "image": "card-images/detail/Giovanni_Luppino_1.webp",
+      "thumbnail": "card-images/thumb/Giovanni_Luppino_1.webp",
       "type": "PLAYER"
     },
     {
@@ -161,6 +393,11 @@
       "hp": 1,
       "dmg": 1,
       "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
         "dmg": 0,
         "hp": 0
       },
@@ -183,12 +420,41 @@
         "dmg": 0,
         "hp": 0
       },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
       "ability": {
         "name": "Get buff from goblins",
         "description": "Get +1/1 for each goblin on board."
       },
       "image": "card-images/detail/Goblin-king_1.webp",
       "thumbnail": "card-images/thumb/Goblin-king_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Goblini_saman_1",
+      "name": "Gobliní šaman",
+      "power": 1,
+      "color": "BLUE",
+      "hp": 2,
+      "dmg": 2,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Place a black character beside",
+        "description": "When this enters play, you may place another black-border character from your hand beside it."
+      },
+      "image": "card-images/detail/Goblini_saman_1.webp",
+      "thumbnail": "card-images/thumb/Goblini_saman_1.webp",
       "type": "PLAYER"
     },
     {
@@ -202,12 +468,113 @@
         "dmg": 0,
         "hp": 0
       },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
       "ability": {
         "name": "Red mana is also active",
         "description": "While this card is in play, all cards behave as though red mana were also active."
       },
       "image": "card-images/detail/Gorax_1.webp",
       "thumbnail": "card-images/thumb/Gorax_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Gustav_Silak_1",
+      "name": "Gustav Silák",
+      "power": 2,
+      "color": "GREEN",
+      "hp": 2,
+      "dmg": 3,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Blue mana is also active",
+        "description": "While this card is in play, all cards behave as though blue mana were also active."
+      },
+      "image": "card-images/detail/Gustav_Silak_1.webp",
+      "thumbnail": "card-images/thumb/Gustav_Silak_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Hloupe_Lojzek_1",
+      "name": "Hloupé Lojzek",
+      "power": 1,
+      "color": "RED",
+      "hp": 1,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 1,
+        "hp": 0
+      },
+      "secondaryColor": "BLUE",
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 1
+      },
+      "ability": {
+        "name": "Stay on board",
+        "description": "If this survives, it remains on the board next round."
+      },
+      "image": "card-images/detail/Hloupe_Lojzek_1.webp",
+      "thumbnail": "card-images/thumb/Hloupe_Lojzek_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Inkvizitor_Elsenhorn_1",
+      "name": "Inkvizitor Elsenhorn",
+      "power": 2,
+      "color": "GREEN",
+      "hp": 2,
+      "dmg": 2,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Shoot a one-health character",
+        "description": "When this enters play, it may destroy any character with 1 health."
+      },
+      "image": "card-images/detail/Inkvizitor_Elsenhorn_1.webp",
+      "thumbnail": "card-images/thumb/Inkvizitor_Elsenhorn_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Inkvizitor_Illbebad_1",
+      "name": "Inkvizitor Illbebad",
+      "power": 2,
+      "color": "GREEN",
+      "hp": 2,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Summon Elsenhorn and suppress black effects",
+        "description": "When this enters play, you may play Inquisitor Elsenhorn from your hand or deck. While this remains, black card effects are suppressed."
+      },
+      "image": "card-images/detail/Inkvizitor_Illbebad_1.webp",
+      "thumbnail": "card-images/thumb/Inkvizitor_Illbebad_1.webp",
       "type": "PLAYER"
     },
     {
@@ -218,6 +585,11 @@
       "hp": 1,
       "dmg": 1,
       "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
         "dmg": 0,
         "hp": 0
       },
@@ -240,6 +612,11 @@
         "dmg": 0,
         "hp": 0
       },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
       "ability": {
         "name": "Return on death",
         "description": "When this card dies, it returns to owners hand"
@@ -259,12 +636,65 @@
         "dmg": 0,
         "hp": 0
       },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
       "ability": {
         "name": "Burn All",
         "description": "Removes all cards with 1 or less HP."
       },
       "image": "card-images/detail/Inosuv-fanatik_1.webp",
       "thumbnail": "card-images/thumb/Inosuv-fanatik_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Johan_Johanit_1",
+      "name": "Johan Johanit",
+      "power": 2,
+      "color": "GREEN",
+      "hp": 4,
+      "dmg": 4,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "no Ability",
+        "description": ""
+      },
+      "image": "card-images/detail/Johan_Johanit_1.webp",
+      "thumbnail": "card-images/thumb/Johan_Johanit_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Karavanik_Macromir_1",
+      "name": "Karavaník Macromir",
+      "power": 2,
+      "color": "GREEN",
+      "hp": 2,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Swap and support adjacent allies",
+        "description": "When this enters play, it may swap with an adjacent character. Adjacent allies get +1/+1."
+      },
+      "image": "card-images/detail/Karavanik_Macromir_1.webp",
+      "thumbnail": "card-images/thumb/Karavanik_Macromir_1.webp",
       "type": "PLAYER"
     },
     {
@@ -278,12 +708,41 @@
         "dmg": 0,
         "hp": 0
       },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
       "ability": {
         "name": "Black mana is also active",
         "description": "While this card is in play, all cards behave as though black mana were also active."
       },
       "image": "card-images/detail/Kardif_1.webp",
       "thumbnail": "card-images/thumb/Kardif_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Karetni_mistr_1",
+      "name": "Karetní mistr",
+      "power": 1,
+      "color": "BLACK",
+      "hp": 2,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 1,
+        "hp": 0
+      },
+      "secondaryColor": "GREEN",
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Return a discarded card",
+        "description": "When this dies, return one card from your discard pile to hand."
+      },
+      "image": "card-images/detail/Karetni_mistr_1.webp",
+      "thumbnail": "card-images/thumb/Karetni_mistr_1.webp",
       "type": "PLAYER"
     },
     {
@@ -297,12 +756,41 @@
         "dmg": 0,
         "hp": 0
       },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
       "ability": {
         "name": "Blue cards in front hit dragon",
         "description": "When a dragon enters play, it loses 1 hp for each blue card positioned before this card."
       },
       "image": "card-images/detail/Katapult_1.webp",
       "thumbnail": "card-images/thumb/Katapult_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Kulturni_trol_1",
+      "name": "Kulturní trol",
+      "power": 2,
+      "color": "GREEN",
+      "hp": 3,
+      "dmg": 2,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Eat the healthiest characters",
+        "description": "When this enters play, eat every other character tied for the highest health in the row."
+      },
+      "image": "card-images/detail/Kulturni_trol_1.webp",
+      "thumbnail": "card-images/thumb/Kulturni_trol_1.webp",
       "type": "PLAYER"
     },
     {
@@ -313,6 +801,11 @@
       "hp": 1,
       "dmg": 0,
       "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
         "dmg": 0,
         "hp": 0
       },
@@ -335,6 +828,11 @@
         "dmg": 0,
         "hp": 0
       },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
       "ability": {
         "name": "Front +1 Attack",
         "description": "Gives +1 attack to all friendly cards in front."
@@ -354,12 +852,41 @@
         "dmg": 1,
         "hp": 1
       },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
       "ability": {
         "name": "Hit entering dragon for 2 dmg",
         "description": "When dragon is revealed, he immediately suffers 2 dmg"
       },
       "image": "card-images/detail/Mag-ohne_1.webp",
       "thumbnail": "card-images/thumb/Mag-ohne_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Medved_1",
+      "name": "Medvěd",
+      "power": 1,
+      "color": "RED",
+      "hp": 2,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 1,
+        "hp": 0
+      },
+      "secondaryColor": "GREEN",
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Attack forward when the dragon appears",
+        "description": "When a dragon appears, attack the character in front. If it dies, move forward and continue attacking."
+      },
+      "image": "card-images/detail/Medved_1.webp",
+      "thumbnail": "card-images/thumb/Medved_1.webp",
       "type": "PLAYER"
     },
     {
@@ -370,6 +897,11 @@
       "hp": 1,
       "dmg": 1,
       "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
         "dmg": 0,
         "hp": 0
       },
@@ -392,6 +924,11 @@
         "dmg": 0,
         "hp": 0
       },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
       "ability": {
         "name": "Replace allied card",
         "description": "When this enters play, you may replace another allied card and return that card to your hand."
@@ -410,6 +947,11 @@
       "manaBonus": {
         "dmg": 1,
         "hp": 1
+      },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
       },
       "ability": {
         "name": "no Ability",
@@ -430,6 +972,11 @@
         "dmg": 1,
         "hp": 1
       },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
       "ability": {
         "name": "Go First",
         "description": "Moves this card to the first position."
@@ -449,12 +996,41 @@
         "dmg": 0,
         "hp": 0
       },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
       "ability": {
         "name": "Sideways +1",
         "description": "Gives +1 attack and +1 hp to adjacent friendly cards."
       },
       "image": "card-images/detail/Panos_1.webp",
       "thumbnail": "card-images/thumb/Panos_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Paseracka_Emilie_1",
+      "name": "Pašeračka Emilie",
+      "power": 2,
+      "color": "GREEN",
+      "hp": 2,
+      "dmg": 2,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Swap and attack",
+        "description": "When this enters play, it may swap with an adjacent character, then attack the character in front."
+      },
+      "image": "card-images/detail/Paseracka_Emilie_1.webp",
+      "thumbnail": "card-images/thumb/Paseracka_Emilie_1.webp",
       "type": "PLAYER"
     },
     {
@@ -468,12 +1044,113 @@
         "dmg": 1,
         "hp": 1
       },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
       "ability": {
         "name": "no Ability",
         "description": ""
       },
       "image": "card-images/detail/Pesak_1.webp",
       "thumbnail": "card-images/thumb/Pesak_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Principal_1",
+      "name": "Principál",
+      "power": 1,
+      "color": "RED",
+      "hp": 1,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 1,
+        "hp": 0
+      },
+      "secondaryColor": "BLUE",
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 1
+      },
+      "ability": {
+        "name": "Return surviving allies",
+        "description": "If this survives the round, return every surviving allied character from the board to its owner's hand."
+      },
+      "image": "card-images/detail/Principal_1.webp",
+      "thumbnail": "card-images/thumb/Principal_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Roderik_von_Gumpoldov_1",
+      "name": "Roderik von Gumpoldov",
+      "power": 2,
+      "color": "GREEN",
+      "hp": 1,
+      "dmg": 2,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Return as a stronger vampire",
+        "description": "The first time this dies outside dragon combat, return it to the same board position with +1/+1."
+      },
+      "image": "card-images/detail/Roderik_von_Gumpoldov_1.webp",
+      "thumbnail": "card-images/thumb/Roderik_von_Gumpoldov_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Sieglinde_von_Gumpoldov_1",
+      "name": "Sieglinde von Gumpoldov",
+      "power": 2,
+      "color": "GREEN",
+      "hp": 1,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Weaken neighbors and return stronger",
+        "description": "Adjacent characters get -1/-1. The first time this dies outside dragon combat, it returns with +1/+1."
+      },
+      "image": "card-images/detail/Sieglinde_von_Gumpoldov_1.webp",
+      "thumbnail": "card-images/thumb/Sieglinde_von_Gumpoldov_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Silak_1",
+      "name": "Silák",
+      "power": 1,
+      "color": "BLACK",
+      "hp": 1,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 2,
+        "hp": 0
+      },
+      "secondaryColor": "BLUE",
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 2
+      },
+      "ability": {
+        "name": "Cannot be moved or overtaken",
+        "description": "This card cannot move or be overtaken. A card moving to the front stops immediately behind it."
+      },
+      "image": "card-images/detail/Silak_1.webp",
+      "thumbnail": "card-images/thumb/Silak_1.webp",
       "type": "PLAYER"
     },
     {
@@ -487,12 +1164,41 @@
         "dmg": 1,
         "hp": 1
       },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
       "ability": {
         "name": "no Ability",
         "description": ""
       },
       "image": "card-images/detail/Skret_1.webp",
       "thumbnail": "card-images/thumb/Skret_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Slon_1",
+      "name": "Slon",
+      "power": 1,
+      "color": "RED",
+      "hp": 2,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 1,
+        "hp": 0
+      },
+      "secondaryColor": "BLUE",
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 2
+      },
+      "ability": {
+        "name": "Occupies two spaces",
+        "description": "This card occupies two adjacent board spaces."
+      },
+      "image": "card-images/detail/Slon_1.webp",
+      "thumbnail": "card-images/thumb/Slon_1.webp",
       "type": "PLAYER"
     },
     {
@@ -505,6 +1211,11 @@
       "manaBonus": {
         "dmg": 1,
         "hp": 1
+      },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
       },
       "ability": {
         "name": "Go Before 1",
@@ -522,6 +1233,11 @@
       "hp": 1,
       "dmg": 1,
       "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
         "dmg": 0,
         "hp": 0
       },
@@ -544,6 +1260,11 @@
         "dmg": 1,
         "hp": 1
       },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
       "ability": {
         "name": "Place second beside",
         "description": "When this enters play, you may place a second card beside it. You may have only one commander on the board."
@@ -563,12 +1284,41 @@
         "dmg": 0,
         "hp": 0
       },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
       "ability": {
         "name": "Attack Next",
         "description": "Atacks card directly in front of him"
       },
       "image": "card-images/detail/Zabijak_1.webp",
       "thumbnail": "card-images/thumb/Zabijak_1.webp",
+      "type": "PLAYER"
+    },
+    {
+      "id": "Sasek_1",
+      "name": "Šašek",
+      "power": 1,
+      "color": "GREEN",
+      "hp": 2,
+      "dmg": 1,
+      "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "ability": {
+        "name": "Shuffle one side of the row",
+        "description": "When this enters play, choose either player's characters and randomly redistribute them among their occupied positions."
+      },
+      "image": "card-images/detail/Sasek_1.webp",
+      "thumbnail": "card-images/thumb/Sasek_1.webp",
       "type": "PLAYER"
     },
     {
@@ -579,6 +1329,11 @@
       "hp": 5,
       "dmg": 5,
       "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
         "dmg": 0,
         "hp": 0
       },
@@ -601,6 +1356,11 @@
         "dmg": 0,
         "hp": 0
       },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
       "ability": {
         "name": "Invert board",
         "description": "First card becomes last, last becomes first, etc.."
@@ -620,6 +1380,11 @@
         "dmg": 0,
         "hp": 0
       },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
       "ability": {
         "name": "no Ability",
         "description": ""
@@ -636,6 +1401,11 @@
       "hp": 5,
       "dmg": 5,
       "manaBonus": {
+        "dmg": 0,
+        "hp": 0
+      },
+      "secondaryColor": null,
+      "secondaryManaBonus": {
         "dmg": 0,
         "hp": 0
       },

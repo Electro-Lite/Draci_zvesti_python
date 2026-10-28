@@ -63,7 +63,8 @@ def main() -> None:
     rows = connection.execute(
         """
         SELECT id, name, power, color, hp, dmg, color_dmg_buff,
-               color_hp_buff, ability, image, type
+               color_hp_buff, ability, image, type, secondary_color,
+               secondary_color_dmg_buff, secondary_color_hp_buff
         FROM cards
         ORDER BY CASE type WHEN 'PLAYER' THEN 0 ELSE 1 END, LOWER(name), id
         """
@@ -81,6 +82,11 @@ def main() -> None:
                 "hp": int(row[4]),
                 "dmg": int(row[5]),
                 "manaBonus": {"dmg": int(row[6] or 0), "hp": int(row[7] or 0)},
+                "secondaryColor": row[11],
+                "secondaryManaBonus": {
+                    "dmg": int(row[12] or 0),
+                    "hp": int(row[13] or 0),
+                },
                 "ability": {
                     "name": str(ability.name),
                     "description": str(ability.description),
