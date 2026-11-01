@@ -56,6 +56,7 @@ class AbilityId(Enum):
     RESURRECT_STRONGER                  = 53
     SIDEWAYS_MINUS_RESURRECT            = 54
     SUMMON_ELSENHORN_BLOCK_BLACK        = 55
+    DRAGON_FANATIC_DRAW_WIN              = 56
 
 #   Dragons
     EAT_FIRST                           = 31

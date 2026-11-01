@@ -116,11 +116,12 @@ class PlayerChoiceStrategyNeat(PlayerChoiceStrategy):
         return self._use_ability
 
     def get_choice_ability_target(self) -> int:
-        if not self._use_ability:
+        if self._selected_card is None:
             return None
         if not getattr(self._selected_card.ability, "requires_target", False):
             return None
-        return self._argmax(ABILITY_TARGET, self._legal_ability_targets())
+        legal = self._legal_ability_targets()
+        return self._argmax(ABILITY_TARGET, legal) if legal else None
 
     def get_choice_ability_card(self):
         legal = self._selected_card.ability.legal_hand_card_indices(

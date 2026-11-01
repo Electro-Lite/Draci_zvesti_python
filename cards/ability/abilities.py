@@ -465,6 +465,30 @@ class SideWay2DmgOnDeath(Ability):
             if victim in board.positions:
                 board.remove_card(victim)
 
+
+class DragonFanaticDrawWin(Ability):
+    def __init__(self):
+        super().__init__(
+            name="First dragon-eaten fanatic wins a draw",
+            description=(
+                "If the round would be a draw, the owner of the first Dragon "
+                "Fanatic defeated directly in dragon combat wins the round."
+            ),
+            id=AbilityId.DRAGON_FANATIC_DRAW_WIN,
+            target_owner=AbilityTarget.ANY,
+            is_onDeath=True,
+        )
+
+    def apply_onDeath(self, card, board, args=None):
+        args = args or {}
+        if args.get("cause") != "dragon_combat":
+            return
+        if getattr(board, "dragon_fanatic_tiebreak_owner", None) is not None:
+            return
+        board.dragon_fanatic_tiebreak_owner = card.owner
+        board.dragon_fanatic_tiebreak_card = card
+        board.dragon_fanatic_tiebreak_slot = args.get("position")
+
 class ReturnByDeath(Ability):
     def __init__(self):
         super().__init__(
@@ -1100,12 +1124,16 @@ class AttackFrontOnDragonReveal(Ability):
         while position > 0:
             victim = board.positions[position - 1]
             if victim is None:
+                if not board.can_swap_positions(position, position - 1):
+                    break
                 board.swap_positions(position, position - 1)
                 position -= 1
                 continue
             if victim is card or card.dmg < victim.hp:
                 break
             board.remove_card(victim, cause="ability_damage", source=card)
+            if card not in board.positions:
+                break
             current = board.positions.index(card)
             if not board.can_swap_positions(current, current - 1):
                 break

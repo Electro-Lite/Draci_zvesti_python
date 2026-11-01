@@ -24,6 +24,9 @@ class Board:
         self.dragon     = None # for pygame
         self.dragon_base_dmg = None
         self.dragon_position = None # current slot during a dragon battle
+        self.dragon_fanatic_tiebreak_owner = None
+        self.dragon_fanatic_tiebreak_card = None
+        self.dragon_fanatic_tiebreak_slot = None
         self.round      = 0    # for pygame
         self.battle_event = None
         self._recalculating = False

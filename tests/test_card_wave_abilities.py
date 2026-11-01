@@ -19,9 +19,11 @@ from cards.ability.abilities import (
     ResurrectStronger,
     ReturnDiscardOnDeath,
     ReturnAlliesAtRoundEnd,
+    SideWay2DmgOnDeath,
     SidewaysMinus1,
     SidewaysMinusResurrect,
     ShootOneHp,
+    ShuffleChosenSide,
     StayOnBoard,
     SummonElsenhornBlockBlack,
 )
@@ -311,6 +313,49 @@ class TriggerTests(unittest.TestCase):
         self.assertNotIn(victim_a, board.positions)
         self.assertNotIn(victim_b, board.positions)
 
+    def test_bear_stops_when_forward_movement_is_not_legal(self):
+        player = owner(1)
+        bear = card(
+            "Bear",
+            AttackFrontOnDragonReveal(),
+            player=player,
+            hp=2,
+            damage=3,
+        )
+        dragon = card("Dragon", player=owner(2), hp=5)
+        board = Board(dragons=[])
+        board.positions[2] = bear
+        board.can_swap_positions = lambda first, second: False
+
+        bear.ability.apply_onDragonReveal(bear, board, dragon)
+
+        self.assertIs(board.positions[2], bear)
+
+    def test_bear_stops_when_defeated_by_victims_death_effect(self):
+        first = owner(1)
+        second = owner(2)
+        bear = card(
+            "Bear",
+            AttackFrontOnDragonReveal(),
+            player=first,
+            hp=2,
+            damage=3,
+        )
+        explosive = card(
+            "Explosive",
+            SideWay2DmgOnDeath(),
+            player=second,
+            hp=1,
+        )
+        dragon = card("Dragon", player=second, hp=5)
+        board = Board(dragons=[])
+        board.positions[:2] = [explosive, bear]
+
+        bear.ability.apply_onDragonReveal(bear, board, dragon)
+
+        self.assertNotIn(explosive, board.positions)
+        self.assertNotIn(bear, board.positions)
+
     def test_goblin_shaman_only_offers_black_cards_that_fit_beside_it(self):
         player = owner()
         shaman = card("Shaman", PlaceBlackBeside(), player=player)
@@ -503,6 +548,35 @@ class SequentialEntryTests(unittest.TestCase):
         self.assertNotIn(victim, board.positions)
         self.assertIs(board.positions[3], elsenhorn)
         self.assertEqual(player.card_plays[elsenhorn.id], 1)
+
+    def test_automatic_targeted_ability_is_skipped_without_legal_targets(self):
+        shuffler = card("Shuffler", ShuffleChosenSide())
+        player = self._player([shuffler])
+        shuffler.owner = player
+        board = Board(dragons=[])
+
+        class Strategy:
+            selected_card = None
+            selected_position = None
+
+            def get_choice_card(self):
+                self.selected_card = player.hand.cards.pop(0)
+                return self.selected_card
+
+            def get_choice_pos(self):
+                self.selected_position = 2
+                return 2
+
+            def get_choice_ability_target(self):
+                raise AssertionError("No target should be requested")
+
+        strategy = Strategy()
+        player.choice_strategy = strategy
+
+        play_card(player, strategy, board, self.Display())
+
+        self.assertIs(board.positions[2], shuffler)
+        self.assertNotIn(shuffler.id, player.active_ability_uses)
 
 
 class ZoneChoiceTests(unittest.TestCase):

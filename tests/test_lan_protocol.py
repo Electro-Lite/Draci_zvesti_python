@@ -358,6 +358,16 @@ class AuthoritativeGameplayTests(unittest.TestCase):
             ability=ability,
             owner=None,
         )
+        public_discard = SimpleNamespace(
+            id="public-discard",
+            name="Public discard",
+            hp=1,
+            dmg=1,
+            color="BLACK",
+            power="NORMAL",
+            ability=ability,
+            owner=None,
+        )
         local = SimpleNamespace(
             id=2,
             score=0,
@@ -371,11 +381,12 @@ class AuthoritativeGameplayTests(unittest.TestCase):
             score=1,
             passed=False,
             deck=SimpleNamespace(cards=[secret_card]),
-            graveyard=[],
+            graveyard=[public_discard],
             hand=SimpleNamespace(cards=[secret_card]),
         )
         local_card.owner = local
         secret_card.owner = opponent
+        public_discard.owner = opponent
         board = SimpleNamespace(
             mana_pool=[],
             round=2,
@@ -394,6 +405,10 @@ class AuthoritativeGameplayTests(unittest.TestCase):
         self.assertNotIn("hand", snapshot["opponent"])
         self.assertNotIn("cards", snapshot["opponent"])
         self.assertNotIn("secret-card", repr(snapshot))
+        self.assertEqual(
+            snapshot["opponent"]["graveyard_top"]["id"],
+            "public-discard",
+        )
 
     def test_invalid_card_action_does_not_mutate_hand(self):
         card = object()

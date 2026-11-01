@@ -2,6 +2,7 @@ import unittest
 from types import SimpleNamespace
 
 from cards.ability.abilities import (
+    DragonFanaticDrawWin,
     HealDragon1,
     HitDragon2Dmg,
     NoAbility,
@@ -89,6 +90,70 @@ class DeathAbilityTests(unittest.TestCase):
 
         self.assertIsNone(battle_dragon(board, self.Display()))
         self.assertEqual(board.dragons, [survivor, bottom])
+
+    def test_first_fanatic_eaten_by_dragon_wins_an_otherwise_drawn_round(self):
+        first_owner = SimpleNamespace(graveyard=[], id=1)
+        second_owner = SimpleNamespace(graveyard=[], id=2)
+        board = Board()
+        first = make_card(first_owner, "First fanatic", 1, DragonFanaticDrawWin())
+        second = make_card(second_owner, "Second fanatic", 1, DragonFanaticDrawWin())
+        dragon = make_card(
+            None,
+            "Dragon",
+            5,
+            NoAbility(),
+            damage=1,
+            card_type=CardType.DRAGON,
+        )
+        board.positions[:2] = [first, second]
+        board.dragons = [dragon]
+        result_event = {}
+        display = self.Display()
+        display.display_battle_result = lambda: result_event.update(
+            board.battle_event
+        )
+
+        self.assertIs(battle_dragon(board, display), first_owner)
+        self.assertIsNone(dragon.slain_by)
+        self.assertEqual(result_event["phase"], "fanatic_tiebreak")
+        self.assertIs(result_event["card"], first)
+        self.assertIs(result_event["point_for"], first_owner)
+        self.assertEqual(board.dragons[0], dragon)
+
+    def test_fanatic_killed_by_ability_does_not_claim_draw_tiebreak(self):
+        owner = SimpleNamespace(graveyard=[], id=1)
+        board = Board(dragons=[])
+        fanatic = make_card(owner, "Fanatic", 1, DragonFanaticDrawWin())
+        board.positions[0] = fanatic
+
+        board.remove_card(fanatic, cause="ability_damage")
+
+        self.assertIsNone(board.dragon_fanatic_tiebreak_owner)
+
+    def test_normal_dragon_kill_overrides_earlier_fanatic_tiebreak(self):
+        fanatic_owner = SimpleNamespace(graveyard=[], id=1)
+        slayer_owner = SimpleNamespace(graveyard=[], id=2)
+        board = Board()
+        fanatic = make_card(
+            fanatic_owner,
+            "Fanatic",
+            1,
+            DragonFanaticDrawWin(),
+        )
+        slayer = make_card(slayer_owner, "Slayer", 2, NoAbility(), damage=2)
+        dragon = make_card(
+            None,
+            "Dragon",
+            2,
+            NoAbility(),
+            damage=1,
+            card_type=CardType.DRAGON,
+        )
+        board.positions[:2] = [fanatic, slayer]
+        board.dragons = [dragon]
+
+        self.assertIs(battle_dragon(board, self.Display()), slayer_owner)
+        self.assertIs(dragon.slain_by, slayer_owner)
 
     def test_reveal_damage_can_defeat_dragon_and_credit_its_card_owner(self):
         owner = SimpleNamespace(graveyard=[], id=1)

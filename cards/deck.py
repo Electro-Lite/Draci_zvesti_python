@@ -1,5 +1,5 @@
-from collections import Counter
 from cards.card import Card
+from cards.power import Power
 class Deck():
     
     def __init__(self):
@@ -34,23 +34,25 @@ class Deck():
         - Max 1 duplicate for legendary cards.
         """
         if len(self.cards) > 12:
-            raise ValueError("Deck must have less than 12 cards.")
-        elif validate_min_cards and len(self.cards) < 10:
-            raise ValueError("Deck must have at least 10 cards.")
-
+            raise ValueError("Deck may contain at most 12 cards.")
+        if validate_min_cards and len(self.cards) < 10:
+            raise ValueError("Deck must contain at least 10 cards.")
 
         card_counts = {}
+        representatives = {}
         for card in self.cards:
-            card_counts[card] = card_counts.get(card, 0) + 1
+            card_id = str(getattr(card, "id", card))
+            card_counts[card_id] = card_counts.get(card_id, 0) + 1
+            representatives.setdefault(card_id, card)
 
-        for card, count in card_counts.items():
-            rarity = getattr(card, "rarity", "normal")
-            if rarity == "legendary":
-                if count > 1:
-                    raise ValueError(f"Legendary card '{card}' appears more than once.")
-            else:
-                if count > 4:
-                    raise ValueError(f"Card '{card}' appears more than 4 times.")
+        for card_id, count in card_counts.items():
+            card = representatives[card_id]
+            name = getattr(card, "name", card_id)
+            limit = 1 if getattr(card, "power", None) == Power.LEGENDARY else 4
+            if count > limit:
+                if limit == 1:
+                    raise ValueError(f"Legendary card '{name}' may appear only once.")
+                raise ValueError(f"Card '{name}' may appear at most 4 times.")
         return True
     def evaluate_power(self):
         raise NotImplementedError("")

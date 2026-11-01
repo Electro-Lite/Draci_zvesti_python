@@ -101,6 +101,9 @@ def serialize_game_state(board, local_player, opponent, *, status: str = "playin
             "passed": bool(local_player.passed),
             "deck_count": len(local_player.deck.cards),
             "graveyard_count": len(local_player.graveyard),
+            "graveyard_top": serialize_card(local_player.graveyard[-1], local_player)
+            if local_player.graveyard
+            else None,
             "hand": [serialize_card(card, local_player) for card in local_player.hand.cards],
         },
         "opponent": {
@@ -109,6 +112,9 @@ def serialize_game_state(board, local_player, opponent, *, status: str = "playin
             "passed": bool(opponent.passed),
             "deck_count": len(opponent.deck.cards),
             "graveyard_count": len(opponent.graveyard),
+            "graveyard_top": serialize_card(opponent.graveyard[-1], local_player)
+            if opponent.graveyard
+            else None,
             "hand_count": len(opponent.hand.cards),
         },
         "board": [serialize_card(card, local_player) for card in board.positions],

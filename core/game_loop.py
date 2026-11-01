@@ -277,9 +277,15 @@ def _resolve_entered_card(
         getattr(board, "card_effects_blocked", lambda candidate: False)(card)
     )
     automatic = bool(getattr(card.ability, "auto_activate_on_play", False))
+    can_activate = bool(
+        getattr(card.ability, "can_activate", lambda source, game_board: True)(
+            card,
+            board,
+        )
+    )
     use_ability = (
         False
-        if effects_blocked
+        if effects_blocked or not can_activate
         else True
         if automatic
         else choice_strategy.get_choice_use_ability()
@@ -379,6 +385,9 @@ def battle_dragon(board: Board, display_strategy: DisplayStrategy) -> Player:  #
     board.dragon = dragon
     board.dragon_base_dmg = dragon.dmg
     board.dragon_position = None
+    board.dragon_fanatic_tiebreak_owner = None
+    board.dragon_fanatic_tiebreak_card = None
+    board.dragon_fanatic_tiebreak_slot = None
     display_strategy.dragon = dragon
     board.battle_event = {
         "phase": "reveal",
@@ -481,14 +490,32 @@ def battle_dragon(board: Board, display_strategy: DisplayStrategy) -> Player:  #
         }
         display_strategy.display_dragon_vs_card()
         _apply_dragon_move_abilities(board, dragon, display_strategy, x)
+    fanatic_winner = getattr(board, "dragon_fanatic_tiebreak_owner", None)
+    fanatic_wins_draw = dragon.slain_by is None and fanatic_winner is not None
+    round_winner = dragon.slain_by or fanatic_winner
+    if fanatic_wins_draw:
+        winning_card = getattr(board, "dragon_fanatic_tiebreak_card", None)
+        winning_slot = getattr(board, "dragon_fanatic_tiebreak_slot", None)
     board.battle_event = {
-        "phase": "dragon_defeated" if dragon.slain_by is not None else "dragon_survived",
+        "phase": (
+            "dragon_defeated"
+            if dragon.slain_by is not None
+            else "fanatic_tiebreak"
+            if fanatic_wins_draw
+            else "dragon_survived"
+        ),
         "card": winning_card,
         "slot": winning_slot,
-        "point_for": dragon.slain_by,
+        "point_for": round_winner,
         "message": (
             f"{dragon_name} was defeated — Player {getattr(dragon.slain_by, 'id', '?')} earns the point"
             if dragon.slain_by is not None
+            else (
+                "The dragon survived — Player "
+                f"{getattr(fanatic_winner, 'id', '?')} wins the draw because "
+                "their Dragon Fanatic was defeated first"
+            )
+            if fanatic_wins_draw
             else f"{dragon_name} survived the round"
         ),
     }
@@ -501,8 +528,11 @@ def battle_dragon(board: Board, display_strategy: DisplayStrategy) -> Player:  #
     board.dragon = None
     board.dragon_base_dmg = None
     board.dragon_position = None
+    board.dragon_fanatic_tiebreak_owner = None
+    board.dragon_fanatic_tiebreak_card = None
+    board.dragon_fanatic_tiebreak_slot = None
     board.battle_event = None
-    return dragon.slain_by
+    return round_winner
 
 
 def get_winner(player_1, player_2):
