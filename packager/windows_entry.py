@@ -17,6 +17,8 @@ from pathlib import Path
 
 TRAINING_MODULES = {
     "neat_ai.deck_builder_trainer",
+    "neat_ai.deck_pool_evolution_v2",
+    "neat_ai.counter_deck_trainer_v2",
     "neat_ai.matchup_trainer",
     "neat_ai.player_trainer",
 }

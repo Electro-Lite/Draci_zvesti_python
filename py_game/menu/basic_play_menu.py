@@ -64,9 +64,12 @@ class BasicPlayMenu(Menu):
         )
         return self.controller_kinds[index]
 
+    def _controller_label(self, player_number: int) -> str:
+        return self.tr(f"controller_{self._controller(player_number).name.lower()}")
+
     def _deck_label(self, deck_id: str | None) -> str:
         if not deck_id:
-            return "Select deck"
+            return self.tr("select_deck")
         return next(
             (name for current_id, name in self.deck_options if current_id == deck_id),
             deck_id,
@@ -126,7 +129,7 @@ class BasicPlayMenu(Menu):
 
     def _choose_deck(self, player_number: int):
         choice = self.select_deck_dialog(
-            f"Choose Player {player_number} Deck",
+            self.tr("choose_player_deck", number=player_number),
             self.deck_options,
         )
         if choice is not None:
@@ -206,13 +209,13 @@ class BasicPlayMenu(Menu):
 
     def _model_label(self, player_number: int) -> str:
         if self._controller(player_number) != ControllerKind.TRAINED_AI:
-            return "Not used"
+            return self.tr("model_not_used")
         deck_id = self.p1_deck_id if player_number == 1 else self.p2_deck_id
         if not deck_id:
-            return "Select a deck first"
+            return self.tr("select_deck_first")
         artifact = self._model_artifact(player_number)
         if artifact is None:
-            return "No trained model for this composition"
+            return self.tr("no_trained_model")
         return artifact.label
 
     def display_menu(self):
@@ -221,14 +224,14 @@ class BasicPlayMenu(Menu):
         while self.run_display and self.game.running:
             self.begin_frame()
             labels = [
-                f"Player 1: {self._controller(1).value}",
-                f"Player 1 deck: {self._deck_label(self.p1_deck_id)}",
-                f"Player 1 model: {self._model_label(1)}",
-                f"Player 2: {self._controller(2).value}",
-                f"Player 2 deck: {self._deck_label(self.p2_deck_id)}",
-                f"Player 2 model: {self._model_label(2)}",
-                "Start match",
-                "Back",
+                self.tr("player_controller", number=1, controller=self._controller_label(1)),
+                self.tr("player_deck", number=1, deck=self._deck_label(self.p1_deck_id)),
+                self.tr("player_model", number=1, model=self._model_label(1)),
+                self.tr("player_controller", number=2, controller=self._controller_label(2)),
+                self.tr("player_deck", number=2, deck=self._deck_label(self.p2_deck_id)),
+                self.tr("player_model", number=2, model=self._model_label(2)),
+                self.tr("start_match"),
+                self.tr("back"),
             ]
             enabled = [
                 True,
@@ -252,7 +255,7 @@ class BasicPlayMenu(Menu):
             if not self.run_display:
                 break
             self.draw_background()
-            self.draw_title("Local Match", "Choose decks and controllers for both players")
+            self.draw_title(self.tr("local_title"), self.tr("local_subtitle"))
             self.draw_buttons()
             self.draw_message(self.message, self.message_color)
             self.blit_screen()
@@ -263,7 +266,7 @@ class BasicPlayMenu(Menu):
         deck_options: list[tuple[str, str]],
     ) -> str | None:
         if not deck_options:
-            self.message = "Create a valid deck before starting a match"
+            self.message = self.tr("create_deck_first")
             self.message_color = (235, 105, 105)
             return None
 

@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from py_game.menu.base_menu import Menu
 from py_game.settings import AppSettings
+from py_game.language import get_language, next_language_code
 
 if TYPE_CHECKING:
     from py_game.game import Game
@@ -15,21 +16,23 @@ class OptionsMenu(Menu):
     def __init__(self, game: "Game"):
         super().__init__(game)
         self.selected = 0
-        self.message = "Settings are saved automatically"
+        self.message = self.tr("settings_auto_save")
         self.message_color = self.game.palette.muted
 
     def _rows(self):
         settings = self.game.settings
+        language_name = get_language(settings.language).name
         return [
-            f"Fullscreen: {'On' if settings.fullscreen else 'Off'}",
-            f"Resolution: {settings.width} × {settings.height}",
-            f"Master volume: {settings.master_volume}%",
-            f"AI action delay: {settings.ai_delay_ms} ms",
-            f"Tooltips: {'On' if settings.show_tooltips else 'Off'}",
-            f"Player name: {settings.player_name}",
-            f"LAN port: {settings.lan_port}",
-            "Reset defaults",
-            "Back",
+            f"{self.tr('settings_language')}: {language_name}",
+            f"{self.tr('settings_fullscreen')}: {self.tr('on') if settings.fullscreen else self.tr('off')}",
+            f"{self.tr('settings_resolution')}: {settings.width} × {settings.height}",
+            f"{self.tr('settings_volume')}: {settings.master_volume}%",
+            f"{self.tr('settings_ai_delay')}: {settings.ai_delay_ms} ms",
+            f"{self.tr('settings_tooltips')}: {self.tr('on') if settings.show_tooltips else self.tr('off')}",
+            f"{self.tr('settings_player_name')}: {settings.player_name}",
+            f"{self.tr('settings_lan_port')}: {settings.lan_port}",
+            self.tr("settings_reset"),
+            self.tr("back"),
         ]
 
     @staticmethod
@@ -39,8 +42,11 @@ class OptionsMenu(Menu):
     def _edit(self, direction=1):
         settings = self.game.settings
         if self.selected == 0:
-            settings.fullscreen = not settings.fullscreen
+            settings.language = next_language_code(settings.language, direction)
+            self.game.language = get_language(settings.language)
         elif self.selected == 1:
+            settings.fullscreen = not settings.fullscreen
+        elif self.selected == 2:
             try:
                 index = self.RESOLUTIONS.index((settings.width, settings.height))
             except ValueError:
@@ -48,39 +54,39 @@ class OptionsMenu(Menu):
             settings.width, settings.height = self.RESOLUTIONS[
                 (index + direction) % len(self.RESOLUTIONS)
             ]
-        elif self.selected == 2:
-            settings.master_volume = self._step(settings.master_volume, direction, 0, 100, 5)
         elif self.selected == 3:
-            settings.ai_delay_ms = self._step(settings.ai_delay_ms, direction, 0, 5000, 50)
+            settings.master_volume = self._step(settings.master_volume, direction, 0, 100, 5)
         elif self.selected == 4:
-            settings.show_tooltips = not settings.show_tooltips
+            settings.ai_delay_ms = self._step(settings.ai_delay_ms, direction, 0, 5000, 50)
         elif self.selected == 5:
-            value = self._text_dialog("Player name", settings.player_name, 24)
+            settings.show_tooltips = not settings.show_tooltips
+        elif self.selected == 6:
+            value = self._text_dialog(self.tr("settings_player_name"), settings.player_name, 24)
             if value and value.strip():
                 settings.player_name = value.strip()
-        elif self.selected == 6:
-            value = self._text_dialog("LAN port", str(settings.lan_port), 5, str.isdigit)
+        elif self.selected == 7:
+            value = self._text_dialog(self.tr("settings_lan_port"), str(settings.lan_port), 5, str.isdigit)
             if value:
                 port = int(value)
                 if not 1024 <= port <= 65535:
-                    self.message = "LAN port must be between 1024 and 65535"
+                    self.message = self.tr("lan_port_error")
                     self.message_color = self.game.palette.danger
                     return
                 settings.lan_port = port
-        elif self.selected == 7:
+        elif self.selected == 8:
             if not self.confirm_action(
-                "Reset all settings?",
-                ("Display, audio, interaction, and LAN settings will be reset.",),
-                confirm_label="Reset",
+                self.tr("settings_reset_title"),
+                (self.tr("settings_reset_detail"),),
+                confirm_label=self.tr("settings_reset_action"),
             ):
                 return
             self.game.settings = AppSettings()
-        elif self.selected == 8:
+        elif self.selected == 9:
             self.return_to_previous()
             return
         try:
             self.game.apply_settings()
-            self.message = "Settings saved"
+            self.message = self.tr("settings_saved")
             self.message_color = self.game.palette.success
         except (OSError, ValueError) as error:
             self.message = str(error)
@@ -123,8 +129,8 @@ class OptionsMenu(Menu):
                 break
             self.draw_background()
             self.draw_title(
-                "Settings",
-                "Use Left/Right to adjust, Enter or click to activate",
+                self.tr("settings_title"),
+                self.tr("settings_subtitle"),
             )
             self.draw_buttons()
             self.draw_message(self.message, self.message_color)

@@ -1,4 +1,5 @@
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
@@ -8,6 +9,7 @@ from py_game.game import Game
 from py_game.match_setup import ControllerKind, ControllerSpec
 from py_game.network.gameplay import serialize_card
 from py_game.theme import MANA_COLORS, PALETTE
+from py_game.ui.layout import LayoutMetrics, RectSpec
 
 
 class CardArtOverlayTests(unittest.TestCase):
@@ -151,6 +153,43 @@ class CardArtOverlayTests(unittest.TestCase):
         snapshot = serialize_card(card, owner)
 
         self.assertEqual(snapshot["mana_bonus"], {"dmg": 1, "hp": 2})
+
+    def test_board_side_rails_do_not_overlap_six_card_center_at_minimum_size(self):
+        left, center, right = Game._board_side_deck_layout(
+            RectSpec(16, 120, 608, 140),
+            8,
+        )
+
+        self.assertLessEqual(left.right, center.x)
+        self.assertLessEqual(center.right, right.x)
+        self.assertGreaterEqual(center.width, 6 * 32 + 5 * 4)
+
+    def test_mana_stack_reveals_only_its_top_card(self):
+        game = Game.__new__(Game)
+        game.display = pg.Surface((240, 260))
+        game.palette = PALETTE
+        game.layout = LayoutMetrics.from_size(640, 480)
+        game.PLAYER_DECK_BACK_PATH = Path("card-back.png")
+        loaded_paths = []
+
+        def image(path, size):
+            loaded_paths.append(path)
+            return pg.Surface(size)
+
+        game.assets = SimpleNamespace(image=image)
+        game.draw_text = Mock()
+        top = Path("mana-blue.png")
+
+        game._draw_overlapping_card_stack(
+            RectSpec(20, 20, 120, 200),
+            3,
+            top_image=top,
+        )
+
+        self.assertEqual(
+            loaded_paths,
+            [game.PLAYER_DECK_BACK_PATH, game.PLAYER_DECK_BACK_PATH, top],
+        )
 
 
 if __name__ == "__main__":

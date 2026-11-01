@@ -9,6 +9,7 @@ from py_game.assets import AssetCache
 from py_game.audio import AudioFeedback
 from py_game.battle_presentation import local_battle_display_strategy
 from py_game.settings import SettingsStore
+from py_game.language import get_language
 from py_game.theme import MANA_COLORS, PALETTE
 from py_game.training_service import TrainingService
 from py_game.ui.layout import LayoutMetrics, RectSpec
@@ -47,13 +48,23 @@ class Game():
         / "resources"
         / "mana_background.png"
     )
+    CARD_IMAGE_ROOT = Path(__file__).resolve().parents[1] / "cards" / "card_images"
+    PLAYER_DECK_BACK_PATH = CARD_IMAGE_ROOT / "RubHrad.png"
+    DRAGON_MANA_DECK_BACK_PATH = CARD_IMAGE_ROOT / "RubDrak.png"
+    DRAGON_DECK_BACK_PATH = DRAGON_MANA_DECK_BACK_PATH
+    MANA_CARD_PATHS = {
+        "RED": CARD_IMAGE_ROOT / "manaRED.png",
+        "BLUE": CARD_IMAGE_ROOT / "manaBLUE.png",
+        "BLACK": CARD_IMAGE_ROOT / "manaBLACK.png",
+    }
 
     def __init__(self):
         pygame.init()
         self.settings_store = SettingsStore()
         self.settings = self.settings_store.load()
+        self.language = get_language(self.settings.language)
         self.palette = PALETTE
-        self.assets = AssetCache()
+        self.assets = AssetCache(self.settings.language)
         self.audio = AudioFeedback(self.settings.master_volume)
         self.UP_KEY, self.DOWN_KEY, self.LEFT_KEY, self.RIGHT_KEY = False, False, False, False
         self.START_KEY, self.BACK_KEY = False, False
@@ -224,6 +235,8 @@ class Game():
 
     def apply_settings(self):
         self.settings.validate()
+        self.language = get_language(self.settings.language)
+        self.assets.set_language(self.settings.language)
         self.resize(self.settings.width, self.settings.height)
         if pygame.mixer.get_init():
             volume = self.settings.master_volume / 100
@@ -232,6 +245,9 @@ class Game():
                 pygame.mixer.Channel(index).set_volume(volume)
         self.audio.set_volume(self.settings.master_volume)
         self.settings_store.save(self.settings)
+
+    def tr(self, key: str, **values) -> str:
+        return self.language.text(key, **values)
 
     def reset_keys(self):
         self.UP_KEY, self.DOWN_KEY    = False, False
@@ -535,17 +551,131 @@ class Game():
         self._draw_active_mana_marker(card_view, rect, active_mana)
         pygame.draw.rect(self.display, border, rect, 3 if (selected or legal) else 1, border_radius=6)
 
+    @staticmethod
+    def _board_side_deck_layout(board_area: RectSpec, gap: int):
+        """Reserve responsive side rails while retaining six readable board slots."""
+        rail_width = max(58, min(210, round(board_area.width * 0.12)))
+        maximum_rails = max(0, (board_area.width - 6 * 32 - 5 * 4 - gap * 2) // 2)
+        rail_width = min(rail_width, maximum_rails)
+        left = RectSpec(board_area.x, board_area.y, rail_width, board_area.height)
+        center_x = left.right + gap
+        center_width = max(1, board_area.width - rail_width * 2 - gap * 2)
+        center = RectSpec(center_x, board_area.y, center_width, board_area.height)
+        right = RectSpec(center.right + gap, board_area.y, rail_width, board_area.height)
+        return left, center, right
+
+    def _draw_overlapping_card_stack(
+        self,
+        area: RectSpec,
+        count: int,
+        *,
+        top_image: Path | None = None,
+        back_image: Path | None = None,
+        accent=None,
+    ):
+        """Draw a mildly offset pile; only the optional top card is face-up."""
+        count = max(0, int(count))
+        if count <= 0 or area.width < 20 or area.height < 28:
+            return
+        visible_count = min(count, 12)
+        offset = max(3, min(7, area.width // 24, area.height // 28))
+        offset_span = offset * (visible_count - 1)
+        available_width = max(1, area.width - offset_span - 4)
+        available_height = max(1, area.height - offset_span - 4)
+        card_width = min(available_width, round(available_height * 5 / 7))
+        card_height = round(card_width * 7 / 5)
+        if card_height > available_height:
+            card_height = available_height
+            card_width = round(card_height * 5 / 7)
+        stack_width = card_width + offset_span
+        stack_height = card_height + offset_span
+        base_x = area.x + max(0, (area.width - stack_width) // 2)
+        base_y = area.y + max(0, (area.height - stack_height) // 2) + offset_span
+        border = accent or self.palette.border
+        back_image = back_image or self.PLAYER_DECK_BACK_PATH
+        for index in range(visible_count):
+            rect = pygame.Rect(
+                base_x + index * offset,
+                base_y - index * offset,
+                card_width,
+                card_height,
+            )
+            image_path = (
+                top_image
+                if top_image is not None and index == visible_count - 1
+                else back_image
+            )
+            self.display.blit(self.assets.image(image_path, rect.size), rect)
+            pygame.draw.rect(
+                self.display,
+                border if index == visible_count - 1 else self.palette.border,
+                rect,
+                2 if index == visible_count - 1 else 1,
+                border_radius=5,
+            )
+        badge_radius = max(10, min(16, card_width // 6))
+        badge_center = (
+            base_x + stack_width - badge_radius // 2,
+            base_y - offset_span + badge_radius // 2,
+        )
+        pygame.draw.circle(self.display, self.palette.panel, badge_center, badge_radius)
+        pygame.draw.circle(self.display, border, badge_center, badge_radius, 2)
+        self.draw_text(
+            str(count),
+            max(9, min(self.layout.font_small, badge_radius + 2)),
+            badge_center[0],
+            badge_center[1],
+            self.palette.text,
+        )
+
+    def _draw_board_side_decks(self, state, left_area: RectSpec, right_area: RectSpec):
+        self._draw_overlapping_card_stack(
+            left_area,
+            state.get("dragon_deck_count", 0),
+            back_image=self.DRAGON_MANA_DECK_BACK_PATH,
+            accent=self.palette.danger,
+        )
+        mana_key = str(state.get("mana") or "").upper()
+        self._draw_overlapping_card_stack(
+            right_area,
+            3,
+            top_image=self.MANA_CARD_PATHS.get(mana_key),
+            back_image=self.DRAGON_MANA_DECK_BACK_PATH,
+            accent=self.palette.accent,
+        )
+
+    def _draw_player_zone_piles(self, player_state, zone, *, accent):
+        """Draw the player's draw pile and public graveyard around a hand area."""
+        full_area = RectSpec(zone.x, zone.y, zone.width, zone.height)
+        deck_area, hand_area, graveyard_area = self._board_side_deck_layout(
+            full_area,
+            self.layout.gap,
+        )
+        self._draw_overlapping_card_stack(
+            deck_area,
+            player_state.get("deck_count", 0),
+            accent=accent,
+        )
+        graveyard_top = player_state.get("graveyard_top")
+        self._draw_overlapping_card_stack(
+            graveyard_area,
+            player_state.get("graveyard_count", 0),
+            top_image=self._card_image_path(graveyard_top) if graveyard_top else None,
+            accent=accent,
+        )
+        return hand_area
+
     def _choice_prompt(self, choice_type):
         return {
-            "pass": "Play a card or pass for this round",
-            "play_or_pass": "Choose a card to play, or pass the round",
-            "card": "Choose a card from your hand",
-            "position": "Choose a legal board position",
-            "use_ability": "Use this card's active ability?",
-            "target": "Choose a legal ability target",
-            "ability_card": "Choose a card to place beside the commander",
-            "graveyard_card": "Choose a card to return from your graveyard",
-        }.get(choice_type, "Waiting for the other player")
+            "pass": self.tr("choice_pass"),
+            "play_or_pass": self.tr("choice_play_or_pass"),
+            "card": self.tr("choice_card"),
+            "position": self.tr("choice_position"),
+            "use_ability": self.tr("choice_use_ability"),
+            "target": self.tr("choice_target"),
+            "ability_card": self.tr("choice_ability_card"),
+            "graveyard_card": self.tr("choice_graveyard_card"),
+        }.get(choice_type, self.tr("match_waiting"))
 
     def _draw_card_tooltip(self, card_view, anchor):
         if not card_view or not self.settings.show_tooltips:
@@ -676,18 +806,18 @@ class Game():
         header_h = metrics.target_height + metrics.gap
         header = pygame.Rect(0, 0, self.DISPLAY_W, header_h)
         pygame.draw.rect(self.display, self.palette.panel, header)
-        score = f"You {state.get('local', {}).get('score', 0)}  —  {state.get('opponent', {}).get('score', 0)} Rival"
+        score = f"{self.tr('match_you')} {state.get('local', {}).get('score', 0)}  —  {state.get('opponent', {}).get('score', 0)} {self.tr('match_rival')}"
         self.draw_text_left(score, metrics.font_normal, metrics.margin, header.centery)
         battle_event = state.get("battle") or {}
         prompt = (
-            "Dragon battle • "
+            self.tr("match_dragon_battle") + " • "
             + str(battle_event.get("phase", "battle")).replace("_", " ").title()
             if state.get("game_state") == "BATTLE"
             else self.interaction_message or self._choice_prompt(choice_type)
         )
         option_labels = tuple(getattr(self, "current_option_labels", ()) or ())
         if choice_type == "target" and option_labels:
-            prompt = "Choose: " + "  •  ".join(
+            prompt = self.tr("match_choose") + ": " + "  •  ".join(
                 f"{index + 1} {label}" for index, label in enumerate(option_labels)
             )
         self.draw_text(
@@ -702,14 +832,15 @@ class Game():
             else self.palette.text,
         )
         mana_effects = state.get("mana_effects", [state.get("mana")])
+        translated_mana = lambda value: self.tr(f"mana_{str(value).lower()}") if value else "—"
         mana_status = (
-            f"{state.get('mana') or '—'} (effects blocked)"
+            f"{translated_mana(state.get('mana'))} ({self.tr('match_effects_blocked')})"
             if state.get("mana_effects_blocked")
-            else " + ".join(mana_effects)
+            else " + ".join(translated_mana(value) for value in mana_effects)
             if mana_effects
             else "—"
         )
-        status = f"Round {state.get('round', 0)}  •  Mana {mana_status}"
+        status = f"{self.tr('match_round')} {state.get('round', 0)}  •  {self.tr('match_mana')} {mana_status}"
         font = pygame.font.Font(self.font_name, metrics.font_small)
         status_surface = font.render(status, True, self.palette.muted)
         self.display.blit(status_surface, status_surface.get_rect(midright=(self.DISPLAY_W - metrics.margin, header.centery)))
@@ -745,19 +876,18 @@ class Game():
             hand_height,
         )
 
-        self.draw_text_left(
-            f"Rival hand: {state.get('opponent', {}).get('hand_count', 0)}  •  deck: {state.get('opponent', {}).get('deck_count', 0)}",
-            metrics.font_small,
-            opponent_zone.x,
-            opponent_zone.y + metrics.font_small // 2,
-            self.palette.muted,
+        opponent_state = state.get("opponent", {})
+        opponent_hand_area = self._draw_player_zone_piles(
+            opponent_state,
+            opponent_zone,
+            accent=self.palette.danger,
         )
         opponent_cards = min(12, int(state.get("opponent", {}).get("hand_count", 0)))
         opponent_card_area = pygame.Rect(
-            opponent_zone.x,
-            opponent_zone.y + metrics.font_small + 3,
-            opponent_zone.width,
-            max(1, opponent_zone.height - metrics.font_small - 3),
+            opponent_hand_area.x,
+            opponent_hand_area.y,
+            opponent_hand_area.width,
+            opponent_hand_area.height,
         )
         if opponent_cards:
             card_w, card_h, gap = metrics.card_size(
@@ -771,20 +901,18 @@ class Game():
                 rect = pygame.Rect(start_x + index * (card_w + gap), opponent_card_area.y, card_w, card_h)
                 self._draw_card_view(None, rect, hidden=True)
 
-        self.draw_text_left(
-            f"Board  •  dragon deck: {state.get('dragon_deck_count', 0)}  •  Right-click or D for details",
-            metrics.font_small,
-            board_zone.x,
-            board_zone.y + metrics.font_small // 2,
-            self.palette.muted,
-        )
         marker_band = max(15, metrics.gap + 3)
-        board_area = RectSpec(
+        full_board_area = RectSpec(
             board_zone.x,
-            board_zone.y + metrics.font_small + 3,
+            board_zone.y,
             board_zone.width,
-            max(1, board_zone.height - metrics.font_small - 3 - marker_band),
+            max(1, board_zone.height - marker_band),
         )
+        left_deck_area, board_area, right_deck_area = self._board_side_deck_layout(
+            full_board_area,
+            metrics.gap,
+        )
+        self._draw_board_side_decks(state, left_deck_area, right_deck_area)
         card_w, card_h, gap = metrics.card_size(board_area, 6, minimum_width=32)
         total_w = card_w * 6 + gap * 5
         start_x = board_area.x + (board_area.width - total_w) // 2
@@ -854,20 +982,17 @@ class Game():
             self._draw_dragon_board_path(state)
 
         local = state.get("local", {})
-        zone_label = "Choose from your graveyard" if choice_type == "graveyard_card" else "Your hand"
-        self.draw_text_left(
-            f"{zone_label}  •  deck: {local.get('deck_count', 0)}  •  graveyard: {local.get('graveyard_count', 0)}  •  Right-click or D for details",
-            metrics.font_small,
-            hand_zone.x,
-            hand_zone.y + metrics.font_small // 2,
-            self.palette.muted,
-        )
         hand = local.get("hand") or []
+        local_hand_area = self._draw_player_zone_piles(
+            local,
+            hand_zone,
+            accent=self.palette.success,
+        )
         hand_area = RectSpec(
-            hand_zone.x,
-            hand_zone.y + metrics.font_small + 3,
-            hand_zone.width,
-            max(1, hand_zone.height - metrics.font_small - 3),
+            local_hand_area.x,
+            local_hand_area.y,
+            local_hand_area.width,
+            local_hand_area.height,
         )
         if hand:
             card_w, card_h, gap = metrics.card_size(hand_area, len(hand), minimum_width=30)
@@ -895,20 +1020,20 @@ class Game():
         pygame.draw.rect(self.display, self.palette.panel, footer)
         action_labels = []
         if choice_type == "pass":
-            action_labels = [("play", "Play card · Enter"), ("pass", "Pass round · P")]
+            action_labels = [("play", self.tr("action_play_card")), ("pass", self.tr("action_pass_round"))]
         elif choice_type == "play_or_pass":
             action_labels = [
-                ("confirm_card", "Play selected · Enter"),
-                ("pass", "Pass round · P"),
+                ("confirm_card", self.tr("action_play_selected")),
+                ("pass", self.tr("action_pass_round")),
             ]
         elif choice_type == "card":
-            action_labels = [("confirm_card", "Play selected · Enter")]
+            action_labels = [("confirm_card", self.tr("action_play_selected"))]
         elif choice_type == "ability_card":
-            action_labels = [("confirm_card", "Place selected beside · Enter")]
+            action_labels = [("confirm_card", self.tr("action_place_beside"))]
         elif choice_type == "graveyard_card":
-            action_labels = [("confirm_card", "Return selected to hand · Enter")]
+            action_labels = [("confirm_card", self.tr("action_return_to_hand"))]
         elif choice_type == "use_ability":
-            action_labels = [("skip_ability", "Skip · S"), ("use_ability", "Use ability · Enter / A")]
+            action_labels = [("skip_ability", self.tr("action_skip")), ("use_ability", self.tr("action_use_ability"))]
         if action_labels:
             button_w = min(250, (self.DISPLAY_W - metrics.margin * 2) // len(action_labels) - metrics.gap)
             total = button_w * len(action_labels) + metrics.gap * (len(action_labels) - 1)
@@ -946,7 +1071,7 @@ class Game():
             self.draw_text(
                 "Battle resolving step by step • watch the board values"
                 if state.get("game_state") == "BATTLE"
-                else keyboard_hint or notice or "Waiting for the other player",
+                else keyboard_hint or notice or self.tr("match_waiting"),
                 metrics.font_small,
                 footer.centerx,
                 footer.centery,
@@ -959,9 +1084,9 @@ class Game():
         ):
             pygame.draw.rect(self.display, self.palette.panel, footer)
             self.draw_text(
-                "Enter / Space to continue"
+                self.tr("battle_continue")
                 if battle_continue_owner == "local"
-                else "Waiting for the host to continue",
+                else self.tr("battle_wait_host"),
                 metrics.font_normal,
                 footer.centerx,
                 footer.centery,
@@ -976,10 +1101,10 @@ class Game():
             overlay.fill((5, 8, 12, 210))
             self.display.blit(overlay, (0, 0))
             winner = state.get("winner")
-            title = "Victory" if winner == "local" else "Defeat" if winner == "opponent" else "Draw"
+            title = self.tr("result_victory") if winner == "local" else self.tr("result_defeat") if winner == "opponent" else self.tr("result_draw")
             self.draw_text(title, metrics.font_large, self.DISPLAY_W // 2, self.DISPLAY_H // 2 - metrics.gap, self.palette.accent)
             self.draw_text(
-                f"Press Enter or click to return to the {return_destination}",
+                self.tr("result_return", destination=return_destination),
                 metrics.font_normal,
                 self.DISPLAY_W // 2,
                 self.DISPLAY_H // 2 + metrics.font_large,
@@ -1017,14 +1142,6 @@ class Game():
         pygame.draw.circle(self.display, self.palette.danger, center, radius)
         pygame.draw.circle(self.display, self.palette.text, center, radius, 2)
         self.draw_text("DRG", max(9, self.layout.font_small - 3), center[0], center[1], self.palette.text)
-        if slot >= 0:
-            self.draw_text(
-                f"→ {slot + 1}",
-                max(9, self.layout.font_small - 3),
-                center[0],
-                center[1] + radius + max(8, self.layout.gap // 2),
-                self.palette.danger,
-            )
 
     def _draw_battle_health(self, rect, card, color):
         hp = int((card or {}).get("hp", 0))

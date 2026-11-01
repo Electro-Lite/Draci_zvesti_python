@@ -21,6 +21,14 @@ class Menu():
         self.previous_menu = None
         self.buttons: list[Button] = []
 
+    def tr(self, key: str, **values) -> str:
+        translator = getattr(getattr(self, "game", None), "tr", None)
+        if callable(translator):
+            return translator(key, **values)
+        from py_game.language import EnglishLanguage
+
+        return EnglishLanguage().text(key, **values)
+
     def refresh_layout(self):
         self.mid_w = self.game.DISPLAY_W / 2
         self.mid_h = self.game.DISPLAY_H / 2
@@ -170,7 +178,7 @@ class Menu():
             max_width=field_rect.width - self.game.layout.gap * 2,
         )
         self.game.draw_text(
-            "Enter to confirm  •  Escape to cancel",
+            self.tr("prompt_confirm_cancel"),
             self.game.layout.font_small,
             panel.center[0],
             panel.bottom - self.game.layout.margin,
@@ -208,7 +216,7 @@ class Menu():
         return [
             Button(
                 "cancel",
-                "Cancel",
+                self.tr("cancel"),
                 RectSpec(
                     panel.x + self.game.layout.margin,
                     panel.bottom - self.game.layout.margin - self.game.layout.target_height,

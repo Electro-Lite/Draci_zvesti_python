@@ -4,9 +4,12 @@ from pathlib import Path
 
 import pygame as pg
 
+from utils.localized_assets import localized_image_path
+
 
 class AssetCache:
-    def __init__(self):
+    def __init__(self, language_code: str = "en"):
+        self.language_code = language_code
         self._source: dict[str, pg.Surface] = {}
         self._scaled: dict[tuple[str, int, int], pg.Surface] = {}
         self._covered: dict[tuple[str, int, int], pg.Surface] = {}
@@ -20,6 +23,7 @@ class AssetCache:
         size: tuple[int, int],
     ) -> pg.Surface:
         width, height = max(1, int(size[0])), max(1, int(size[1]))
+        path = localized_image_path(path, self.language_code)
         key = str(path) if path else "//placeholder:missing-card-art"
         scaled_key = (key, width, height)
         if scaled_key in self._scaled:
@@ -88,6 +92,12 @@ class AssetCache:
             pg.draw.rect(source, (116, 130, 148), source.get_rect(), 16)
             pg.draw.line(source, (116, 130, 148), (70, 90), (430, 610), 16)
             pg.draw.line(source, (116, 130, 148), (430, 90), (70, 610), 16)
+            if not pg.font.get_init():
+                pg.font.init()
+            label = pg.font.Font(None, 38).render(
+                "Missing card art", True, (220, 225, 232)
+            )
+            source.blit(label, label.get_rect(center=source.get_rect().center))
         self._source[key] = source
         return source
 
@@ -95,3 +105,9 @@ class AssetCache:
         self._scaled.clear()
         self._covered.clear()
         self._tinted_covered.clear()
+
+    def set_language(self, language_code: str) -> None:
+        if language_code == self.language_code:
+            return
+        self.language_code = language_code
+        self.clear_scaled()

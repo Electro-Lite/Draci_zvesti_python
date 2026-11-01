@@ -7,6 +7,7 @@ from dataclasses import asdict, dataclass, fields
 from pathlib import Path
 
 from py_game.runtime_paths import data_path
+from py_game.language import LANGUAGE_CODES
 
 
 DEFAULT_SETTINGS_PATH = data_path(".ui_settings.json")
@@ -14,6 +15,7 @@ DEFAULT_SETTINGS_PATH = data_path(".ui_settings.json")
 
 @dataclass
 class AppSettings:
+    language: str = "en"
     width: int = 1280
     height: int = 720
     fullscreen: bool = False
@@ -25,6 +27,8 @@ class AppSettings:
     last_join_host: str = "127.0.0.1"
 
     def validate(self) -> None:
+        if self.language not in LANGUAGE_CODES:
+            raise ValueError("Language is not supported")
         if type(self.width) is not int or not 640 <= self.width <= 7680:
             raise ValueError("Window width must be between 640 and 7680")
         if type(self.height) is not int or not 480 <= self.height <= 4320:

@@ -28,6 +28,16 @@ class MainMenu(Menu):
         super().__init__(game)
         self.selected = 0
 
+    def _items(self):
+        return (
+            self.tr("main_play"),
+            self.tr("main_manage_decks"),
+            self.tr("main_ai_training"),
+            self.tr("main_settings"),
+            self.tr("main_credits"),
+            self.tr("main_quit"),
+        )
+
     def _open_menu(self, menu_class):
         self.run_display = False
         menu = menu_class(self.game)
@@ -66,7 +76,7 @@ class MainMenu(Menu):
         while self.run_display and self.game.running:
             self.begin_frame()
             self.build_menu_buttons(
-                list(self.ITEMS),
+                list(self._items()),
                 self.selected,
                 top_ratio=0.25,
                 bottom_ratio=0.91,
@@ -77,12 +87,12 @@ class MainMenu(Menu):
                 break
             self.draw_background()
             self.draw_title(
-                "Dračí zvěsti",
-                "Build a deck, challenge a rival, and face the dragons",
+                self.tr("main_title"),
+                self.tr("main_subtitle"),
             )
             self.draw_buttons()
             self.game.draw_text(
-                "Arrow keys / mouse to navigate  •  Enter to select  •  Esc to go back",
+                self.tr("navigation_hint"),
                 self.game.layout.font_small,
                 self.mid_w,
                 self.game.DISPLAY_H - self.game.layout.margin,
@@ -103,10 +113,10 @@ class MainMenu(Menu):
             pg.draw.rect(self.game.display, self.game.palette.panel, rect, border_radius=12)
             pg.draw.rect(self.game.display, self.game.palette.border, rect, 2, border_radius=12)
             lines = (
-                ("Dračí zvěsti", self.game.layout.font_large, self.game.palette.accent),
-                ("Card game and AI training environment", self.game.layout.font_normal, self.game.palette.text),
-                ("University project developed at UPOL", self.game.layout.font_normal, self.game.palette.text),
-                ("Press Enter, Escape, or click to return", self.game.layout.font_small, self.game.palette.muted),
+                (self.tr("main_title"), self.game.layout.font_large, self.game.palette.accent),
+                (self.tr("credits_description"), self.game.layout.font_normal, self.game.palette.text),
+                (self.tr("credits_project"), self.game.layout.font_normal, self.game.palette.text),
+                (self.tr("credits_return"), self.game.layout.font_small, self.game.palette.muted),
             )
             spacing = panel.height // (len(lines) + 1)
             for index, (text, size, color) in enumerate(lines, start=1):

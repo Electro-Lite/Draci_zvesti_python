@@ -13,6 +13,7 @@ from cards.card                 import Card
 from utils.database_utils       import DBUtil
 from cards.power                import Power
 from cards.ability.abilities    import Ability
+from utils.localized_assets import base_image_path, localized_image_path
 
 # Optional Pillow import for better image preview; fall back gracefully if not available
 try:
@@ -269,7 +270,11 @@ class CardBuilderApp(ttk.Frame):
             messagebox.showwarning('Images folder', f'No card_images folder found at: {image_dir}')
             return
 
-        file = filedialog.askopenfilename(initialdir=image_dir, title='Select card image')
+        file = filedialog.askopenfilename(
+            initialdir=image_dir,
+            title='Select Czech card image',
+            filetypes=(('PNG images', '*.png'), ('All files', '*.*')),
+        )
         if not file:
             return
 
@@ -280,8 +285,8 @@ class CardBuilderApp(ttk.Frame):
                 messagebox.showerror('Invalid selection', 'Please select an image from the card_images directory.')
                 return
 
-            # Set path to the requested format: cards/card_images/{filename}
-            formatted_path = f"cards/card_images/{file_path.name}"
+            # Store a language-neutral path. Runtime display resolves _cs/_en.
+            formatted_path = f"cards/card_images/{base_image_path(file_path).name}"
             self.image_var.set(formatted_path)
 
         except Exception:
@@ -308,8 +313,11 @@ class CardBuilderApp(ttk.Frame):
         try:
             cur_dir = Path(__file__).parent
             # By extracting the filename, we avoid recursive path issues like cards/cards/card_images/...
-            filename = Path(path).name
-            abs_path = cur_dir / 'card_images' / filename
+            filename = base_image_path(Path(path).name)
+            abs_path = localized_image_path(
+                cur_dir / 'card_images' / filename,
+                'cs',
+            )
         except Exception:
             # Fallback if __file__ is undefined
             abs_path = Path(os.getcwd()) / path

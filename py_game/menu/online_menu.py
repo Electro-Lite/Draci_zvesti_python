@@ -182,6 +182,8 @@ class OnlineMenu(Menu):
         elif message_type == MessageType.LOBBY_LIST:
             self.lobbies = list(payload.get("lobbies") or [])
             self.browser_page = min(self.browser_page, self._browser_page_count() - 1)
+            self.message = "Lobby refreshed"
+            self.message_color = self.game.palette.success
         elif message_type == MessageType.SERVER_STATUS:
             self.server_status = payload
         elif message_type == MessageType.ONLINE_LOBBY:
@@ -420,7 +422,8 @@ class OnlineMenu(Menu):
             self._create_lobby()
         elif self.selected == 1:
             self._request_lobbies()
-            self.message = "Refreshing lobby list…"
+            self.message = "Lobby refreshed"
+            self.message_color = self.game.palette.success
         elif 2 <= self.selected < 2 + len(visible):
             self._join_lobby(visible[self.selected - 2])
         else:

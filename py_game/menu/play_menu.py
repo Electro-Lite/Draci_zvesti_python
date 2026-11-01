@@ -25,7 +25,16 @@ class PlayMenu(Menu):
     def __init__(self, game: "Game"):
         super().__init__(game)
         self.selected = 0
-        self.message = "Local, LAN, and relay-backed online play are available"
+        self.message = self.tr("play_available")
+
+    def _items(self):
+        return (
+            self.tr("play_local"),
+            self.tr("play_lan"),
+            self.tr("play_online"),
+            self.tr("play_campaign"),
+            self.tr("back"),
+        )
 
     def _open_menu(self, menu_class):
         self.run_display = False
@@ -42,7 +51,7 @@ class PlayMenu(Menu):
         elif self.selected == 2:
             self._open_menu(OnlineMenu)
         elif self.selected == 3:
-            self.message = "Campaign is not implemented yet"
+            self.message = self.tr("campaign_unavailable")
         else:
             self.return_to_previous()
 
@@ -67,7 +76,7 @@ class PlayMenu(Menu):
         while self.run_display and self.game.running:
             self.begin_frame()
             self.build_menu_buttons(
-                list(self.ITEMS),
+                list(self._items()),
                 self.selected,
                 top_ratio=0.25,
                 bottom_ratio=0.86,
@@ -77,7 +86,7 @@ class PlayMenu(Menu):
             if not self.run_display:
                 break
             self.draw_background()
-            self.draw_title("Play", "Choose how you want to play")
+            self.draw_title(self.tr("play_title"), self.tr("play_subtitle"))
             self.draw_buttons()
             self.draw_message(self.message)
             self.blit_screen()

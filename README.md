@@ -416,10 +416,22 @@ These files can become large. The current local `train.db` is several GB.
 
 ### Counter-deck Training
 
+Pygame offers two independent counter optimizers:
+
+- **Evolve deck v1** uses the historical NEAT deck-builder network.
+- **Evolve counter v2** evolves legal deck compositions directly while
+  retaining the same persistent NEAT player-controller training.
+
 Entrypoint:
 
 ```bash
 python -m neat_ai.player_trainer "Starter Blue_1"
+```
+
+Direct-composition v2:
+
+```bash
+python -m neat_ai.counter_deck_trainer_v2 "Starter Blue_1"
 ```
 
 Configurable example:
@@ -436,11 +448,13 @@ python -m neat_ai.player_trainer "Starter Blue_1" \
 Current behavior:
 
 - keeps the selected deck fixed while evolving a population of counter decks,
+- v2 uses composition crossover, mutation, elitism, tournament selection, and
+  random injection instead of a deck-builder network,
 - maintains both NEAT controller populations across every counter generation,
 - evaluates every final counter candidate with balanced seating,
 - reports the selected deck's aggregate win rate and the strongest evolved
   counter deck,
-- saves the winning builder and both persistent controllers under
+- saves the winning builder/composition and both persistent controllers under
   `neat_ai/trained_ai/`, or under the artifact directory supplied by Pygame.
 
 ### Fixed-deck Matchup Evaluation
@@ -485,54 +499,57 @@ Current behavior:
 - when called from the deck-builder trainer, it logs `pc_match` rows linked to
   the current outer match GUID, including outcomes, seeds, phases, and rounds.
 
-### Deck Builder Training
+### Deck Evolution v2
 
-Final multi-generation metagame experiment:
+The application now evolves deck compositions directly while retaining the
+existing NEAT player-controller evaluator:
 
 ```bash
-python -m neat_ai.deck_builder_trainer
+python -m neat_ai.deck_pool_evolution_v2
 ```
 
-The default run label is `final-meta-evolution`, keeping these runs distinct
-from the completed `final-deck-discovery`, replication, and inner-ceiling
-datasets. Each training row also stores a human-readable experiment
-description alongside the structured JSON metadata. Override it for an ad hoc
-experiment with `--description "purpose and comparison being tested"`.
+Pygame exposes this as a separate **Deck evolution v2** mission. The
+original **Deck evolution v1** mission still launches
+`neat_ai.deck_builder_trainer`, which keeps old experiments reproducible and
+allows direct comparison between the optimizers. Every v2 run is marked with
+`optimizer = composition-ga-v2` in its metadata.
 
-Timing and integrity pilot using the full inner-evaluator settings:
+Short pilot using the full controller evaluator:
 
 ```bash
-python -m neat_ai.deck_builder_trainer \
+python -m neat_ai.deck_pool_evolution_v2 \
   --run-label pilot \
   --seeds 667615478 \
   --outer-generations 1
 ```
 
-Resume one seed from a checkpoint, where `--outer-generations` is the number of
-additional generations to run:
+Resume one seed from a persistent outer-generation checkpoint:
 
 ```bash
-python -m neat_ai.deck_builder_trainer \
+python -m neat_ai.deck_pool_evolution_v2 \
   --run-label resumed \
   --seeds 104729 \
   --checkpoint neat_ai/checkpoints/deck_builder_trainer/<checkpoint> \
+  --resume-training-id <training-id> \
+  --resume-seed 104729 \
   --outer-generations 6
 ```
 
 Current behavior:
 
-- uses `neat_ai/configs/neat_config_builder.txt`,
-- current config has `pop_size = 20`, `num_inputs = 91`,
-  `num_outputs = 2`,
-- builds one candidate deck per genome,
+- keeps 20 unique legal composition genomes per generation,
+- preserves two elites, selects parents by tournament, crosses shared card
+  copies, performs local card mutations, and injects some random decks,
+- canonicalizes card order and rejects duplicate compositions,
+- enforces 10-12 cards, four normal copies, and one legendary copy,
 - saves generated decks to `train.db` with `save_training_deck()`,
 - runs 10 outer generations for each of 4 pre-registered independent seeds,
 - uses 50 inner generations and held-out checkpoints at 5, 20, 35, and 50,
-- gives every genome exactly 12 current-generation opponents,
-- enforces an effective population of 18-24 and 2-6 species,
+- gives every composition up to 12 distinct current-generation opponents,
 - uses two outer evaluators with 12 inner workers each on a 24-thread machine,
-- records both NEAT configs, settings, database hashes, Git state, observed
-  populations, species counts, seeds, and termination status,
+- uses NEAT only for the two player-controller populations in each matchup,
+- records genetic-operator settings, evaluator config, database hashes, Git
+  state, observed populations, seeds, and termination status,
 - stores held-out outcomes and actions but skips redundant raw co-evolution
   rows unless `--log-training-games` is supplied,
 - saves seed- and training-specific checkpoints and winner pickles.
