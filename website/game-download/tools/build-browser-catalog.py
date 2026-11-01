@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import re
 import shutil
 import sqlite3
@@ -14,24 +15,29 @@ ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT))
 
 import cards.ability.abilities as abilities  # noqa: E402
+from utils.localized_assets import localized_image_path  # noqa: E402
 
 
 OUTPUT = ROOT / "website" / "game-download" / "dist" / "play" / "catalog.json"
 IMAGE_ROOT = OUTPUT.parent / "card-images"
 
 
-def web_image_paths(card_id: str, source: str | None) -> tuple[str | None, str | None]:
+def web_image_paths(
+    card_id: str,
+    source: str | None,
+    language: str,
+) -> tuple[str | None, str | None]:
     if not source:
         return None, None
     converter = shutil.which("magick")
     if converter is None:
         raise RuntimeError("ImageMagick is required to build optimized browser card art")
-    source_path = ROOT / source
+    source_path = localized_image_path(ROOT / source, language)
     if not source_path.is_file():
         raise RuntimeError(f"Missing card image: {source_path}")
     safe_id = re.sub(r"[^A-Za-z0-9._-]+", "-", card_id).strip("-")
-    thumbnail = IMAGE_ROOT / "thumb" / f"{safe_id}.webp"
-    detail = IMAGE_ROOT / "detail" / f"{safe_id}.webp"
+    thumbnail = IMAGE_ROOT / "thumb" / f"{safe_id}-{language}.webp"
+    detail = IMAGE_ROOT / "detail" / f"{safe_id}-{language}.webp"
     thumbnail.parent.mkdir(parents=True, exist_ok=True)
     detail.parent.mkdir(parents=True, exist_ok=True)
     for destination, geometry, quality in (
@@ -52,10 +58,11 @@ def web_image_paths(card_id: str, source: str | None) -> tuple[str | None, str |
             ],
             check=True,
         )
-    return (
-        detail.relative_to(OUTPUT.parent).as_posix(),
-        thumbnail.relative_to(OUTPUT.parent).as_posix(),
-    )
+    def versioned(path: Path) -> str:
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()[:12]
+        return f"{path.relative_to(OUTPUT.parent).as_posix()}?v={digest}"
+
+    return versioned(detail), versioned(thumbnail)
 
 
 def main() -> None:
@@ -72,7 +79,8 @@ def main() -> None:
     cards = []
     for row in rows:
         ability = getattr(abilities, row[8])()
-        image, thumbnail = web_image_paths(row[0], row[9])
+        image, thumbnail = web_image_paths(row[0], row[9], "cs")
+        english_image, english_thumbnail = web_image_paths(row[0], row[9], "en")
         cards.append(
             {
                 "id": row[0],
@@ -93,6 +101,13 @@ def main() -> None:
                 },
                 "image": image,
                 "thumbnail": thumbnail,
+                "localizedImages": {
+                    "cs": {"image": image, "thumbnail": thumbnail},
+                    "en": {
+                        "image": english_image,
+                        "thumbnail": english_thumbnail,
+                    },
+                },
                 "type": row[10],
             }
         )

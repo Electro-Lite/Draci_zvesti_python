@@ -21,8 +21,18 @@
         "name": "Reverse the row",
         "description": "When this enters play, reverse the entire row."
       },
-      "image": "card-images/detail/Alchymista_Berig_1.webp",
-      "thumbnail": "card-images/thumb/Alchymista_Berig_1.webp",
+      "image": "card-images/detail/Alchymista_Berig_1-cs.webp?v=21687419e7fd",
+      "thumbnail": "card-images/thumb/Alchymista_Berig_1-cs.webp?v=ceed39e7d18b",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Alchymista_Berig_1-cs.webp?v=21687419e7fd",
+          "thumbnail": "card-images/thumb/Alchymista_Berig_1-cs.webp?v=ceed39e7d18b"
+        },
+        "en": {
+          "image": "card-images/detail/Alchymista_Berig_1-en.webp?v=64df8d244b6f",
+          "thumbnail": "card-images/thumb/Alchymista_Berig_1-en.webp?v=81c5b3e324ee"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -45,8 +55,18 @@
         "name": "+1/+1 from red cards",
         "description": "Gets +1 attack and +1 hp for every other red card in play."
       },
-      "image": "card-images/detail/Arcimag_1.webp",
-      "thumbnail": "card-images/thumb/Arcimag_1.webp",
+      "image": "card-images/detail/Arcimag_1-cs.webp?v=ec99212fcae9",
+      "thumbnail": "card-images/thumb/Arcimag_1-cs.webp?v=ccacc5ca6194",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Arcimag_1-cs.webp?v=ec99212fcae9",
+          "thumbnail": "card-images/thumb/Arcimag_1-cs.webp?v=ccacc5ca6194"
+        },
+        "en": {
+          "image": "card-images/detail/Arcimag_1-en.webp?v=f98d023f9080",
+          "thumbnail": "card-images/thumb/Arcimag_1-en.webp?v=5a512d6e303e"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -69,8 +89,18 @@
         "name": "no Ability",
         "description": ""
       },
-      "image": "card-images/detail/Asketa_1.webp",
-      "thumbnail": "card-images/thumb/Asketa_1.webp",
+      "image": "card-images/detail/Asketa_1-cs.webp?v=3d62852a8fe4",
+      "thumbnail": "card-images/thumb/Asketa_1-cs.webp?v=8142ba4a1a03",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Asketa_1-cs.webp?v=3d62852a8fe4",
+          "thumbnail": "card-images/thumb/Asketa_1-cs.webp?v=8142ba4a1a03"
+        },
+        "en": {
+          "image": "card-images/detail/Asketa_1-en.webp?v=3255d3a8139f",
+          "thumbnail": "card-images/thumb/Asketa_1-en.webp?v=94c8f4b33fd9"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -93,8 +123,18 @@
         "name": "Decrease dragon attack",
         "description": "Decrease dragon damage by 1, or by 2 on blue mana, while this card is alive"
       },
-      "image": "card-images/detail/Bard_1.webp",
-      "thumbnail": "card-images/thumb/Bard_1.webp",
+      "image": "card-images/detail/Bard_1-cs.webp?v=40fad8fc9a76",
+      "thumbnail": "card-images/thumb/Bard_1-cs.webp?v=072ab05246d1",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Bard_1-cs.webp?v=40fad8fc9a76",
+          "thumbnail": "card-images/thumb/Bard_1-cs.webp?v=072ab05246d1"
+        },
+        "en": {
+          "image": "card-images/detail/Bard_1-en.webp?v=e638ddea9458",
+          "thumbnail": "card-images/thumb/Bard_1-en.webp?v=ce21d9a5984c"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -117,8 +157,18 @@
         "name": "no Ability",
         "description": ""
       },
-      "image": "card-images/detail/Bozevtelic_1.webp",
-      "thumbnail": "card-images/thumb/Bozevtelic_1.webp",
+      "image": "card-images/detail/Bozevtelic_1-cs.webp?v=dfc75cbe18ad",
+      "thumbnail": "card-images/thumb/Bozevtelic_1-cs.webp?v=7137f51679f0",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Bozevtelic_1-cs.webp?v=dfc75cbe18ad",
+          "thumbnail": "card-images/thumb/Bozevtelic_1-cs.webp?v=7137f51679f0"
+        },
+        "en": {
+          "image": "card-images/detail/Bozevtelic_1-en.webp?v=dfc75cbe18ad",
+          "thumbnail": "card-images/thumb/Bozevtelic_1-en.webp?v=7137f51679f0"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -141,8 +191,18 @@
         "name": "Blue mana is also active",
         "description": "While this card is in play, all cards behave as though blue mana were also active."
       },
-      "image": "card-images/detail/Cikanka_modra_1.webp",
-      "thumbnail": "card-images/thumb/Cikanka_modra_1.webp",
+      "image": "card-images/detail/Cikanka_modra_1-cs.webp?v=d224cfd6cb66",
+      "thumbnail": "card-images/thumb/Cikanka_modra_1-cs.webp?v=e38b9c8e4ed8",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Cikanka_modra_1-cs.webp?v=d224cfd6cb66",
+          "thumbnail": "card-images/thumb/Cikanka_modra_1-cs.webp?v=e38b9c8e4ed8"
+        },
+        "en": {
+          "image": "card-images/detail/Cikanka_modra_1-en.webp?v=46e05b5d38bd",
+          "thumbnail": "card-images/thumb/Cikanka_modra_1-en.webp?v=7dfbca0ecb40"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -165,8 +225,18 @@
         "name": "Black mana is also active",
         "description": "While this card is in play, all cards behave as though black mana were also active."
       },
-      "image": "card-images/detail/Cikanka_cerna_1.webp",
-      "thumbnail": "card-images/thumb/Cikanka_cerna_1.webp",
+      "image": "card-images/detail/Cikanka_cerna_1-cs.webp?v=69506553ebca",
+      "thumbnail": "card-images/thumb/Cikanka_cerna_1-cs.webp?v=30a70454802f",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Cikanka_cerna_1-cs.webp?v=69506553ebca",
+          "thumbnail": "card-images/thumb/Cikanka_cerna_1-cs.webp?v=30a70454802f"
+        },
+        "en": {
+          "image": "card-images/detail/Cikanka_cerna_1-en.webp?v=8140f64cc76b",
+          "thumbnail": "card-images/thumb/Cikanka_cerna_1-en.webp?v=fa64f8ab49ee"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -189,8 +259,18 @@
         "name": "Red mana is also active",
         "description": "While this card is in play, all cards behave as though red mana were also active."
       },
-      "image": "card-images/detail/Cikanka_cervena_1.webp",
-      "thumbnail": "card-images/thumb/Cikanka_cervena_1.webp",
+      "image": "card-images/detail/Cikanka_cervena_1-cs.webp?v=1039988c665b",
+      "thumbnail": "card-images/thumb/Cikanka_cervena_1-cs.webp?v=6c4ff37e76a3",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Cikanka_cervena_1-cs.webp?v=1039988c665b",
+          "thumbnail": "card-images/thumb/Cikanka_cervena_1-cs.webp?v=6c4ff37e76a3"
+        },
+        "en": {
+          "image": "card-images/detail/Cikanka_cervena_1-en.webp?v=e2a95d08e6dc",
+          "thumbnail": "card-images/thumb/Cikanka_cervena_1-en.webp?v=1df731b459ee"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -213,8 +293,18 @@
         "name": "Blue mana is also active",
         "description": "While this card is in play, all cards behave as though blue mana were also active."
       },
-      "image": "card-images/detail/Devocius_1.webp",
-      "thumbnail": "card-images/thumb/Devocius_1.webp",
+      "image": "card-images/detail/Devocius_1-cs.webp?v=a33583e1ac4a",
+      "thumbnail": "card-images/thumb/Devocius_1-cs.webp?v=78f179053c6e",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Devocius_1-cs.webp?v=a33583e1ac4a",
+          "thumbnail": "card-images/thumb/Devocius_1-cs.webp?v=78f179053c6e"
+        },
+        "en": {
+          "image": "card-images/detail/Devocius_1-en.webp?v=e7df02811f55",
+          "thumbnail": "card-images/thumb/Devocius_1-en.webp?v=9d309e040114"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -237,8 +327,18 @@
         "name": "Eat the character in front",
         "description": "When this enters play, eat the character directly in front."
       },
-      "image": "card-images/detail/Don_Carlos_1.webp",
-      "thumbnail": "card-images/thumb/Don_Carlos_1.webp",
+      "image": "card-images/detail/Don_Carlos_1-cs.webp?v=38cc1aa5ab03",
+      "thumbnail": "card-images/thumb/Don_Carlos_1-cs.webp?v=16ec4a85a2f2",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Don_Carlos_1-cs.webp?v=38cc1aa5ab03",
+          "thumbnail": "card-images/thumb/Don_Carlos_1-cs.webp?v=16ec4a85a2f2"
+        },
+        "en": {
+          "image": "card-images/detail/Don_Carlos_1-en.webp?v=0115c4a34e43",
+          "thumbnail": "card-images/thumb/Don_Carlos_1-en.webp?v=374e2c9721f6"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -261,8 +361,18 @@
         "name": "Heal the dragon that eats this",
         "description": "A dragon that defeats this card heals to full health."
       },
-      "image": "card-images/detail/Don_Juan_1.webp",
-      "thumbnail": "card-images/thumb/Don_Juan_1.webp",
+      "image": "card-images/detail/Don_Juan_1-cs.webp?v=7371167de753",
+      "thumbnail": "card-images/thumb/Don_Juan_1-cs.webp?v=fb19891d52d4",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Don_Juan_1-cs.webp?v=7371167de753",
+          "thumbnail": "card-images/thumb/Don_Juan_1-cs.webp?v=fb19891d52d4"
+        },
+        "en": {
+          "image": "card-images/detail/Don_Juan_1-en.webp?v=b6e71f52552b",
+          "thumbnail": "card-images/thumb/Don_Juan_1-en.webp?v=aba43a09231f"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -282,11 +392,21 @@
         "hp": 0
       },
       "ability": {
-        "name": "no Ability",
-        "description": ""
+        "name": "First dragon-eaten fanatic wins a draw",
+        "description": "If the round would be a draw, the owner of the first Dragon Fanatic defeated directly in dragon combat wins the round."
       },
-      "image": "card-images/detail/Draci-Fanatik_1.webp",
-      "thumbnail": "card-images/thumb/Draci-Fanatik_1.webp",
+      "image": "card-images/detail/Draci-Fanatik_1-cs.webp?v=d802f1b7c84a",
+      "thumbnail": "card-images/thumb/Draci-Fanatik_1-cs.webp?v=e73bd3f5c3fc",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Draci-Fanatik_1-cs.webp?v=d802f1b7c84a",
+          "thumbnail": "card-images/thumb/Draci-Fanatik_1-cs.webp?v=e73bd3f5c3fc"
+        },
+        "en": {
+          "image": "card-images/detail/Draci-Fanatik_1-en.webp?v=39ef2d3051a8",
+          "thumbnail": "card-images/thumb/Draci-Fanatik_1-en.webp?v=519dd4740cb0"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -309,8 +429,18 @@
         "name": "Heal dragon by 1",
         "description": "Heal dragon 1 hp after each round of combat"
       },
-      "image": "card-images/detail/Draci-posluhovac_1.webp",
-      "thumbnail": "card-images/thumb/Draci-posluhovac_1.webp",
+      "image": "card-images/detail/Draci-posluhovac_1-cs.webp?v=c94936aff55f",
+      "thumbnail": "card-images/thumb/Draci-posluhovac_1-cs.webp?v=09f061aceea8",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Draci-posluhovac_1-cs.webp?v=c94936aff55f",
+          "thumbnail": "card-images/thumb/Draci-posluhovac_1-cs.webp?v=09f061aceea8"
+        },
+        "en": {
+          "image": "card-images/detail/Draci-posluhovac_1-en.webp?v=e7c11783f6b9",
+          "thumbnail": "card-images/thumb/Draci-posluhovac_1-en.webp?v=27a23b819fcb"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -333,8 +463,18 @@
         "name": "no Ability",
         "description": ""
       },
-      "image": "card-images/detail/Dummy_1.webp",
-      "thumbnail": "card-images/thumb/Dummy_1.webp",
+      "image": "card-images/detail/Dummy_1-cs.webp?v=107171cd70d9",
+      "thumbnail": "card-images/thumb/Dummy_1-cs.webp?v=298b8b97a357",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Dummy_1-cs.webp?v=107171cd70d9",
+          "thumbnail": "card-images/thumb/Dummy_1-cs.webp?v=298b8b97a357"
+        },
+        "en": {
+          "image": "card-images/detail/Dummy_1-en.webp?v=107171cd70d9",
+          "thumbnail": "card-images/thumb/Dummy_1-en.webp?v=298b8b97a357"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -357,8 +497,18 @@
         "name": "Choose an additional mana",
         "description": "Choose red, black, or blue mana when this enters play."
       },
-      "image": "card-images/detail/Erzika_1.webp",
-      "thumbnail": "card-images/thumb/Erzika_1.webp",
+      "image": "card-images/detail/Erzika_1-cs.webp?v=d3de09735415",
+      "thumbnail": "card-images/thumb/Erzika_1-cs.webp?v=5ce5c8e5c7f7",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Erzika_1-cs.webp?v=d3de09735415",
+          "thumbnail": "card-images/thumb/Erzika_1-cs.webp?v=5ce5c8e5c7f7"
+        },
+        "en": {
+          "image": "card-images/detail/Erzika_1-en.webp?v=393738b21c64",
+          "thumbnail": "card-images/thumb/Erzika_1-en.webp?v=f9dcd1b5dc3f"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -381,8 +531,18 @@
         "name": "Invert reductions",
         "description": "Attack and health reductions increase those stats instead."
       },
-      "image": "card-images/detail/Giovanni_Luppino_1.webp",
-      "thumbnail": "card-images/thumb/Giovanni_Luppino_1.webp",
+      "image": "card-images/detail/Giovanni_Luppino_1-cs.webp?v=49006cfc1bce",
+      "thumbnail": "card-images/thumb/Giovanni_Luppino_1-cs.webp?v=79b10fdec36d",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Giovanni_Luppino_1-cs.webp?v=49006cfc1bce",
+          "thumbnail": "card-images/thumb/Giovanni_Luppino_1-cs.webp?v=79b10fdec36d"
+        },
+        "en": {
+          "image": "card-images/detail/Giovanni_Luppino_1-en.webp?v=ace17841ae3a",
+          "thumbnail": "card-images/thumb/Giovanni_Luppino_1-en.webp?v=2a66230d05e7"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -405,8 +565,18 @@
         "name": "Fill board with goblins",
         "description": "Take all goblins from your deck and hand. Place as many as possible on game board left to right. Remaining goblins are discarded."
       },
-      "image": "card-images/detail/Goblin_1.webp",
-      "thumbnail": "card-images/thumb/Goblin_1.webp",
+      "image": "card-images/detail/Goblin_1-cs.webp?v=771182e0d5b0",
+      "thumbnail": "card-images/thumb/Goblin_1-cs.webp?v=0b8c7b8a0faa",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Goblin_1-cs.webp?v=771182e0d5b0",
+          "thumbnail": "card-images/thumb/Goblin_1-cs.webp?v=0b8c7b8a0faa"
+        },
+        "en": {
+          "image": "card-images/detail/Goblin_1-en.webp?v=2c3a878af639",
+          "thumbnail": "card-images/thumb/Goblin_1-en.webp?v=919704f47af8"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -429,8 +599,18 @@
         "name": "Get buff from goblins",
         "description": "Get +1/1 for each goblin on board."
       },
-      "image": "card-images/detail/Goblin-king_1.webp",
-      "thumbnail": "card-images/thumb/Goblin-king_1.webp",
+      "image": "card-images/detail/Goblin-king_1-cs.webp?v=37fe73fcc55f",
+      "thumbnail": "card-images/thumb/Goblin-king_1-cs.webp?v=fde7127b20e2",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Goblin-king_1-cs.webp?v=37fe73fcc55f",
+          "thumbnail": "card-images/thumb/Goblin-king_1-cs.webp?v=fde7127b20e2"
+        },
+        "en": {
+          "image": "card-images/detail/Goblin-king_1-en.webp?v=07d4b080a89c",
+          "thumbnail": "card-images/thumb/Goblin-king_1-en.webp?v=40c626b0c125"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -453,8 +633,18 @@
         "name": "Place a black character beside",
         "description": "When this enters play, you may place another black-border character from your hand beside it."
       },
-      "image": "card-images/detail/Goblini_saman_1.webp",
-      "thumbnail": "card-images/thumb/Goblini_saman_1.webp",
+      "image": "card-images/detail/Goblini_saman_1-cs.webp?v=3b1dafa449a5",
+      "thumbnail": "card-images/thumb/Goblini_saman_1-cs.webp?v=e40afa3c6236",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Goblini_saman_1-cs.webp?v=3b1dafa449a5",
+          "thumbnail": "card-images/thumb/Goblini_saman_1-cs.webp?v=e40afa3c6236"
+        },
+        "en": {
+          "image": "card-images/detail/Goblini_saman_1-en.webp?v=e99ddabf7c12",
+          "thumbnail": "card-images/thumb/Goblini_saman_1-en.webp?v=7149c802b0ce"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -477,8 +667,18 @@
         "name": "Red mana is also active",
         "description": "While this card is in play, all cards behave as though red mana were also active."
       },
-      "image": "card-images/detail/Gorax_1.webp",
-      "thumbnail": "card-images/thumb/Gorax_1.webp",
+      "image": "card-images/detail/Gorax_1-cs.webp?v=5846bc0e273b",
+      "thumbnail": "card-images/thumb/Gorax_1-cs.webp?v=f3119eb52a92",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Gorax_1-cs.webp?v=5846bc0e273b",
+          "thumbnail": "card-images/thumb/Gorax_1-cs.webp?v=f3119eb52a92"
+        },
+        "en": {
+          "image": "card-images/detail/Gorax_1-en.webp?v=7b1c80154657",
+          "thumbnail": "card-images/thumb/Gorax_1-en.webp?v=d72d6ad90214"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -501,8 +701,18 @@
         "name": "Blue mana is also active",
         "description": "While this card is in play, all cards behave as though blue mana were also active."
       },
-      "image": "card-images/detail/Gustav_Silak_1.webp",
-      "thumbnail": "card-images/thumb/Gustav_Silak_1.webp",
+      "image": "card-images/detail/Gustav_Silak_1-cs.webp?v=2b49e23d7892",
+      "thumbnail": "card-images/thumb/Gustav_Silak_1-cs.webp?v=38c85c4fc91d",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Gustav_Silak_1-cs.webp?v=2b49e23d7892",
+          "thumbnail": "card-images/thumb/Gustav_Silak_1-cs.webp?v=38c85c4fc91d"
+        },
+        "en": {
+          "image": "card-images/detail/Gustav_Silak_1-en.webp?v=1225ccf50d0b",
+          "thumbnail": "card-images/thumb/Gustav_Silak_1-en.webp?v=41ff847b8ef1"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -525,8 +735,18 @@
         "name": "Stay on board",
         "description": "If this survives, it remains on the board next round."
       },
-      "image": "card-images/detail/Hloupe_Lojzek_1.webp",
-      "thumbnail": "card-images/thumb/Hloupe_Lojzek_1.webp",
+      "image": "card-images/detail/Hloupe_Lojzek_1-cs.webp?v=e38888188176",
+      "thumbnail": "card-images/thumb/Hloupe_Lojzek_1-cs.webp?v=d13339040530",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Hloupe_Lojzek_1-cs.webp?v=e38888188176",
+          "thumbnail": "card-images/thumb/Hloupe_Lojzek_1-cs.webp?v=d13339040530"
+        },
+        "en": {
+          "image": "card-images/detail/Hloupe_Lojzek_1-en.webp?v=c58efa7f1666",
+          "thumbnail": "card-images/thumb/Hloupe_Lojzek_1-en.webp?v=eb0cabff09f9"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -549,8 +769,18 @@
         "name": "Shoot a one-health character",
         "description": "When this enters play, it may destroy any character with 1 health."
       },
-      "image": "card-images/detail/Inkvizitor_Elsenhorn_1.webp",
-      "thumbnail": "card-images/thumb/Inkvizitor_Elsenhorn_1.webp",
+      "image": "card-images/detail/Inkvizitor_Elsenhorn_1-cs.webp?v=0f1b5ff68072",
+      "thumbnail": "card-images/thumb/Inkvizitor_Elsenhorn_1-cs.webp?v=d402f77a9650",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Inkvizitor_Elsenhorn_1-cs.webp?v=0f1b5ff68072",
+          "thumbnail": "card-images/thumb/Inkvizitor_Elsenhorn_1-cs.webp?v=d402f77a9650"
+        },
+        "en": {
+          "image": "card-images/detail/Inkvizitor_Elsenhorn_1-en.webp?v=0b422605ceee",
+          "thumbnail": "card-images/thumb/Inkvizitor_Elsenhorn_1-en.webp?v=39a749cb1230"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -573,8 +803,18 @@
         "name": "Summon Elsenhorn and suppress black effects",
         "description": "When this enters play, you may play Inquisitor Elsenhorn from your hand or deck. While this remains, black card effects are suppressed."
       },
-      "image": "card-images/detail/Inkvizitor_Illbebad_1.webp",
-      "thumbnail": "card-images/thumb/Inkvizitor_Illbebad_1.webp",
+      "image": "card-images/detail/Inkvizitor_Illbebad_1-cs.webp?v=8027294a0533",
+      "thumbnail": "card-images/thumb/Inkvizitor_Illbebad_1-cs.webp?v=582d3640f071",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Inkvizitor_Illbebad_1-cs.webp?v=8027294a0533",
+          "thumbnail": "card-images/thumb/Inkvizitor_Illbebad_1-cs.webp?v=582d3640f071"
+        },
+        "en": {
+          "image": "card-images/detail/Inkvizitor_Illbebad_1-en.webp?v=807f85c9d2e3",
+          "thumbnail": "card-images/thumb/Inkvizitor_Illbebad_1-en.webp?v=5709bd1592d6"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -597,8 +837,18 @@
         "name": "Burn All",
         "description": "Removes all cards with 1 or less HP."
       },
-      "image": "card-images/detail/Innosuv-Fanatik_1.webp",
-      "thumbnail": "card-images/thumb/Innosuv-Fanatik_1.webp",
+      "image": "card-images/detail/Innosuv-Fanatik_1-cs.webp?v=19503cb7ac05",
+      "thumbnail": "card-images/thumb/Innosuv-Fanatik_1-cs.webp?v=d35ced1657f4",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Innosuv-Fanatik_1-cs.webp?v=19503cb7ac05",
+          "thumbnail": "card-images/thumb/Innosuv-Fanatik_1-cs.webp?v=d35ced1657f4"
+        },
+        "en": {
+          "image": "card-images/detail/Innosuv-Fanatik_1-en.webp?v=8a7eccb90188",
+          "thumbnail": "card-images/thumb/Innosuv-Fanatik_1-en.webp?v=bdef894801c6"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -621,8 +871,18 @@
         "name": "Return on death",
         "description": "When this card dies, it returns to owners hand"
       },
-      "image": "card-images/detail/Innosuv-skritek_1.webp",
-      "thumbnail": "card-images/thumb/Innosuv-skritek_1.webp",
+      "image": "card-images/detail/Innosuv-skritek_1-cs.webp?v=273cbc991986",
+      "thumbnail": "card-images/thumb/Innosuv-skritek_1-cs.webp?v=e63c018814da",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Innosuv-skritek_1-cs.webp?v=273cbc991986",
+          "thumbnail": "card-images/thumb/Innosuv-skritek_1-cs.webp?v=e63c018814da"
+        },
+        "en": {
+          "image": "card-images/detail/Innosuv-skritek_1-en.webp?v=4c551750cae2",
+          "thumbnail": "card-images/thumb/Innosuv-skritek_1-en.webp?v=3b5fd4f3bec1"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -645,8 +905,18 @@
         "name": "Burn All",
         "description": "Removes all cards with 1 or less HP."
       },
-      "image": "card-images/detail/Inosuv-fanatik_1.webp",
-      "thumbnail": "card-images/thumb/Inosuv-fanatik_1.webp",
+      "image": "card-images/detail/Inosuv-fanatik_1-cs.webp?v=19503cb7ac05",
+      "thumbnail": "card-images/thumb/Inosuv-fanatik_1-cs.webp?v=d35ced1657f4",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Inosuv-fanatik_1-cs.webp?v=19503cb7ac05",
+          "thumbnail": "card-images/thumb/Inosuv-fanatik_1-cs.webp?v=d35ced1657f4"
+        },
+        "en": {
+          "image": "card-images/detail/Inosuv-fanatik_1-en.webp?v=8a7eccb90188",
+          "thumbnail": "card-images/thumb/Inosuv-fanatik_1-en.webp?v=bdef894801c6"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -669,8 +939,18 @@
         "name": "no Ability",
         "description": ""
       },
-      "image": "card-images/detail/Johan_Johanit_1.webp",
-      "thumbnail": "card-images/thumb/Johan_Johanit_1.webp",
+      "image": "card-images/detail/Johan_Johanit_1-cs.webp?v=d33b3e78f8bb",
+      "thumbnail": "card-images/thumb/Johan_Johanit_1-cs.webp?v=c30a38c25738",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Johan_Johanit_1-cs.webp?v=d33b3e78f8bb",
+          "thumbnail": "card-images/thumb/Johan_Johanit_1-cs.webp?v=c30a38c25738"
+        },
+        "en": {
+          "image": "card-images/detail/Johan_Johanit_1-en.webp?v=d33b3e78f8bb",
+          "thumbnail": "card-images/thumb/Johan_Johanit_1-en.webp?v=c30a38c25738"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -693,8 +973,18 @@
         "name": "Swap and support adjacent allies",
         "description": "When this enters play, it may swap with an adjacent character. Adjacent allies get +1/+1."
       },
-      "image": "card-images/detail/Karavanik_Macromir_1.webp",
-      "thumbnail": "card-images/thumb/Karavanik_Macromir_1.webp",
+      "image": "card-images/detail/Karavanik_Macromir_1-cs.webp?v=600b7f275703",
+      "thumbnail": "card-images/thumb/Karavanik_Macromir_1-cs.webp?v=8fb78f7682ef",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Karavanik_Macromir_1-cs.webp?v=600b7f275703",
+          "thumbnail": "card-images/thumb/Karavanik_Macromir_1-cs.webp?v=8fb78f7682ef"
+        },
+        "en": {
+          "image": "card-images/detail/Karavanik_Macromir_1-en.webp?v=3eb255e232d0",
+          "thumbnail": "card-images/thumb/Karavanik_Macromir_1-en.webp?v=feca4bd22836"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -717,8 +1007,18 @@
         "name": "Black mana is also active",
         "description": "While this card is in play, all cards behave as though black mana were also active."
       },
-      "image": "card-images/detail/Kardif_1.webp",
-      "thumbnail": "card-images/thumb/Kardif_1.webp",
+      "image": "card-images/detail/Kardif_1-cs.webp?v=75b8ba58011f",
+      "thumbnail": "card-images/thumb/Kardif_1-cs.webp?v=0239e4e9c0b7",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Kardif_1-cs.webp?v=75b8ba58011f",
+          "thumbnail": "card-images/thumb/Kardif_1-cs.webp?v=0239e4e9c0b7"
+        },
+        "en": {
+          "image": "card-images/detail/Kardif_1-en.webp?v=c9b88aed8e47",
+          "thumbnail": "card-images/thumb/Kardif_1-en.webp?v=d7df2d0859f4"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -741,8 +1041,18 @@
         "name": "Return a discarded card",
         "description": "When this dies, return one card from your discard pile to hand."
       },
-      "image": "card-images/detail/Karetni_mistr_1.webp",
-      "thumbnail": "card-images/thumb/Karetni_mistr_1.webp",
+      "image": "card-images/detail/Karetni_mistr_1-cs.webp?v=194bc6acfeb3",
+      "thumbnail": "card-images/thumb/Karetni_mistr_1-cs.webp?v=f082a1d7cce1",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Karetni_mistr_1-cs.webp?v=194bc6acfeb3",
+          "thumbnail": "card-images/thumb/Karetni_mistr_1-cs.webp?v=f082a1d7cce1"
+        },
+        "en": {
+          "image": "card-images/detail/Karetni_mistr_1-en.webp?v=36d0fd09e834",
+          "thumbnail": "card-images/thumb/Karetni_mistr_1-en.webp?v=cf08511fb4ed"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -765,8 +1075,18 @@
         "name": "Blue cards in front hit dragon",
         "description": "When a dragon enters play, it loses 1 hp for each blue card positioned before this card."
       },
-      "image": "card-images/detail/Katapult_1.webp",
-      "thumbnail": "card-images/thumb/Katapult_1.webp",
+      "image": "card-images/detail/Katapult_1-cs.webp?v=c765f443ab88",
+      "thumbnail": "card-images/thumb/Katapult_1-cs.webp?v=33e7dbafc372",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Katapult_1-cs.webp?v=c765f443ab88",
+          "thumbnail": "card-images/thumb/Katapult_1-cs.webp?v=33e7dbafc372"
+        },
+        "en": {
+          "image": "card-images/detail/Katapult_1-en.webp?v=cd92aeabb71d",
+          "thumbnail": "card-images/thumb/Katapult_1-en.webp?v=103a9a0ab0c4"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -789,8 +1109,18 @@
         "name": "Eat the healthiest characters",
         "description": "When this enters play, eat every other character tied for the highest health in the row."
       },
-      "image": "card-images/detail/Kulturni_trol_1.webp",
-      "thumbnail": "card-images/thumb/Kulturni_trol_1.webp",
+      "image": "card-images/detail/Kulturni_trol_1-cs.webp?v=2e41d6c99ae2",
+      "thumbnail": "card-images/thumb/Kulturni_trol_1-cs.webp?v=c2cf28220dc7",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Kulturni_trol_1-cs.webp?v=2e41d6c99ae2",
+          "thumbnail": "card-images/thumb/Kulturni_trol_1-cs.webp?v=c2cf28220dc7"
+        },
+        "en": {
+          "image": "card-images/detail/Kulturni_trol_1-en.webp?v=76ef52e0678a",
+          "thumbnail": "card-images/thumb/Kulturni_trol_1-en.webp?v=258f671dd3cd"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -813,8 +1143,18 @@
         "name": "Explode on death",
         "description": "When hp goes bellow 0, direct neighbors take 2 dmg"
       },
-      "image": "card-images/detail/Kvasimir-EXPLOSIVE_1.webp",
-      "thumbnail": "card-images/thumb/Kvasimir-EXPLOSIVE_1.webp",
+      "image": "card-images/detail/Kvasimir-EXPLOSIVE_1-cs.webp?v=7e2861abcc4e",
+      "thumbnail": "card-images/thumb/Kvasimir-EXPLOSIVE_1-cs.webp?v=b2627a343e97",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Kvasimir-EXPLOSIVE_1-cs.webp?v=7e2861abcc4e",
+          "thumbnail": "card-images/thumb/Kvasimir-EXPLOSIVE_1-cs.webp?v=b2627a343e97"
+        },
+        "en": {
+          "image": "card-images/detail/Kvasimir-EXPLOSIVE_1-en.webp?v=8cd9a01544e3",
+          "thumbnail": "card-images/thumb/Kvasimir-EXPLOSIVE_1-en.webp?v=381b9d7f07cb"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -837,8 +1177,18 @@
         "name": "Front +1 Attack",
         "description": "Gives +1 attack to all friendly cards in front."
       },
-      "image": "card-images/detail/Lucisnik_1.webp",
-      "thumbnail": "card-images/thumb/Lucisnik_1.webp",
+      "image": "card-images/detail/Lucisnik_1-cs.webp?v=1e55a29c5496",
+      "thumbnail": "card-images/thumb/Lucisnik_1-cs.webp?v=abf643402b13",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Lucisnik_1-cs.webp?v=1e55a29c5496",
+          "thumbnail": "card-images/thumb/Lucisnik_1-cs.webp?v=abf643402b13"
+        },
+        "en": {
+          "image": "card-images/detail/Lucisnik_1-en.webp?v=4cae6398f408",
+          "thumbnail": "card-images/thumb/Lucisnik_1-en.webp?v=54682172434b"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -861,8 +1211,18 @@
         "name": "Hit entering dragon for 2 dmg",
         "description": "When dragon is revealed, he immediately suffers 2 dmg"
       },
-      "image": "card-images/detail/Mag-ohne_1.webp",
-      "thumbnail": "card-images/thumb/Mag-ohne_1.webp",
+      "image": "card-images/detail/Mag-ohne_1-cs.webp?v=4726959ddc29",
+      "thumbnail": "card-images/thumb/Mag-ohne_1-cs.webp?v=6af2e16e4090",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Mag-ohne_1-cs.webp?v=4726959ddc29",
+          "thumbnail": "card-images/thumb/Mag-ohne_1-cs.webp?v=6af2e16e4090"
+        },
+        "en": {
+          "image": "card-images/detail/Mag-ohne_1-en.webp?v=1f6b827f393f",
+          "thumbnail": "card-images/thumb/Mag-ohne_1-en.webp?v=658eea0dba9c"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -885,8 +1245,18 @@
         "name": "Attack forward when the dragon appears",
         "description": "When a dragon appears, attack the character in front. If it dies, move forward and continue attacking."
       },
-      "image": "card-images/detail/Medved_1.webp",
-      "thumbnail": "card-images/thumb/Medved_1.webp",
+      "image": "card-images/detail/Medved_1-cs.webp?v=7652996ce5c7",
+      "thumbnail": "card-images/thumb/Medved_1-cs.webp?v=2fbb79d38a81",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Medved_1-cs.webp?v=7652996ce5c7",
+          "thumbnail": "card-images/thumb/Medved_1-cs.webp?v=2fbb79d38a81"
+        },
+        "en": {
+          "image": "card-images/detail/Medved_1-en.webp?v=6fa2e964c469",
+          "thumbnail": "card-images/thumb/Medved_1-en.webp?v=e2f8ce9ec42e"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -909,8 +1279,18 @@
         "name": "Block mana effects",
         "description": "While this card is in play, real and additionally activated mana colors have no effect."
       },
-      "image": "card-images/detail/Melisenda_1.webp",
-      "thumbnail": "card-images/thumb/Melisenda_1.webp",
+      "image": "card-images/detail/Melisenda_1-cs.webp?v=bb2b5e2e5a75",
+      "thumbnail": "card-images/thumb/Melisenda_1-cs.webp?v=e247cc0773a7",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Melisenda_1-cs.webp?v=bb2b5e2e5a75",
+          "thumbnail": "card-images/thumb/Melisenda_1-cs.webp?v=e247cc0773a7"
+        },
+        "en": {
+          "image": "card-images/detail/Melisenda_1-en.webp?v=dc5de8e75b39",
+          "thumbnail": "card-images/thumb/Melisenda_1-en.webp?v=7442925defcc"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -933,8 +1313,18 @@
         "name": "Replace allied card",
         "description": "When this enters play, you may replace another allied card and return that card to your hand."
       },
-      "image": "card-images/detail/Nepotrebny-novic_1.webp",
-      "thumbnail": "card-images/thumb/Nepotrebny-novic_1.webp",
+      "image": "card-images/detail/Nepotrebny-novic_1-cs.webp?v=880cd821c36e",
+      "thumbnail": "card-images/thumb/Nepotrebny-novic_1-cs.webp?v=af593f8ca83c",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Nepotrebny-novic_1-cs.webp?v=880cd821c36e",
+          "thumbnail": "card-images/thumb/Nepotrebny-novic_1-cs.webp?v=af593f8ca83c"
+        },
+        "en": {
+          "image": "card-images/detail/Nepotrebny-novic_1-en.webp?v=17f028cf7b66",
+          "thumbnail": "card-images/thumb/Nepotrebny-novic_1-en.webp?v=82c62c4a2525"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -957,8 +1347,18 @@
         "name": "no Ability",
         "description": ""
       },
-      "image": "card-images/detail/Novic_1.webp",
-      "thumbnail": "card-images/thumb/Novic_1.webp",
+      "image": "card-images/detail/Novic_1-cs.webp?v=b488eb171b18",
+      "thumbnail": "card-images/thumb/Novic_1-cs.webp?v=ff4f98c29bab",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Novic_1-cs.webp?v=b488eb171b18",
+          "thumbnail": "card-images/thumb/Novic_1-cs.webp?v=ff4f98c29bab"
+        },
+        "en": {
+          "image": "card-images/detail/Novic_1-en.webp?v=da2bfe7fa7e4",
+          "thumbnail": "card-images/thumb/Novic_1-en.webp?v=9bca711e1936"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -981,8 +1381,18 @@
         "name": "Go First",
         "description": "Moves this card to the first position."
       },
-      "image": "card-images/detail/Paladin_1.webp",
-      "thumbnail": "card-images/thumb/Paladin_1.webp",
+      "image": "card-images/detail/Paladin_1-cs.webp?v=c944691243ce",
+      "thumbnail": "card-images/thumb/Paladin_1-cs.webp?v=05b4e2bfd220",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Paladin_1-cs.webp?v=c944691243ce",
+          "thumbnail": "card-images/thumb/Paladin_1-cs.webp?v=05b4e2bfd220"
+        },
+        "en": {
+          "image": "card-images/detail/Paladin_1-en.webp?v=5bcf0085e71b",
+          "thumbnail": "card-images/thumb/Paladin_1-en.webp?v=3f1a6378f643"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -1005,8 +1415,18 @@
         "name": "Sideways +1",
         "description": "Gives +1 attack and +1 hp to adjacent friendly cards."
       },
-      "image": "card-images/detail/Panos_1.webp",
-      "thumbnail": "card-images/thumb/Panos_1.webp",
+      "image": "card-images/detail/Panos_1-cs.webp?v=d1cd75856545",
+      "thumbnail": "card-images/thumb/Panos_1-cs.webp?v=987aafa15e1e",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Panos_1-cs.webp?v=d1cd75856545",
+          "thumbnail": "card-images/thumb/Panos_1-cs.webp?v=987aafa15e1e"
+        },
+        "en": {
+          "image": "card-images/detail/Panos_1-en.webp?v=48e0039ca4e6",
+          "thumbnail": "card-images/thumb/Panos_1-en.webp?v=356022bd8959"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -1029,8 +1449,18 @@
         "name": "Swap and attack",
         "description": "When this enters play, it may swap with an adjacent character, then attack the character in front."
       },
-      "image": "card-images/detail/Paseracka_Emilie_1.webp",
-      "thumbnail": "card-images/thumb/Paseracka_Emilie_1.webp",
+      "image": "card-images/detail/Paseracka_Emilie_1-cs.webp?v=0aa1a394e6ba",
+      "thumbnail": "card-images/thumb/Paseracka_Emilie_1-cs.webp?v=b1df9a5375dd",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Paseracka_Emilie_1-cs.webp?v=0aa1a394e6ba",
+          "thumbnail": "card-images/thumb/Paseracka_Emilie_1-cs.webp?v=b1df9a5375dd"
+        },
+        "en": {
+          "image": "card-images/detail/Paseracka_Emilie_1-en.webp?v=602814a274e9",
+          "thumbnail": "card-images/thumb/Paseracka_Emilie_1-en.webp?v=c92f43f65b8c"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -1053,8 +1483,18 @@
         "name": "no Ability",
         "description": ""
       },
-      "image": "card-images/detail/Pesak_1.webp",
-      "thumbnail": "card-images/thumb/Pesak_1.webp",
+      "image": "card-images/detail/Pesak_1-cs.webp?v=6883e0f77a66",
+      "thumbnail": "card-images/thumb/Pesak_1-cs.webp?v=9a84528efab2",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Pesak_1-cs.webp?v=6883e0f77a66",
+          "thumbnail": "card-images/thumb/Pesak_1-cs.webp?v=9a84528efab2"
+        },
+        "en": {
+          "image": "card-images/detail/Pesak_1-en.webp?v=daad6153a1f9",
+          "thumbnail": "card-images/thumb/Pesak_1-en.webp?v=ddf8c08703e3"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -1077,8 +1517,18 @@
         "name": "Return surviving allies",
         "description": "If this survives the round, return every surviving allied character from the board to its owner's hand."
       },
-      "image": "card-images/detail/Principal_1.webp",
-      "thumbnail": "card-images/thumb/Principal_1.webp",
+      "image": "card-images/detail/Principal_1-cs.webp?v=d7b096bf9b6c",
+      "thumbnail": "card-images/thumb/Principal_1-cs.webp?v=6094cde9d7dd",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Principal_1-cs.webp?v=d7b096bf9b6c",
+          "thumbnail": "card-images/thumb/Principal_1-cs.webp?v=6094cde9d7dd"
+        },
+        "en": {
+          "image": "card-images/detail/Principal_1-en.webp?v=a370f2524d96",
+          "thumbnail": "card-images/thumb/Principal_1-en.webp?v=25dd30a0ff14"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -1101,8 +1551,18 @@
         "name": "Return as a stronger vampire",
         "description": "The first time this dies outside dragon combat, return it to the same board position with +1/+1."
       },
-      "image": "card-images/detail/Roderik_von_Gumpoldov_1.webp",
-      "thumbnail": "card-images/thumb/Roderik_von_Gumpoldov_1.webp",
+      "image": "card-images/detail/Roderik_von_Gumpoldov_1-cs.webp?v=044ecbaac516",
+      "thumbnail": "card-images/thumb/Roderik_von_Gumpoldov_1-cs.webp?v=158f3c15be52",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Roderik_von_Gumpoldov_1-cs.webp?v=044ecbaac516",
+          "thumbnail": "card-images/thumb/Roderik_von_Gumpoldov_1-cs.webp?v=158f3c15be52"
+        },
+        "en": {
+          "image": "card-images/detail/Roderik_von_Gumpoldov_1-en.webp?v=347000a45145",
+          "thumbnail": "card-images/thumb/Roderik_von_Gumpoldov_1-en.webp?v=6c2f80e9b793"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -1125,8 +1585,18 @@
         "name": "Weaken neighbors and return stronger",
         "description": "Adjacent characters get -1/-1. The first time this dies outside dragon combat, it returns with +1/+1."
       },
-      "image": "card-images/detail/Sieglinde_von_Gumpoldov_1.webp",
-      "thumbnail": "card-images/thumb/Sieglinde_von_Gumpoldov_1.webp",
+      "image": "card-images/detail/Sieglinde_von_Gumpoldov_1-cs.webp?v=a1b761e81de3",
+      "thumbnail": "card-images/thumb/Sieglinde_von_Gumpoldov_1-cs.webp?v=5819fa5ac097",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Sieglinde_von_Gumpoldov_1-cs.webp?v=a1b761e81de3",
+          "thumbnail": "card-images/thumb/Sieglinde_von_Gumpoldov_1-cs.webp?v=5819fa5ac097"
+        },
+        "en": {
+          "image": "card-images/detail/Sieglinde_von_Gumpoldov_1-en.webp?v=9995dbc4d92e",
+          "thumbnail": "card-images/thumb/Sieglinde_von_Gumpoldov_1-en.webp?v=981375dd6bfa"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -1149,8 +1619,18 @@
         "name": "Cannot be moved or overtaken",
         "description": "This card cannot move or be overtaken. A card moving to the front stops immediately behind it."
       },
-      "image": "card-images/detail/Silak_1.webp",
-      "thumbnail": "card-images/thumb/Silak_1.webp",
+      "image": "card-images/detail/Silak_1-cs.webp?v=e0385309bdc3",
+      "thumbnail": "card-images/thumb/Silak_1-cs.webp?v=4edc97a3fcfd",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Silak_1-cs.webp?v=e0385309bdc3",
+          "thumbnail": "card-images/thumb/Silak_1-cs.webp?v=4edc97a3fcfd"
+        },
+        "en": {
+          "image": "card-images/detail/Silak_1-en.webp?v=92d07fecc883",
+          "thumbnail": "card-images/thumb/Silak_1-en.webp?v=eb480d54fc0e"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -1173,8 +1653,18 @@
         "name": "no Ability",
         "description": ""
       },
-      "image": "card-images/detail/Skret_1.webp",
-      "thumbnail": "card-images/thumb/Skret_1.webp",
+      "image": "card-images/detail/Skret_1-cs.webp?v=272060ceb735",
+      "thumbnail": "card-images/thumb/Skret_1-cs.webp?v=d82e85f3ea5c",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Skret_1-cs.webp?v=272060ceb735",
+          "thumbnail": "card-images/thumb/Skret_1-cs.webp?v=d82e85f3ea5c"
+        },
+        "en": {
+          "image": "card-images/detail/Skret_1-en.webp?v=c7b825b973a4",
+          "thumbnail": "card-images/thumb/Skret_1-en.webp?v=62858c98fa8c"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -1197,8 +1687,18 @@
         "name": "Occupies two spaces",
         "description": "This card occupies two adjacent board spaces."
       },
-      "image": "card-images/detail/Slon_1.webp",
-      "thumbnail": "card-images/thumb/Slon_1.webp",
+      "image": "card-images/detail/Slon_1-cs.webp?v=04beda17b6b5",
+      "thumbnail": "card-images/thumb/Slon_1-cs.webp?v=a39eaafe69ea",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Slon_1-cs.webp?v=04beda17b6b5",
+          "thumbnail": "card-images/thumb/Slon_1-cs.webp?v=a39eaafe69ea"
+        },
+        "en": {
+          "image": "card-images/detail/Slon_1-en.webp?v=37daa2092548",
+          "thumbnail": "card-images/thumb/Slon_1-en.webp?v=638085d881c7"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -1221,8 +1721,18 @@
         "name": "Go Before 1",
         "description": "Moves this card before the previous card."
       },
-      "image": "card-images/detail/Strazny_1.webp",
-      "thumbnail": "card-images/thumb/Strazny_1.webp",
+      "image": "card-images/detail/Strazny_1-cs.webp?v=96f19f04ee83",
+      "thumbnail": "card-images/thumb/Strazny_1-cs.webp?v=0b079dd5f2ed",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Strazny_1-cs.webp?v=96f19f04ee83",
+          "thumbnail": "card-images/thumb/Strazny_1-cs.webp?v=0b079dd5f2ed"
+        },
+        "en": {
+          "image": "card-images/detail/Strazny_1-en.webp?v=1f819e112845",
+          "thumbnail": "card-images/thumb/Strazny_1-en.webp?v=df061ab7c46f"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -1245,8 +1755,18 @@
         "name": "Sideways -1",
         "description": "Gives -1 attack and -1 hp to adjacent cards. -2 on black mana"
       },
-      "image": "card-images/detail/Upir_1.webp",
-      "thumbnail": "card-images/thumb/Upir_1.webp",
+      "image": "card-images/detail/Upir_1-cs.webp?v=9d266cbcf0c2",
+      "thumbnail": "card-images/thumb/Upir_1-cs.webp?v=e995b1055039",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Upir_1-cs.webp?v=9d266cbcf0c2",
+          "thumbnail": "card-images/thumb/Upir_1-cs.webp?v=e995b1055039"
+        },
+        "en": {
+          "image": "card-images/detail/Upir_1-en.webp?v=51794930c6ad",
+          "thumbnail": "card-images/thumb/Upir_1-en.webp?v=8c74c6c5100d"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -1269,8 +1789,18 @@
         "name": "Place second beside",
         "description": "When this enters play, you may place a second card beside it. You may have only one commander on the board."
       },
-      "image": "card-images/detail/Velitel-straze_1.webp",
-      "thumbnail": "card-images/thumb/Velitel-straze_1.webp",
+      "image": "card-images/detail/Velitel-straze_1-cs.webp?v=fab2efbb0405",
+      "thumbnail": "card-images/thumb/Velitel-straze_1-cs.webp?v=068e1271a584",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Velitel-straze_1-cs.webp?v=fab2efbb0405",
+          "thumbnail": "card-images/thumb/Velitel-straze_1-cs.webp?v=068e1271a584"
+        },
+        "en": {
+          "image": "card-images/detail/Velitel-straze_1-en.webp?v=69a628cc9eff",
+          "thumbnail": "card-images/thumb/Velitel-straze_1-en.webp?v=7dcae8aebd82"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -1293,8 +1823,18 @@
         "name": "Attack Next",
         "description": "Atacks card directly in front of him"
       },
-      "image": "card-images/detail/Zabijak_1.webp",
-      "thumbnail": "card-images/thumb/Zabijak_1.webp",
+      "image": "card-images/detail/Zabijak_1-cs.webp?v=d070a65d5e22",
+      "thumbnail": "card-images/thumb/Zabijak_1-cs.webp?v=490a04456e51",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Zabijak_1-cs.webp?v=d070a65d5e22",
+          "thumbnail": "card-images/thumb/Zabijak_1-cs.webp?v=490a04456e51"
+        },
+        "en": {
+          "image": "card-images/detail/Zabijak_1-en.webp?v=ce051c33646a",
+          "thumbnail": "card-images/thumb/Zabijak_1-en.webp?v=6ca960cb212f"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -1317,8 +1857,18 @@
         "name": "Shuffle one side of the row",
         "description": "When this enters play, choose either player's characters and randomly redistribute them among their occupied positions."
       },
-      "image": "card-images/detail/Sasek_1.webp",
-      "thumbnail": "card-images/thumb/Sasek_1.webp",
+      "image": "card-images/detail/Sasek_1-cs.webp?v=5898ea52efd3",
+      "thumbnail": "card-images/thumb/Sasek_1-cs.webp?v=70ccec6222c4",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/Sasek_1-cs.webp?v=5898ea52efd3",
+          "thumbnail": "card-images/thumb/Sasek_1-cs.webp?v=70ccec6222c4"
+        },
+        "en": {
+          "image": "card-images/detail/Sasek_1-en.webp?v=a97a5c99a909",
+          "thumbnail": "card-images/thumb/Sasek_1-en.webp?v=8e72430dc3db"
+        }
+      },
       "type": "PLAYER"
     },
     {
@@ -1341,8 +1891,18 @@
         "name": "Eat First",
         "description": "Removes the first card from the board."
       },
-      "image": "card-images/detail/dragon_black_1.webp",
-      "thumbnail": "card-images/thumb/dragon_black_1.webp",
+      "image": "card-images/detail/dragon_black_1-cs.webp?v=9bda6025ade5",
+      "thumbnail": "card-images/thumb/dragon_black_1-cs.webp?v=9db9af135353",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/dragon_black_1-cs.webp?v=9bda6025ade5",
+          "thumbnail": "card-images/thumb/dragon_black_1-cs.webp?v=9db9af135353"
+        },
+        "en": {
+          "image": "card-images/detail/dragon_black_1-en.webp?v=9bda6025ade5",
+          "thumbnail": "card-images/thumb/dragon_black_1-en.webp?v=9db9af135353"
+        }
+      },
       "type": "DRAGON"
     },
     {
@@ -1365,8 +1925,18 @@
         "name": "Invert board",
         "description": "First card becomes last, last becomes first, etc.."
       },
-      "image": "card-images/detail/dragon_blue_1.webp",
-      "thumbnail": "card-images/thumb/dragon_blue_1.webp",
+      "image": "card-images/detail/dragon_blue_1-cs.webp?v=927061f05c7d",
+      "thumbnail": "card-images/thumb/dragon_blue_1-cs.webp?v=1ecd32d6f70a",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/dragon_blue_1-cs.webp?v=927061f05c7d",
+          "thumbnail": "card-images/thumb/dragon_blue_1-cs.webp?v=1ecd32d6f70a"
+        },
+        "en": {
+          "image": "card-images/detail/dragon_blue_1-en.webp?v=927061f05c7d",
+          "thumbnail": "card-images/thumb/dragon_blue_1-en.webp?v=1ecd32d6f70a"
+        }
+      },
       "type": "DRAGON"
     },
     {
@@ -1389,8 +1959,18 @@
         "name": "no Ability",
         "description": ""
       },
-      "image": "card-images/detail/dragon_green_1.webp",
-      "thumbnail": "card-images/thumb/dragon_green_1.webp",
+      "image": "card-images/detail/dragon_green_1-cs.webp?v=5dd776b3764f",
+      "thumbnail": "card-images/thumb/dragon_green_1-cs.webp?v=10f7b1ebfc2d",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/dragon_green_1-cs.webp?v=5dd776b3764f",
+          "thumbnail": "card-images/thumb/dragon_green_1-cs.webp?v=10f7b1ebfc2d"
+        },
+        "en": {
+          "image": "card-images/detail/dragon_green_1-en.webp?v=5dd776b3764f",
+          "thumbnail": "card-images/thumb/dragon_green_1-en.webp?v=10f7b1ebfc2d"
+        }
+      },
       "type": "DRAGON"
     },
     {
@@ -1413,8 +1993,18 @@
         "name": "Burn All",
         "description": "Removes all cards with 1 or less HP."
       },
-      "image": "card-images/detail/dragon_red_1.webp",
-      "thumbnail": "card-images/thumb/dragon_red_1.webp",
+      "image": "card-images/detail/dragon_red_1-cs.webp?v=28aceb31bd97",
+      "thumbnail": "card-images/thumb/dragon_red_1-cs.webp?v=0bc81841acf8",
+      "localizedImages": {
+        "cs": {
+          "image": "card-images/detail/dragon_red_1-cs.webp?v=28aceb31bd97",
+          "thumbnail": "card-images/thumb/dragon_red_1-cs.webp?v=0bc81841acf8"
+        },
+        "en": {
+          "image": "card-images/detail/dragon_red_1-en.webp?v=28aceb31bd97",
+          "thumbnail": "card-images/thumb/dragon_red_1-en.webp?v=0bc81841acf8"
+        }
+      },
       "type": "DRAGON"
     }
   ],
