@@ -86,18 +86,69 @@ class TrainingLifecycleTests(unittest.TestCase):
             ArenaDestination.RESULTS,
         )
 
-    def test_incomplete_terminal_states_never_route_to_results(self):
-        for status in ("failed", "stopped", "cancelled", "interrupted", "incomplete"):
+    def test_partial_terminal_states_require_verified_evidence_and_explicit_open(self):
+        for status in ("failed", "stopped", "cancelled", "interrupted"):
             with self.subTest(status=status):
                 self.assertEqual(
                     arena_destination(
                         status,
                         watched_live=False,
-                        results_opened=True,
+                        results_opened=False,
                         artifact=ResultArtifactStatus.available(),
                     ),
                     ArenaDestination.TERMINAL,
                 )
+                self.assertEqual(
+                    arena_destination(
+                        status,
+                        watched_live=False,
+                        results_opened=True,
+                        artifact=ResultArtifactStatus.partial(),
+                    ),
+                    ArenaDestination.RESULTS,
+                )
+
+    def test_paused_run_remains_on_shared_progress_screen(self):
+        self.assertEqual(
+            arena_destination(
+                "paused",
+                watched_live=True,
+                results_opened=False,
+                artifact=None,
+            ),
+            ArenaDestination.PROGRESS,
+        )
+
+    def test_paused_run_opens_only_verified_partial_results(self):
+        self.assertEqual(
+            arena_destination(
+                "paused",
+                watched_live=True,
+                results_opened=True,
+                artifact=ResultArtifactStatus.invalid("No evidence"),
+            ),
+            ArenaDestination.PROGRESS,
+        )
+        self.assertEqual(
+            arena_destination(
+                "paused",
+                watched_live=True,
+                results_opened=True,
+                artifact=ResultArtifactStatus.partial(),
+            ),
+            ArenaDestination.RESULTS,
+        )
+
+    def test_incomplete_historical_run_never_routes_to_results(self):
+        self.assertEqual(
+            arena_destination(
+                "incomplete",
+                watched_live=False,
+                results_opened=True,
+                artifact=ResultArtifactStatus.partial(),
+            ),
+            ArenaDestination.TERMINAL,
+        )
 
     def test_eta_uses_only_fresh_reported_evidence(self):
         self.assertEqual(
@@ -125,7 +176,15 @@ class TrainingLifecycleTests(unittest.TestCase):
         rows = progress_levels(TrainingKind.PLAYER_DECK.value, telemetry)
         self.assertEqual(rows[0][0], "Counter generations")
         self.assertEqual(rows[1][0], "Current candidate validation")
-        self.assertEqual(mission_progress_name(TrainingKind.DECK_BUILDER.value), "Deck evolution")
+        self.assertEqual(mission_progress_name(TrainingKind.DECK_BUILDER.value), "Deck evolution v1")
+        self.assertEqual(
+            mission_progress_name(TrainingKind.DECK_POOL_V2.value),
+            "Deck evolution v2",
+        )
+        self.assertEqual(
+            mission_result_label(TrainingKind.COUNTER_V2.value),
+            "Counter v2 results",
+        )
         self.assertEqual(mission_result_label(TrainingKind.MATCHUP_EVALUATION.value), "Duel results")
 
     def test_counter_artifact_waits_for_file_and_rejects_invalid_evidence(self):
@@ -154,6 +213,10 @@ class TrainingLifecycleTests(unittest.TestCase):
                 )
             )
             self.assertTrue(service.result_artifact_status(job).ready)
+            job.status = "failed"
+            artifact = service.result_artifact_status(job)
+            self.assertTrue(artifact.ready)
+            self.assertEqual(artifact.state, "partial")
 
     def test_matchup_artifact_requires_requested_final_checkpoint(self):
         service = TrainingService.__new__(TrainingService)
@@ -180,6 +243,11 @@ class TrainingLifecycleTests(unittest.TestCase):
                 )
             )
             self.assertEqual(service.result_artifact_status(job).state, "invalid")
+            job.status = "cancelled"
+            artifact = service.result_artifact_status(job)
+            self.assertTrue(artifact.ready)
+            self.assertEqual(artifact.state, "partial")
+            job.status = "completed"
             data = json.loads(Path(job.summary_path).read_text())
             data["skill_evaluations"].append(
                 {
@@ -204,6 +272,7 @@ class TrainingLifecycleTests(unittest.TestCase):
                 CREATE TABLE training (id INTEGER PRIMARY KEY, end_date TEXT);
                 CREATE TABLE genome (training_id INTEGER);
                 CREATE TABLE ai_training_decks (training_id INTEGER);
+                CREATE TABLE match_dbt (guid TEXT, result REAL);
                 INSERT INTO training VALUES (7, NULL);
                 """
             )
@@ -219,7 +288,33 @@ class TrainingLifecycleTests(unittest.TestCase):
                 connection.execute("INSERT INTO ai_training_decks VALUES (7)")
                 connection.commit()
                 self.assertTrue(service.result_artifact_status(job).ready)
+                job.status = "failed"
+                connection.execute(
+                    "INSERT INTO match_dbt VALUES ('T7:one', 12.5)"
+                )
+                connection.commit()
+                artifact = service.result_artifact_status(job)
+                self.assertTrue(artifact.ready)
+                self.assertEqual(artifact.state, "partial")
+                job.status = "paused"
+                artifact = service.result_artifact_status(job)
+                self.assertTrue(artifact.ready)
+                self.assertEqual(artifact.state, "partial")
             connection.close()
+
+    def test_failed_run_without_stored_results_keeps_results_locked(self):
+        service = TrainingService.__new__(TrainingService)
+        with tempfile.TemporaryDirectory() as directory:
+            job = _job(
+                Path(directory),
+                TrainingKind.PLAYER_DECK,
+                status="failed",
+            )
+
+            artifact = service.result_artifact_status(job)
+
+        self.assertFalse(artifact.ready)
+        self.assertEqual(artifact.state, "invalid")
 
 
 if __name__ == "__main__":

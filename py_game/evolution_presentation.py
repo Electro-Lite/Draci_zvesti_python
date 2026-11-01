@@ -125,7 +125,7 @@ def load_evolution_presentation(
     cards_database_path: Path,
     training_id: int,
 ) -> EvolutionPresentation:
-    """Load bounded tables for one completed run; never scan raw PC matches."""
+    """Load bounded stored evidence for one run; never scan raw PC matches."""
     connection = sqlite3.connect(
         f"file:{Path(database_path).resolve()}?mode=ro",
         uri=True,

@@ -5,6 +5,7 @@ import json
 import os
 import re
 import signal
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -26,10 +27,14 @@ from py_game.matchup_presentation import (
     MatchupPresentation,
     load_matchup_presentation,
 )
-from py_game.training_lifecycle import ResultArtifactStatus
+from py_game.training_lifecycle import (
+    PARTIAL_RESULT_STATUSES,
+    ResultArtifactStatus,
+)
 from py_game.runtime_paths import data_path
 from utils.database_utils import DBUtil
 from neat_ai.config_profiles import materialize_configs, validate_overrides
+from cards.power import Power
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -37,11 +42,14 @@ TRAIN_DB_PATH = data_path("train.db")
 JOB_ROOT = data_path(".ui_training")
 CARDS_DB_PATH = data_path("utils", "cards.db")
 DECKS_DB_PATH = data_path("utils", "decks.db")
+MAX_RECENT_TRAINING_EVENTS = 100
 
 
 class TrainingKind(Enum):
     DECK_BUILDER = "Deck builder experiment"
+    DECK_POOL_V2 = "Deck pool evolution v2"
     PLAYER_DECK = "Counter-deck training"
+    COUNTER_V2 = "Counter-deck evolution v2"
     MATCHUP_EVALUATION = "Deck matchup evaluation"
 
 
@@ -59,12 +67,18 @@ class TrainingRequest:
     holdout_seed_pairs: int = 20
     evaluation_games: int = 1_000
     neat_config_overrides: dict[str, dict[str, str]] = field(default_factory=dict)
+    max_card_power: int = Power.LEGENDARY.value
+    banned_card_ids: tuple[str, ...] = ()
 
     def validate(self) -> None:
         normalized_configs = validate_overrides(self.neat_config_overrides)
         allowed_profiles = (
             {"evaluator"}
-            if self.kind == TrainingKind.MATCHUP_EVALUATION
+            if self.kind in {
+                TrainingKind.MATCHUP_EVALUATION,
+                TrainingKind.DECK_POOL_V2,
+                TrainingKind.COUNTER_V2,
+            }
             else {"builder", "evaluator"}
         )
         unexpected = set(normalized_configs) - allowed_profiles
@@ -72,6 +86,17 @@ class TrainingRequest:
             raise ValueError(
                 f"NEAT configuration is not used by this mission: {sorted(unexpected)[0]}"
             )
+        try:
+            Power(self.max_card_power)
+        except (TypeError, ValueError) as error:
+            raise ValueError("Maximum card level must be Starter, Normal, or Legendary") from error
+        if not isinstance(self.banned_card_ids, (tuple, list)):
+            raise ValueError("Banned cards must be a list of card IDs")
+        banned = tuple(str(card_id) for card_id in self.banned_card_ids)
+        if len(set(banned)) != len(banned):
+            raise ValueError("A card can only be banned once")
+        if self.kind == TrainingKind.MATCHUP_EVALUATION and banned:
+            raise ValueError("Banned cards are not used by matchup evaluation")
         if not isinstance(self.run_label, str) or not self.run_label.strip():
             raise ValueError("Run label cannot be empty")
         if len(self.run_label.strip()) > 64:
@@ -83,7 +108,11 @@ class TrainingRequest:
             or not 1 <= self.evaluator_generations <= 10_000
         ):
             raise ValueError("Generations must be between 1 and 10000")
-        if self.kind in {TrainingKind.PLAYER_DECK, TrainingKind.MATCHUP_EVALUATION}:
+        if self.kind in {
+            TrainingKind.PLAYER_DECK,
+            TrainingKind.COUNTER_V2,
+            TrainingKind.MATCHUP_EVALUATION,
+        }:
             if not self.deck_id:
                 raise ValueError("Select the deck to analyze")
             if self.kind == TrainingKind.MATCHUP_EVALUATION and not self.opponent_deck_id:
@@ -100,10 +129,10 @@ class TrainingRequest:
                 and self.evaluator_generations < 2
             ):
                 raise ValueError("Matchup generations must be between 2 and 10000")
-        if self.kind == TrainingKind.PLAYER_DECK:
+        if self.kind in {TrainingKind.PLAYER_DECK, TrainingKind.COUNTER_V2}:
             if not isinstance(self.outer_generations, int) or not 1 <= self.outer_generations <= 1_000:
                 raise ValueError("Counter generations must be between 1 and 1000")
-        if self.kind == TrainingKind.DECK_BUILDER:
+        if self.kind in {TrainingKind.DECK_BUILDER, TrainingKind.DECK_POOL_V2}:
             if not self.seeds:
                 raise ValueError("At least one seed is required")
             if any(not isinstance(seed, int) for seed in self.seeds):
@@ -122,8 +151,12 @@ class TrainingRequest:
                 not isinstance(self.holdout_seed_pairs, int)
                 or not 1 <= self.holdout_seed_pairs <= 10_000
             ):
-                raise ValueError("Holdout seed pairs must be between 1 and 10000")
-        elif self.kind not in {TrainingKind.PLAYER_DECK, TrainingKind.MATCHUP_EVALUATION}:
+                raise ValueError("Validation seed pairs must be between 1 and 10000")
+        elif self.kind not in {
+            TrainingKind.PLAYER_DECK,
+            TrainingKind.COUNTER_V2,
+            TrainingKind.MATCHUP_EVALUATION,
+        }:
             raise ValueError("Unknown training mission")
 
 
@@ -140,6 +173,10 @@ class TrainingJob:
     summary_path: str
     telemetry_path: str = ""
     return_code: int | None = None
+    checkpoint_path: str = ""
+    training_id: int | None = None
+    paused_generation: int = 0
+    paused_seed: int | None = None
 
 
 @dataclass(frozen=True)
@@ -274,11 +311,15 @@ def _summary_int(value, default=0) -> int:
 
 def build_command(request: TrainingRequest) -> list[str]:
     request.validate()
-    if request.kind == TrainingKind.DECK_BUILDER:
-        return [
+    if request.kind in {TrainingKind.DECK_BUILDER, TrainingKind.DECK_POOL_V2}:
+        command = [
             sys.executable,
             "-m",
-            "neat_ai.deck_builder_trainer",
+            (
+                "neat_ai.deck_pool_evolution_v2"
+                if request.kind == TrainingKind.DECK_POOL_V2
+                else "neat_ai.deck_builder_trainer"
+            ),
             "--run-label",
             request.run_label,
             "--seeds",
@@ -296,6 +337,15 @@ def build_command(request: TrainingRequest) -> list[str]:
             "--holdout-seed-pairs",
             str(request.holdout_seed_pairs),
         ]
+        command.extend(["--max-card-power", str(request.max_card_power)])
+        for card_id in request.banned_card_ids:
+            command.extend(["--banned-card-id", str(card_id)])
+        if (
+            request.kind == TrainingKind.DECK_BUILDER
+            and request.neat_config_overrides.get("builder")
+        ):
+            command.append("--allow-population-outside-guard")
+        return command
     if request.kind == TrainingKind.MATCHUP_EVALUATION:
         return [
             sys.executable,
@@ -312,10 +362,14 @@ def build_command(request: TrainingRequest) -> list[str]:
             "--run-label",
             request.run_label,
         ]
-    return [
+    command = [
         sys.executable,
         "-m",
-        "neat_ai.player_trainer",
+        (
+            "neat_ai.counter_deck_trainer_v2"
+            if request.kind == TrainingKind.COUNTER_V2
+            else "neat_ai.player_trainer"
+        ),
         str(request.deck_id),
         "--counter-generations",
         str(request.outer_generations),
@@ -328,6 +382,10 @@ def build_command(request: TrainingRequest) -> list[str]:
         "--run-label",
         request.run_label,
     ]
+    command.extend(["--max-card-power", str(request.max_card_power)])
+    for card_id in request.banned_card_ids:
+        command.extend(["--banned-card-id", str(card_id)])
+    return command
 
 
 class TrainingService:
@@ -370,10 +428,16 @@ class TrainingService:
         environment["TRAINING_ARTIFACT_DIR"] = str(job_dir)
         environment["PLAYER_TRAINING_SUMMARY_PATH"] = str(summary_path)
         environment["TRAINING_TELEMETRY_PATH"] = str(telemetry_path)
+        environment["TRAINING_PAUSE_REQUEST_PATH"] = str(job_dir / "pause.requested")
+        environment["TRAIN_DB_PATH"] = str(TRAIN_DB_PATH)
         environment["PYTHONUNBUFFERED"] = "1"
         config_profiles = (
             ("evaluator",)
-            if request.kind == TrainingKind.MATCHUP_EVALUATION
+            if request.kind in {
+                TrainingKind.MATCHUP_EVALUATION,
+                TrainingKind.DECK_POOL_V2,
+                TrainingKind.COUNTER_V2,
+            }
             else ("builder", "evaluator")
         )
         environment.update(
@@ -440,6 +504,293 @@ class TrainingService:
         process = self._processes.get(job.job_id)
         return process is not None and process.poll() is None
 
+    @staticmethod
+    def _interrupt_process_group(process: subprocess.Popen) -> None:
+        if os.name == "nt":
+            completed = subprocess.run(
+                ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                check=False,
+                capture_output=True,
+            )
+            if completed.returncode != 0:
+                process.terminate()
+            return
+        try:
+            os.killpg(process.pid, signal.SIGINT)
+        except (AttributeError, OSError, ProcessLookupError):
+            process.terminate()
+
+    @staticmethod
+    def _kill_process_group(process: subprocess.Popen) -> None:
+        if os.name == "nt":
+            subprocess.run(
+                ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                check=False,
+                capture_output=True,
+            )
+            return
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except (AttributeError, OSError, ProcessLookupError):
+            process.kill()
+
+    @staticmethod
+    def _checkpoint_info(job: TrainingJob) -> tuple[Path, int, int, int] | None:
+        checkpoint_dir = (
+            Path(job.log_path).parent / "checkpoints" / "deck_builder_trainer"
+        )
+        candidates = []
+        pattern = re.compile(r"training_(\d+)_seed_(-?\d+)_gen-(\d+)$")
+        try:
+            paths = checkpoint_dir.glob("training_*_seed_*_gen-*")
+            for path in paths:
+                match = pattern.fullmatch(path.name)
+                if match and path.is_file():
+                    candidates.append(
+                        (
+                            path.stat().st_mtime_ns,
+                            path,
+                            int(match.group(1)),
+                            int(match.group(2)),
+                            int(match.group(3)) + 1,
+                        )
+                    )
+        except OSError:
+            return None
+        if not candidates:
+            return None
+        _, path, training_id, seed, generation = max(candidates)
+        return path, training_id, seed, generation
+
+    def can_pause(self, job: TrainingJob) -> bool:
+        process = self._processes.get(job.job_id)
+        return (
+            job.status in {"running", "pausing"}
+            and (job.request or {}).get("kind") in {
+                TrainingKind.DECK_BUILDER.value,
+                TrainingKind.DECK_POOL_V2.value,
+            }
+            and process is not None
+            and process.poll() is None
+            and self._checkpoint_info(job) is not None
+        )
+
+    def can_resume(self, job: TrainingJob) -> bool:
+        return (
+            job.status == "paused"
+            and (job.request or {}).get("kind") in {
+                TrainingKind.DECK_BUILDER.value,
+                TrainingKind.DECK_POOL_V2.value,
+            }
+            and bool(job.checkpoint_path)
+            and Path(job.checkpoint_path).is_file()
+        )
+
+    def pause_checkpoint(self, job: TrainingJob) -> tuple[int, int] | None:
+        info = self._checkpoint_info(job)
+        return (info[3], info[2]) if info is not None else None
+
+    def pause_job(self, job: TrainingJob, timeout: float = 6.0) -> TrainingJob:
+        """Stop a Deck Evolution process and retain its latest checkpoint."""
+        if not self.can_pause(job):
+            raise RuntimeError(
+                "Deck Evolution can be paused after its first outer checkpoint"
+            )
+        checkpoint = self._checkpoint_info(job)
+        if checkpoint is None:
+            raise RuntimeError("No completed outer-generation checkpoint exists")
+        checkpoint_path, training_id, seed, generation = checkpoint
+        process = self._processes[job.job_id]
+        pause_request = Path(job.log_path).parent / "pause.requested"
+        pause_request.write_text(
+            json.dumps(
+                {
+                    "training_id": training_id,
+                    "seed": seed,
+                    "generation": generation,
+                }
+            )
+        )
+        self._interrupt_process_group(process)
+        try:
+            return_code = process.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            self._kill_process_group(process)
+            return_code = process.wait(timeout=1.0)
+        self._rollback_training_after_generation(training_id, generation)
+        job.status = "paused"
+        job.pid = None
+        job.return_code = return_code
+        job.checkpoint_path = str(checkpoint_path.resolve())
+        job.training_id = training_id
+        job.paused_seed = seed
+        job.paused_generation = generation
+        self._processes.pop(job.job_id, None)
+        self._save_job(job)
+        return job
+
+    def resume_job(self, job: TrainingJob) -> TrainingJob:
+        """Launch a new trainer from a persistent outer-generation checkpoint."""
+        if not self.can_resume(job):
+            raise RuntimeError("This Deck Evolution checkpoint cannot be resumed")
+        active_jobs = self.owned_running_jobs()
+        if active_jobs:
+            raise RuntimeError(f"UI training job {active_jobs[0].job_id} is running")
+        if job.training_id is None or job.paused_seed is None:
+            raise RuntimeError("The paused checkpoint is missing resume metadata")
+
+        self._rollback_training_after_generation(
+            job.training_id,
+            job.paused_generation,
+        )
+        job_dir = Path(job.log_path).parent
+        environment = os.environ.copy()
+        environment.update(
+            {
+                "TRAINING_PROGRESS_PATH": job.progress_path,
+                "TRAINING_ARTIFACT_DIR": str(job_dir),
+                "PLAYER_TRAINING_SUMMARY_PATH": job.summary_path,
+                "TRAINING_TELEMETRY_PATH": job.telemetry_path,
+                "TRAINING_PAUSE_REQUEST_PATH": str(job_dir / "pause.requested"),
+                "TRAIN_DB_PATH": str(TRAIN_DB_PATH),
+                "PYTHONUNBUFFERED": "1",
+            }
+        )
+        environment.update(
+            materialize_configs(
+                (job.request or {}).get("neat_config_overrides", {}),
+                job_dir / "neat_configs",
+                profiles=(
+                    ("builder", "evaluator")
+                    if "neat_ai.deck_builder_trainer" in (job.command or [])
+                    else ("evaluator",)
+                ),
+            )
+        )
+        pause_request = job_dir / "pause.requested"
+        pause_request.unlink(missing_ok=True)
+        command = [
+            *job.command,
+            "--checkpoint",
+            job.checkpoint_path,
+            "--resume-training-id",
+            str(job.training_id),
+            "--resume-seed",
+            str(job.paused_seed),
+        ]
+        log_file = Path(job.log_path).open("a")
+        try:
+            process = subprocess.Popen(
+                command,
+                cwd=PROJECT_ROOT,
+                env=environment,
+                stdout=log_file,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+        finally:
+            log_file.close()
+        job.status = "running"
+        job.pid = process.pid
+        job.return_code = None
+        self._processes[job.job_id] = process
+        self._save_job(job)
+        return job
+
+    @staticmethod
+    def _rollback_training_after_generation(
+        training_id: int,
+        completed_generation: int,
+    ) -> None:
+        """Discard database evidence newer than the selected outer checkpoint."""
+        connection = sqlite3.connect(TRAIN_DB_PATH, timeout=30.0)
+        try:
+            row = connection.execute(
+                "SELECT metadata FROM training WHERE id = ?", (training_id,)
+            ).fetchone()
+            if row is None:
+                raise RuntimeError(f"Training run {training_id} no longer exists")
+            try:
+                metadata = json.loads(row[0] or "{}")
+            except (TypeError, json.JSONDecodeError):
+                metadata = {}
+            if not isinstance(metadata, dict):
+                metadata = {}
+            observed = metadata.get("observed_populations")
+            if isinstance(observed, list):
+                metadata["observed_populations"] = [
+                    item
+                    for item in observed
+                    if isinstance(item, dict)
+                    and _summary_int(item.get("generation"), 0)
+                    <= completed_generation
+                ]
+            metadata["termination_reason"] = "paused"
+            metadata["paused_after_generation"] = completed_generation
+
+            match_filter = """
+                gen > ? AND (
+                    genome_1 IN (SELECT guid FROM genome WHERE training_id = ?)
+                    OR genome_2 IN (SELECT guid FROM genome WHERE training_id = ?)
+                    OR guid LIKE ?
+                )
+            """
+            match_params = (
+                completed_generation,
+                training_id,
+                training_id,
+                f"T{training_id}:%",
+            )
+            with connection:
+                connection.execute(
+                    "CREATE TEMP TABLE rollback_decks (id TEXT PRIMARY KEY)"
+                )
+                connection.execute(
+                    "INSERT OR IGNORE INTO rollback_decks "
+                    "SELECT deck_id FROM genome WHERE training_id = ? AND gen > ?",
+                    (training_id, completed_generation),
+                )
+                connection.execute(
+                    "INSERT OR IGNORE INTO rollback_decks "
+                    f"SELECT deck_1 FROM match_dbt WHERE {match_filter}",
+                    match_params,
+                )
+                connection.execute(
+                    "INSERT OR IGNORE INTO rollback_decks "
+                    f"SELECT deck_2 FROM match_dbt WHERE {match_filter}",
+                    match_params,
+                )
+                connection.execute(
+                    "DELETE FROM pc_match WHERE match_dbt_guid IN "
+                    f"(SELECT guid FROM match_dbt WHERE {match_filter})",
+                    match_params,
+                )
+                connection.execute(
+                    f"DELETE FROM match_dbt WHERE {match_filter}", match_params
+                )
+                connection.execute(
+                    "DELETE FROM genome WHERE training_id = ? AND gen > ?",
+                    (training_id, completed_generation),
+                )
+                connection.execute(
+                    "DELETE FROM ai_training_deck_lines WHERE deck_id IN ("
+                    "SELECT id FROM rollback_decks WHERE id NOT IN ("
+                    "SELECT deck_id FROM genome WHERE training_id = ?))",
+                    (training_id,),
+                )
+                connection.execute(
+                    "DELETE FROM ai_training_decks WHERE training_id = ? "
+                    "AND id IN (SELECT id FROM rollback_decks) "
+                    "AND id NOT IN (SELECT deck_id FROM genome WHERE training_id = ?)",
+                    (training_id, training_id),
+                )
+                connection.execute(
+                    "UPDATE training SET end_date = NULL, metadata = ? WHERE id = ?",
+                    (json.dumps(metadata, sort_keys=True), training_id),
+                )
+        finally:
+            connection.close()
+
     def stop_job(
         self,
         job: TrainingJob,
@@ -450,22 +801,16 @@ class TrainingService:
         if process is None or process.poll() is not None:
             return None
         try:
-            os.killpg(process.pid, signal.SIGINT)
-        except (AttributeError, OSError, ProcessLookupError):
-            try:
-                process.terminate()
-            except OSError:
-                pass
+            self._interrupt_process_group(process)
+        except OSError:
+            pass
         try:
             return_code = process.wait(timeout=timeout)
         except subprocess.TimeoutExpired:
             try:
-                os.killpg(process.pid, signal.SIGKILL)
-            except (AttributeError, OSError, ProcessLookupError):
-                try:
-                    process.kill()
-                except OSError:
-                    pass
+                self._kill_process_group(process)
+            except OSError:
+                pass
             try:
                 return_code = process.wait(timeout=1.0)
             except subprocess.TimeoutExpired:
@@ -482,7 +827,9 @@ class TrainingService:
             return None
 
     def refresh(self, job: TrainingJob) -> TrainingJob:
-        if job.status != "running":
+        if job.status == "paused":
+            return job
+        if job.status not in {"running", "pausing"}:
             return job
         process = self._processes.get(job.job_id)
         if process is not None:
@@ -513,6 +860,94 @@ class TrainingService:
             if job is not None:
                 jobs.append(self.refresh(job))
         return jobs
+
+    @staticmethod
+    def _database_training_id(item: TrainingJob | TrainingRunSummary) -> int | None:
+        if isinstance(item, TrainingRunSummary):
+            match = re.fullmatch(r"DB\s+(\d+)", item.run_id.strip(), re.I)
+            return int(match.group(1)) if match else None
+        return None
+
+    @staticmethod
+    def _delete_database_run(training_id: int) -> bool:
+        if not TRAIN_DB_PATH.exists():
+            return False
+        connection = sqlite3.connect(TRAIN_DB_PATH, timeout=30.0)
+        try:
+            exists = connection.execute(
+                "SELECT 1 FROM training WHERE id = ?", (training_id,)
+            ).fetchone()
+            if exists is None:
+                return False
+            match_filter = """
+                genome_1 IN (SELECT guid FROM genome WHERE training_id = ?)
+                OR genome_2 IN (SELECT guid FROM genome WHERE training_id = ?)
+            """
+            with connection:
+                connection.execute(
+                    "DELETE FROM pc_match WHERE match_dbt_guid IN "
+                    f"(SELECT guid FROM match_dbt WHERE {match_filter})",
+                    (training_id, training_id),
+                )
+                connection.execute(
+                    f"DELETE FROM match_dbt WHERE {match_filter}",
+                    (training_id, training_id),
+                )
+                connection.execute(
+                    "DELETE FROM genome WHERE training_id = ?", (training_id,)
+                )
+                connection.execute(
+                    "DELETE FROM ai_training_deck_lines WHERE deck_id IN "
+                    "(SELECT id FROM ai_training_decks WHERE training_id = ?)",
+                    (training_id,),
+                )
+                connection.execute(
+                    "DELETE FROM ai_training_decks WHERE training_id = ?",
+                    (training_id,),
+                )
+                connection.execute(
+                    "DELETE FROM training WHERE id = ?", (training_id,)
+                )
+            return True
+        finally:
+            connection.close()
+
+    def delete_run(self, item: TrainingJob | TrainingRunSummary) -> dict[str, bool]:
+        """Permanently remove one inactive library run and its stored evidence."""
+        if str(item.status or "").lower() in {
+            "pending",
+            "running",
+            "pausing",
+            "stopping",
+        }:
+            raise RuntimeError("Stop the training run before deleting it")
+
+        training_id = self._database_training_id(item)
+        job_dir = None
+        if isinstance(item, TrainingJob):
+            if self.can_stop(item):
+                raise RuntimeError("Stop the training run before deleting it")
+            root = JOB_ROOT.resolve()
+            job_dir = (JOB_ROOT / item.job_id).resolve()
+            if job_dir.parent != root:
+                raise RuntimeError("Refusing to delete an invalid training job path")
+            training_id = self.job_database_run_id(item)
+
+        database_deleted = (
+            self._delete_database_run(training_id)
+            if training_id is not None
+            else False
+        )
+        files_deleted = False
+        if isinstance(item, TrainingJob) and job_dir is not None:
+            if job_dir.exists():
+                shutil.rmtree(job_dir)
+                files_deleted = True
+            self._processes.pop(item.job_id, None)
+        return {
+            "database_deleted": database_deleted,
+            "files_deleted": files_deleted,
+        }
 
     @staticmethod
     def _telemetry_lines(*paths: str) -> list[str]:
@@ -550,7 +985,9 @@ class TrainingService:
             if kind
             in {
                 TrainingKind.DECK_BUILDER.value,
+                TrainingKind.DECK_POOL_V2.value,
                 TrainingKind.PLAYER_DECK.value,
+                TrainingKind.COUNTER_V2.value,
             }
             and request.get("outer_generations") is not None
             else "evaluator_generations"
@@ -669,7 +1106,16 @@ class TrainingService:
             except (TypeError, ValueError):
                 elapsed_seconds = None
 
-        if job.status in {"failed", "cancelled", "interrupted"}:
+        if job.status == "paused":
+            phase = "paused"
+            eta_seconds = None
+            generation = int(job.paused_generation or generation)
+            round_completed = 0
+            round_total = 0
+            phase_progress = (
+                generation / total_generations if total_generations > 0 else None
+            )
+        elif job.status in {"failed", "cancelled", "interrupted"}:
             phase = job.status
             eta_seconds = None
         elif not phase:
@@ -705,17 +1151,142 @@ class TrainingService:
             eta_seconds=eta_seconds,
             elapsed_seconds=elapsed_seconds,
             checkpoint_generation=checkpoint_generation,
-            recent_events=tuple(recent_events[-6:]),
+            recent_events=tuple(recent_events[-MAX_RECENT_TRAINING_EVENTS:]),
             telemetry_age_seconds=telemetry_age_seconds,
         )
 
     def job_database_run_id(self, job: TrainingJob) -> int | None:
+        if job.training_id is not None:
+            return job.training_id
         pattern = re.compile(r"training[_ ]id\s*:\s*(\d+)", re.I)
         for line in reversed(self._telemetry_lines(job.progress_path, job.log_path)):
             match = pattern.search(line)
             if match:
                 return int(match.group(1))
         return None
+
+    @staticmethod
+    def _mission_name(kind: str) -> str:
+        return {
+            TrainingKind.DECK_BUILDER.value: "Deck evolution v1",
+            TrainingKind.DECK_POOL_V2.value: "Deck evolution v2",
+            TrainingKind.PLAYER_DECK.value: "Evolve deck v1",
+            TrainingKind.COUNTER_V2.value: "Evolve counter v2",
+            TrainingKind.MATCHUP_EVALUATION.value: "Matchup evaluation",
+        }.get(str(kind or ""), "AI training")
+
+    @staticmethod
+    def _depth_label(kind: str, settings: dict) -> str:
+        outer = _summary_int(settings.get("outer_generations"), 0)
+        inner = _summary_int(settings.get("evaluator_generations"), 0)
+        if kind in {
+            TrainingKind.DECK_BUILDER.value,
+            TrainingKind.DECK_POOL_V2.value,
+        }:
+            return f"{outer} outer × {inner} controller generations"
+        if kind in {
+            TrainingKind.PLAYER_DECK.value,
+            TrainingKind.COUNTER_V2.value,
+        }:
+            return f"{outer} counter × {inner} persistent controller generations"
+        if kind == TrainingKind.MATCHUP_EVALUATION.value:
+            return f"{inner} controller generations"
+        return f"{outer or inner or 0} generations"
+
+    def run_detail_lines(
+        self,
+        item: TrainingJob | TrainingRunSummary,
+    ) -> tuple[str, ...]:
+        """Return compact, authoritative identifiers and configuration details."""
+        if isinstance(item, TrainingJob):
+            request = item.request or {}
+            kind = str(request.get("kind") or "")
+            training_id = self.job_database_run_id(item)
+            seeds = request.get("seeds") or ()
+            seed_label = ", ".join(map(str, seeds)) if seeds else "Not applicable"
+            progress = self.job_telemetry(item)
+            deck_context = (
+                f"Decks: {request.get('deck_id') or '—'} vs "
+                f"{request.get('opponent_deck_id') or '—'}"
+                if kind == TrainingKind.MATCHUP_EVALUATION.value
+                else f"Selected deck: {request.get('deck_id') or 'Not applicable'}"
+                if kind in {
+                    TrainingKind.PLAYER_DECK.value,
+                    TrainingKind.COUNTER_V2.value,
+                }
+                else f"Rival decks per generation: {request.get('matches_per_genome', '—')}"
+            )
+            checkpoint = (
+                f"Checkpoint: generation {item.paused_generation}, seed {item.paused_seed}"
+                if item.paused_generation
+                else "Checkpoint: none yet"
+            )
+            return (
+                f"Run ID: {item.job_id}",
+                f"Training ID: {training_id if training_id is not None else 'Not assigned yet'}",
+                f"Label: {request.get('run_label') or item.job_id}",
+                f"Mission: {self._mission_name(kind)}",
+                f"Status: {item.status} · started {item.created_at}",
+                f"Depth: {self._depth_label(kind, request)}",
+                f"Progress: generation {progress.generation}/{progress.total_generations or '—'}",
+                f"Seeds: {seed_label}",
+                f"Workers: {request.get('workers', 0) or 'Not reported'} · evaluation games: {request.get('evaluation_games', '—')}",
+                deck_context,
+                checkpoint,
+                f"Process: {item.pid or 'not running'} · return code: {item.return_code if item.return_code is not None else '—'} · files: {Path(item.log_path).parent}",
+            )
+
+        training_id = self._database_training_id(item)
+        settings = {}
+        description = ""
+        end_date = None
+        if training_id is not None and TRAIN_DB_PATH.exists():
+            connection = self._read_only_connection(TRAIN_DB_PATH)
+            try:
+                columns = {
+                    str(row[1])
+                    for row in connection.execute("PRAGMA table_info(training)")
+                }
+                description_sql = (
+                    "description" if "description" in columns else "'' AS description"
+                )
+                row = connection.execute(
+                    f"SELECT end_date, metadata, {description_sql} "
+                    "FROM training WHERE id = ?",
+                    (training_id,),
+                ).fetchone()
+                if row is not None:
+                    end_date = row["end_date"]
+                    description = str(row["description"] or "")
+                    try:
+                        metadata = json.loads(row["metadata"] or "{}")
+                    except (TypeError, json.JSONDecodeError):
+                        metadata = {}
+                    if isinstance(metadata, dict) and isinstance(
+                        metadata.get("settings"), dict
+                    ):
+                        settings = metadata["settings"]
+            finally:
+                connection.close()
+        kind = item.run_kind
+        seeds = settings.get("seeds")
+        if seeds is None and settings.get("seed") is not None:
+            seeds = (settings["seed"],)
+        seed_label = ", ".join(map(str, seeds or ())) or "Not recorded"
+        return (
+            f"Run ID: {item.run_id}",
+            f"Training ID: {training_id if training_id is not None else 'Unknown'}",
+            f"Label: {item.title}",
+            f"Mission: {self._mission_name(kind)}",
+            f"Status: {item.status} · started {item.started}",
+            f"Depth: {self._depth_label(kind, settings)}",
+            f"Progress: generation {item.generation}/{item.total_generations or '—'}",
+            f"Seeds: {seed_label} · workers: {item.workers or 'Not recorded'}",
+            f"Stored genomes: {item.genome_count:,}",
+            f"Best fitness: {item.best_score:.2f}" if item.best_score is not None else "Best fitness: not recorded",
+            f"Best deck ID: {item.best_deck_id or 'Not recorded'}",
+            f"Finished: {end_date or 'No'} · description: {description or 'Not recorded'}",
+        )
 
     @staticmethod
     def database_telemetry(run: TrainingRunSummary) -> TrainingTelemetry:
@@ -785,10 +1356,12 @@ class TrainingService:
         for row in rows:
             settings = {}
             termination = None
+            optimizer = None
             try:
                 metadata = json.loads(row["metadata"] or "{}")
                 settings = metadata.get("settings", {})
                 termination = metadata.get("termination_reason")
+                optimizer = metadata.get("optimizer")
             except (TypeError, json.JSONDecodeError):
                 pass
             status = "incomplete" if row["end_date"] is None else "completed"
@@ -817,7 +1390,11 @@ class TrainingService:
                     genome_count=int(row["genome_count"] or 0),
                     workers=workers,
                     fitness_history=tuple(histories.get(int(row["id"]), ())),
-                    run_kind=TrainingKind.DECK_BUILDER.value,
+                    run_kind=(
+                        TrainingKind.DECK_POOL_V2.value
+                        if optimizer == "composition-ga-v2"
+                        else TrainingKind.DECK_BUILDER.value
+                    ),
                 )
             )
         return summaries
@@ -1016,7 +1593,7 @@ class TrainingService:
                 f"{eligible_count} matchup pairs passed the seven-shared-card diversity rule."
             )
         return TrainingInsights(
-            run_kind=TrainingKind.DECK_BUILDER.value,
+            run_kind=run.run_kind,
             subject=run.title,
             generation_scores=generation_scores,
             favorable_matchups=favorable,
@@ -1048,7 +1625,7 @@ class TrainingService:
             evolution = self.database_evolution(run)
         except (AttributeError, OSError, ValueError, sqlite3.Error) as error:
             return TrainingInsights(
-                run_kind=TrainingKind.DECK_BUILDER.value,
+                run_kind=run.run_kind,
                 subject=run.title,
                 conclusions=(f"Run-scoped evidence is unavailable: {error}",),
             )
@@ -1090,6 +1667,11 @@ class TrainingService:
             for signal in evolution.card_signals[:6]
         )
         conclusions = []
+        if str(run.status or "").lower() != "completed":
+            conclusions.append(
+                f"This {run.status} run is showing partial stored evidence; "
+                "missing generations and matchups are not inferred."
+            )
         if evolution.first_generation and evolution.final_generation:
             conclusions.append(
                 "Relative score spread changed from "
@@ -1104,7 +1686,7 @@ class TrainingService:
             )
         )
         return TrainingInsights(
-            run_kind=TrainingKind.DECK_BUILDER.value,
+            run_kind=run.run_kind,
             subject=f"{evolution.run_label} · DB {evolution.training_id}",
             generation_scores=generation_scores,
             favorable_matchups=favorable,
@@ -1120,18 +1702,23 @@ class TrainingService:
     def result_artifact_status(
         self, item: TrainingJob | TrainingRunSummary
     ) -> ResultArtifactStatus:
-        """Verify enough completed evidence exists before exposing result screens."""
+        """Verify completed evidence or a safe, useful partial result snapshot."""
         status = str(getattr(item, "status", "") or "").lower()
-        if status != "completed":
+        completed = status == "completed"
+        partial = status in PARTIAL_RESULT_STATUSES
+        if not completed and not partial:
             return ResultArtifactStatus.invalid(
-                "Finished results are unavailable because this run did not complete"
+                "Results are unavailable for this run state"
             )
         kind = (
             item.run_kind
             if isinstance(item, TrainingRunSummary)
             else str((item.request or {}).get("kind", ""))
         )
-        if kind == TrainingKind.DECK_BUILDER.value:
+        if kind in {
+            TrainingKind.DECK_BUILDER.value,
+            TrainingKind.DECK_POOL_V2.value,
+        }:
             if isinstance(item, TrainingRunSummary):
                 match = re.search(r"(\d+)$", item.run_id)
                 training_id = int(match.group(1)) if match else None
@@ -1154,6 +1741,20 @@ class TrainingService:
                     """,
                     (training_id,),
                 ).fetchone()
+                scored_pairings = (
+                    int(
+                        connection.execute(
+                            """
+                            SELECT COUNT(*) FROM match_dbt
+                            WHERE guid >= ? AND guid < ? AND result IS NOT NULL
+                            """,
+                            (f"T{training_id}:", f"T{training_id};"),
+                        ).fetchone()[0]
+                        or 0
+                    )
+                    if partial and row is not None
+                    else 0
+                )
             except sqlite3.Error as error:
                 return ResultArtifactStatus.invalid(
                     f"Could not verify Evolution results: {error}"
@@ -1161,7 +1762,11 @@ class TrainingService:
             finally:
                 if "connection" in locals():
                     connection.close()
-            if row is None or row["end_date"] is None:
+            if row is None:
+                return ResultArtifactStatus.invalid(
+                    "No stored Evolution evidence was found for this run"
+                )
+            if completed and row["end_date"] is None:
                 return ResultArtifactStatus.waiting(
                     "Preparing results… the training database is not finalized"
                 )
@@ -1169,22 +1774,47 @@ class TrainingService:
                 return ResultArtifactStatus.invalid(
                     "Evolution finished without stored genomes or deck compositions"
                 )
+            if partial:
+                if scored_pairings <= 0:
+                    return ResultArtifactStatus.invalid(
+                        "The unfinished Evolution run has no completed deck pairings"
+                    )
+                return ResultArtifactStatus.partial(
+                    "Partial Evolution evidence verified · "
+                    f"{int(row[2]):,} stored decks · "
+                    f"{scored_pairings:,} scored pairings"
+                )
             return ResultArtifactStatus.available("Evolution evidence verified")
 
         path = Path(getattr(item, "summary_path", ""))
         if not path.exists() or path.stat().st_size == 0:
-            return ResultArtifactStatus.waiting(
-                "Preparing results… waiting for the completed summary"
+            return (
+                ResultArtifactStatus.waiting(
+                    "Preparing results… waiting for the completed summary"
+                )
+                if completed
+                else ResultArtifactStatus.invalid(
+                    "This unfinished run has no usable result summary"
+                )
             )
         try:
             summary = json.loads(path.read_text())
         except (OSError, ValueError, json.JSONDecodeError):
-            return ResultArtifactStatus.waiting(
-                "Preparing results… the summary is still unreadable"
+            return (
+                ResultArtifactStatus.waiting(
+                    "Preparing results… the summary is still unreadable"
+                )
+                if completed
+                else ResultArtifactStatus.invalid(
+                    "This unfinished run has an unreadable result summary"
+                )
             )
         if not isinstance(summary, dict):
-            return ResultArtifactStatus.invalid("The completed summary has an invalid format")
-        if kind == TrainingKind.PLAYER_DECK.value:
+            return ResultArtifactStatus.invalid("The result summary has an invalid format")
+        if kind in {
+            TrainingKind.PLAYER_DECK.value,
+            TrainingKind.COUNTER_V2.value,
+        }:
             rows = summary.get("counter_matchups")
             if not isinstance(rows, list) or not rows:
                 return ResultArtifactStatus.invalid(
@@ -1202,12 +1832,14 @@ class TrainingService:
                 == _summary_int(row.get("games"), 0)
                 for row in rows
             )
-            return (
-                ResultArtifactStatus.available("Counter candidate results verified")
-                if valid
-                else ResultArtifactStatus.invalid(
+            if not valid:
+                return ResultArtifactStatus.invalid(
                     "Counter candidates are missing a valid composition or W/D/L sample"
                 )
+            return (
+                ResultArtifactStatus.partial("Partial counter candidate evidence verified")
+                if partial
+                else ResultArtifactStatus.available("Counter candidate results verified")
             )
         if kind == TrainingKind.MATCHUP_EVALUATION.value:
             requested = _summary_int(
@@ -1217,7 +1849,7 @@ class TrainingService:
                 0,
             )
             rows = summary.get("skill_evaluations") or ()
-            valid_final = False
+            valid_generations = []
             for row in rows:
                 if not isinstance(row, dict):
                     continue
@@ -1228,20 +1860,29 @@ class TrainingService:
                     for key in ("deck_1_wins", "draws", "deck_2_wins")
                 )
                 if generation == requested and games > 0 and outcomes == games:
-                    valid_final = True
-                    break
-            return (
-                ResultArtifactStatus.available("Final Duel checkpoint verified")
-                if valid_final
-                else ResultArtifactStatus.invalid(
-                    "The completed Duel summary has no valid final checkpoint"
+                    valid_generations.append(generation)
+                elif games > 0 and outcomes == games:
+                    valid_generations.append(generation)
+            if partial and valid_generations:
+                return ResultArtifactStatus.partial(
+                    "Partial Duel evidence verified through generation "
+                    f"{max(valid_generations)}"
                 )
+            if completed and requested in valid_generations:
+                return ResultArtifactStatus.available("Final Duel checkpoint verified")
+            return ResultArtifactStatus.invalid(
+                "The completed Duel summary has no valid final checkpoint"
+                if completed
+                else "The unfinished Duel run has no valid evaluation checkpoint"
             )
         return ResultArtifactStatus.invalid("Unknown training mission")
 
     def job_insights(self, job: TrainingJob) -> TrainingInsights:
         kind = str((job.request or {}).get("kind", ""))
-        if kind == TrainingKind.DECK_BUILDER.value:
+        if kind in {
+            TrainingKind.DECK_BUILDER.value,
+            TrainingKind.DECK_POOL_V2.value,
+        }:
             database_run_id = self.job_database_run_id(job)
             if database_run_id is not None:
                 database_run = TrainingRunSummary(
@@ -1250,7 +1891,7 @@ class TrainingService:
                     status=job.status,
                     started=job.created_at,
                     detail="UI deck-builder experiment",
-                    run_kind=TrainingKind.DECK_BUILDER.value,
+                    run_kind=kind,
                 )
                 return replace(
                     self.database_insights(database_run),
@@ -1260,7 +1901,10 @@ class TrainingService:
             summary = json.loads(Path(job.summary_path).read_text())
         except (OSError, TypeError, ValueError, json.JSONDecodeError):
             summary = {}
-        is_counter = kind == TrainingKind.PLAYER_DECK.value
+        is_counter = kind in {
+            TrainingKind.PLAYER_DECK.value,
+            TrainingKind.COUNTER_V2.value,
+        }
         is_matchup = kind == TrainingKind.MATCHUP_EVALUATION.value
         telemetry = self.job_telemetry(job)
         counter = (

@@ -65,6 +65,10 @@ def load_deck_learning_curves(
     """
     Return inner player-controller learning curves from each deck's perspective.
 
+    Older runs logged every training generation. Newer runs intentionally store
+    only evaluation checkpoints; when raw training rows are absent, those honest
+    5/20/35/65 checkpoints are used rather than returning an empty chart.
+
     `gen` is kept as an alias for `inner_gen` so existing notebook cells can use
     the same x-axis name while the data still makes the generation meaning clear.
     """
@@ -97,7 +101,28 @@ def load_deck_learning_curves(
 
     with training_connection() as conn:
         if has_column(conn, "pc_match", "phase"):
-            match_filters.append("COALESCE(p.phase, 'training') = 'training'")
+            probe_where = (
+                f"WHERE {' AND '.join(match_filters)}" if match_filters else "WHERE 1=1"
+            )
+            has_raw_training = conn.execute(
+                f"""
+                SELECT 1
+                FROM pc_match p
+                JOIN match_dbt m ON p.match_dbt_guid = m.guid
+                {match_joins}
+                {probe_where}
+                  AND COALESCE(p.phase, 'training') = 'training'
+                LIMIT 1
+                """,
+                params or (),
+            ).fetchone() is not None
+            if has_raw_training:
+                match_filters.append("COALESCE(p.phase, 'training') = 'training'")
+            else:
+                match_filters.append(
+                    "COALESCE(p.phase, 'training') IN "
+                    "('holdout_early', 'holdout_checkpoint', 'holdout')"
+                )
         match_where = (
             f"WHERE {' AND '.join(match_filters)}" if match_filters else ""
         )

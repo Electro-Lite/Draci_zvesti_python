@@ -41,6 +41,7 @@ class EvaluatorSettings:
     crossplay_reference_generation: int | None = None
     seed: int = 104729
     log_training_games: bool = True
+    training_seat_swaps: bool = False
 
     def __post_init__(self):
         if self.generations < 1:
@@ -95,6 +96,16 @@ def _stable_seed(*parts) -> int:
     return int.from_bytes(digest[:8], "big") & ((1 << 63) - 1)
 
 
+def deck_evaluation_seed_key(deck_1, deck_2) -> str:
+    """Return an order-independent key based only on both deck compositions."""
+    signatures = []
+    for deck in (deck_1, deck_2):
+        card_ids = sorted(str(card.id) for card in deck.cards)
+        payload = ",".join(card_ids)
+        signatures.append(hashlib.md5(payload.encode("utf-8")).hexdigest())
+    return "deck-pair:" + ":".join(sorted(signatures))
+
+
 def holdout_game_seeds(settings: EvaluatorSettings) -> tuple[int, ...]:
     """Return the common random-number schedule used by every deck matchup."""
     return tuple(
@@ -119,21 +130,31 @@ def fitness_from_result(result: GameResult, perspective_player_id: int) -> float
 
 
 def _play_training_game(
-        genome1_data,
-        genome2_data,
-        config,
-        deck_1,
-        deck_2,
-        seed: int,
-        starting_player_id: int,
+    genome1_data,
+    genome2_data,
+    config,
+    deck_1,
+    deck_2,
+    seed: int,
+    starting_player_id: int,
+    seat_swap: bool = False,
 ):
     genome_id1, genome1 = genome1_data
     genome_id2, genome2 = genome2_data
-
-    player_1 = Player(1, copy.deepcopy(deck_1), PlayerChoiceStrategyNeat)
-    player_2 = Player(2, copy.deepcopy(deck_2), PlayerChoiceStrategyNeat)
-    player_1.net = neat.nn.FeedForwardNetwork.create(genome1, config)
-    player_2.net = neat.nn.FeedForwardNetwork.create(genome2, config)
+    if seat_swap:
+        player_1 = Player(1, copy.deepcopy(deck_2), PlayerChoiceStrategyNeat)
+        player_2 = Player(2, copy.deepcopy(deck_1), PlayerChoiceStrategyNeat)
+        player_1.net = neat.nn.FeedForwardNetwork.create(genome2, config)
+        player_2.net = neat.nn.FeedForwardNetwork.create(genome1, config)
+        deck_1_player_id = 2
+        deck_2_player_id = 1
+    else:
+        player_1 = Player(1, copy.deepcopy(deck_1), PlayerChoiceStrategyNeat)
+        player_2 = Player(2, copy.deepcopy(deck_2), PlayerChoiceStrategyNeat)
+        player_1.net = neat.nn.FeedForwardNetwork.create(genome1, config)
+        player_2.net = neat.nn.FeedForwardNetwork.create(genome2, config)
+        deck_1_player_id = 1
+        deck_2_player_id = 2
 
     result = run_game(
         player_1,
@@ -144,19 +165,20 @@ def _play_training_game(
     )
     return (
         genome_id1,
-        fitness_from_result(result, 1),
+        fitness_from_result(result, deck_1_player_id),
         genome_id2,
-        fitness_from_result(result, 2),
+        fitness_from_result(result, deck_2_player_id),
         result,
+        seat_swap,
     )
 
 
 def _pc_match_row(
-        match_guid: str,
-        inner_generation: int,
-        g1_fitness: float,
-        g2_fitness: float,
-        result: GameResult,
+    match_guid: str,
+    inner_generation: int,
+    g1_fitness: float,
+    g2_fitness: float,
+    result: GameResult,
     phase: str,
     seat_swap: bool,
     deck1_controller_generation: int | None = None,
@@ -204,6 +226,7 @@ def _evaluate_populations(
         deck_1,
         deck_2,
         match_guid: str | None,
+        evaluation_seed_key: str,
         inner_generation: int,
         settings: EvaluatorSettings,
 ) -> None:
@@ -219,20 +242,23 @@ def _evaluate_populations(
         for genome_id2, genome2 in genomes2:
             game_seed = _stable_seed(
                 settings.seed,
-                match_guid or "standalone",
+                evaluation_seed_key,
                 inner_generation,
                 genome_id1,
                 genome_id2,
             )
             starting_player_id = 1 if game_seed % 2 == 0 else 2
-            jobs.append(
-                (
-                    (genome_id1, genome1),
-                    (genome_id2, genome2),
-                    game_seed,
-                    starting_player_id,
+            seat_swaps = (False, True) if settings.training_seat_swaps else (False,)
+            for seat_swap in seat_swaps:
+                jobs.append(
+                    (
+                        (genome_id1, genome1),
+                        (genome_id2, genome2),
+                        game_seed,
+                        starting_player_id,
+                        seat_swap,
+                    )
                 )
-            )
 
     logged_games = []
     with ProcessPoolExecutor(max_workers=max(1, settings.workers)) as executor:
@@ -246,11 +272,18 @@ def _evaluate_populations(
                 deck_2,
                 game_seed,
                 starting_player_id,
+                seat_swap,
             )
-            for genome1_data, genome2_data, game_seed, starting_player_id in jobs
+            for (
+                genome1_data,
+                genome2_data,
+                game_seed,
+                starting_player_id,
+                seat_swap,
+            ) in jobs
         ]
         for future in as_completed(futures):
-            genome_id1, fit1, genome_id2, fit2, result = future.result()
+            genome_id1, fit1, genome_id2, fit2, result, seat_swap = future.result()
             totals1[genome_id1] += fit1
             totals2[genome_id2] += fit2
             counts1[genome_id1] += 1
@@ -264,7 +297,7 @@ def _evaluate_populations(
                         fit2,
                         result,
                         phase="training",
-                        seat_swap=False,
+                        seat_swap=seat_swap,
                     )
                 )
 
@@ -278,13 +311,13 @@ def _evaluate_populations(
 
 
 def _play_holdout_game(
-        genome1,
-        genome2,
-        config,
-        deck_1,
-        deck_2,
-        seed: int,
-        seat_swap: bool,
+    genome1,
+    genome2,
+    config,
+    deck_1,
+    deck_2,
+    seed: int,
+    seat_swap: bool,
 ):
     if seat_swap:
         player_1 = Player(1, copy.deepcopy(deck_2), PlayerChoiceStrategyNeat)
@@ -317,10 +350,10 @@ def _play_holdout_game(
 
 
 def _evaluate_holdout(
-        genome1,
-        genome2,
-        config,
-        deck_1,
+    genome1,
+    genome2,
+    config,
+    deck_1,
     deck_2,
     match_guid: str | None,
     settings: EvaluatorSettings,
@@ -404,8 +437,12 @@ def train_deck(
     settings: EvaluatorSettings = None,
     checkpoint_callback: Callable[[int, dict], None] | None = None,
     controller_callback: Callable[[object, object], None] | None = None,
+    evaluation_seed_key: str | None = None,
 ) -> list[float]:
     settings = settings or EvaluatorSettings()
+    evaluation_seed_key = evaluation_seed_key or deck_evaluation_seed_key(
+        deck1, deck2
+    )
     config_path = str(configured_neat_path("evaluator"))
     config = neat.Config(
         neat.DefaultGenome,
@@ -439,6 +476,7 @@ def train_deck(
                 deck1,
                 deck2,
                 match_dbt_guid,
+                evaluation_seed_key,
                 inner_generation,
                 settings,
             )

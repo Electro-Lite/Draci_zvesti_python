@@ -22,10 +22,21 @@ def _copy_limit(card: Card) -> int:
 def _can_add_card(deck: Deck, card: Card) -> bool:
     return len(deck.cards) < 12 and _copy_count(deck, card) < _copy_limit(card)
 
-def build_deck(net:nn.FeedForwardNetwork, max_power = Power.NORMAL) -> Deck:
+def build_deck(
+    net: nn.FeedForwardNetwork,
+    max_power=Power.NORMAL,
+    banned_card_ids=(),
+) -> Deck:
     deck    = Deck()
+    banned = {str(card_id) for card_id in banned_card_ids}
     cards   = sorted(
-        [card for card in DBUtil().get_all_cards() if card.power <= max_power and card.type == CardType.PLAYER],
+        [
+            card
+            for card in DBUtil().get_all_cards()
+            if card.power <= max_power
+            and card.type == CardType.PLAYER
+            and str(card.id) not in banned
+        ],
         key=lambda card: card.id
     )
 

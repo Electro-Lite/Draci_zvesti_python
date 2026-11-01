@@ -82,11 +82,11 @@ class MatchupPresentationTests(unittest.TestCase):
         self.assertEqual(detail.final_checkpoint.rates, (0.53, 0.14, 0.33))
         self.assertEqual(detail.deck_a.name, "Azure Guard")
         self.assertEqual(detail.deck_a.cards[0].copies, 2)
-        self.assertEqual(detail.workload.games_per_genome_per_generation, 15)
-        self.assertEqual(detail.workload.learning_games_per_generation, 225)
-        self.assertEqual(detail.workload.planned_learning_games, 9000)
+        self.assertEqual(detail.workload.games_per_genome_per_generation, 30)
+        self.assertEqual(detail.workload.learning_games_per_generation, 450)
+        self.assertEqual(detail.workload.planned_learning_games, 18000)
         self.assertEqual(detail.workload.planned_evaluation_games, 400)
-        self.assertEqual(detail.workload.planned_total_games, 9400)
+        self.assertEqual(detail.workload.planned_total_games, 18400)
 
     def test_malformed_and_zero_game_rows_never_create_percentages_or_final(self):
         summary = {

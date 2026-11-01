@@ -75,6 +75,9 @@ class LayoutTests(unittest.TestCase):
         self.assertFalse(editor.begin_edit(locked.key))
         self.assertEqual(editor.profiles, ("evaluator",))
 
+        counter_v2 = AdvancedNeatEditor(TrainingKind.COUNTER_V2)
+        self.assertEqual(counter_v2.profiles, ("evaluator",))
+
     def test_advanced_neat_editor_allows_empty_text_until_export(self):
         editor = AdvancedNeatEditor(TrainingKind.DECK_BUILDER)
         key = "DefaultReproduction.min_species_size"
@@ -127,6 +130,20 @@ class LayoutTests(unittest.TestCase):
             self.assertLessEqual(layout.panels["config"].right, layout.panels["summary"].x)
             self.assertLessEqual(layout.controls["launch"].bottom, layout.panels["summary"].bottom)
 
+        for kind in (TrainingKind.DECK_BUILDER, TrainingKind.DECK_POOL_V2):
+            layout = training_cockpit_layout(
+                LayoutMetrics.from_size(1280, 720),
+                kind,
+            )
+            self.assertGreater(
+                layout.controls["max_card_power"].y,
+                layout.controls["workers"].y,
+            )
+            self.assertLessEqual(
+                layout.controls["banned_card_ids"].bottom,
+                layout.panels["config"].bottom,
+            )
+
         compact = training_cockpit_layout(
             LayoutMetrics.from_size(640, 480),
             TrainingKind.DECK_BUILDER,
@@ -155,7 +172,13 @@ class TrainingCockpitStateTests(unittest.TestCase):
         self._fixed_run_tokens(state)
         self.assertEqual(
             state.value("run_label"),
-            "counter_balanced_260925-14_Blue",
+            "counter-v1_balanced_260925-14_Blue",
+        )
+
+        state.switch(TrainingKind.COUNTER_V2)
+        self.assertEqual(
+            state.value("run_label"),
+            "counter-v2_balanced_260925-14_Blue",
         )
 
         state.switch(TrainingKind.MATCHUP_EVALUATION)
@@ -167,7 +190,13 @@ class TrainingCockpitStateTests(unittest.TestCase):
         state.switch(TrainingKind.DECK_BUILDER)
         self.assertEqual(
             state.value("run_label"),
-            "deck-builder_balanced_260925-14",
+            "deck-evolution-v1_balanced_260925-14",
+        )
+
+        state.switch(TrainingKind.DECK_POOL_V2)
+        self.assertEqual(
+            state.value("run_label"),
+            "deck-evolution-v2_balanced_260925-14",
         )
 
     def test_automatic_run_name_tracks_configuration_until_user_renames_it(self):
@@ -177,7 +206,7 @@ class TrainingCockpitStateTests(unittest.TestCase):
         state.apply_preset(0)
         self.assertEqual(
             state.value("run_label"),
-            "counter_quick_260925-14_Queen",
+            "counter-v1_quick_260925-14_Queen",
         )
 
         state.set_value("run_label", "queen-counter-baseline")
@@ -209,6 +238,14 @@ class TrainingCockpitStateTests(unittest.TestCase):
         state.switch(TrainingKind.DECK_BUILDER)
         self.assertEqual(state.value("run_label"), "builder-study")
         self.assertEqual(state.validate().request.seeds, (400009, 450001, 400009))
+
+        state.switch(TrainingKind.DECK_POOL_V2)
+        self.assertNotEqual(state.value("run_label"), "builder-study")
+        self.assertEqual(state.validate().request.kind, TrainingKind.DECK_POOL_V2)
+
+        state.switch(TrainingKind.COUNTER_V2)
+        self.assertEqual(state.validate().request.kind, TrainingKind.COUNTER_V2)
+        self.assertNotEqual(state.value("run_label"), "controller-study")
 
     def test_direct_values_map_exactly_to_matchup_request(self):
         state = TrainingCockpitState(("Blue", "Queen"))
@@ -246,6 +283,19 @@ class TrainingCockpitStateTests(unittest.TestCase):
         self.assertIsNone(request.opponent_deck_id)
         self.assertEqual(request.outer_generations, 7)
         self.assertEqual(request.evaluator_generations, 41)
+
+    def test_deck_generating_missions_preserve_card_pool_restrictions(self):
+        state = TrainingCockpitState(("Blue", "Queen"))
+        state.set_value("max_card_power", "1")
+        state.set_value("banned_card_ids", "Lucisnik_1,Paladin_1", user_edit=False)
+
+        request = state.validate().request
+
+        self.assertEqual(request.max_card_power, 1)
+        self.assertEqual(request.banned_card_ids, ("Lucisnik_1", "Paladin_1"))
+        state.switch(TrainingKind.MATCHUP_EVALUATION)
+        self.assertNotIn("max_card_power", state.field_keys)
+        self.assertNotIn("banned_card_ids", state.field_keys)
 
     def test_builder_validation_keeps_bad_text_visible_and_rejects_odd_matches(self):
         state = TrainingCockpitState(("Blue",))

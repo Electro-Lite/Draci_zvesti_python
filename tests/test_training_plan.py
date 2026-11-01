@@ -5,11 +5,16 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import ANY, Mock, patch
 
 import neat
 
 from cards.ability.ability_target import AbilityTarget
+from cards.card import Card
+from cards.card_type import CardType
+from cards.deck import Deck
+from cards.power import Power
+from config import Config
 from choice_strategies.choice_strategy import PlayerChoiceStrategy
 from choice_strategies.choice_strategy_ai_neat import (
     ACTION_OUTPUT_COUNT,
@@ -31,10 +36,15 @@ from neat_ai.deck_builder_trainer import (
     DEFAULT_SEEDS,
     BuilderSettings,
     build_matchups,
+    checkpoint_completed_generation,
+    train_deck_builder,
 )
+from neat_ai.deck_builder import build_deck
 from neat_ai.deck_evaluator import (
     EvaluatorSettings,
     _pc_match_row,
+    _play_training_game,
+    deck_evaluation_seed_key,
     fitness_from_result,
     holdout_game_seeds,
 )
@@ -73,7 +83,185 @@ class FirstLegalStrategy(PlayerChoiceStrategy):
         return 0
 
 
+class NeverPassStrategy(PlayerChoiceStrategy):
+    pass_checks = 0
+
+    def get_choice_pass(self):
+        type(self).pass_checks += 1
+        return False
+
+
 class TrainingPlanTests(unittest.TestCase):
+    def test_ai_deck_builder_includes_legendary_cards_but_keeps_copy_limit(self):
+        normal = Card(
+            id="normal",
+            name="Normal",
+            power=Power.NORMAL,
+            color=SimpleNamespace(value=0),
+            ability=SimpleNamespace(id=SimpleNamespace(value=0)),
+            type=CardType.PLAYER,
+        )
+        legendary = Card(
+            id="legendary",
+            name="Legendary",
+            power=Power.LEGENDARY,
+            color=SimpleNamespace(value=0),
+            ability=SimpleNamespace(id=SimpleNamespace(value=0)),
+            type=CardType.PLAYER,
+        )
+        network = SimpleNamespace(
+            activate=lambda values: [float(values[-7]), 1.0]
+        )
+
+        with patch(
+            "neat_ai.deck_builder.DBUtil.get_all_cards",
+            return_value=[normal, legendary],
+        ):
+            deck = build_deck(network, max_power=Power.LEGENDARY)
+
+        self.assertIn(legendary, deck.cards)
+        self.assertEqual(deck.cards.count(legendary), 1)
+
+    def test_ai_deck_builder_excludes_banned_cards(self):
+        normal = Card(
+            id="normal",
+            name="Normal",
+            power=Power.NORMAL,
+            color=SimpleNamespace(value=0),
+            ability=SimpleNamespace(id=SimpleNamespace(value=0)),
+            type=CardType.PLAYER,
+        )
+        banned = Card(
+            id="banned",
+            name="Banned",
+            power=Power.NORMAL,
+            color=SimpleNamespace(value=0),
+            ability=SimpleNamespace(id=SimpleNamespace(value=0)),
+            type=CardType.PLAYER,
+        )
+        network = SimpleNamespace(activate=lambda values: [1.0, 1.0])
+
+        with patch(
+            "neat_ai.deck_builder.DBUtil.get_all_cards",
+            return_value=[banned, normal],
+        ):
+            deck = build_deck(
+                network,
+                max_power=Power.LEGENDARY,
+                banned_card_ids=("banned",),
+            )
+
+        self.assertNotIn(banned, deck.cards)
+        self.assertTrue(deck.cards)
+
+    def test_deck_evolution_checkpoint_names_map_to_completed_outer_generations(self):
+        self.assertEqual(
+            checkpoint_completed_generation(
+                "checkpoints/training_17_seed_104729_gen-3"
+            ),
+            4,
+        )
+        with self.assertRaisesRegex(ValueError, "generation"):
+            checkpoint_completed_generation("checkpoint-without-counter")
+
+    def test_deck_evolution_resume_reuses_run_and_executes_only_remaining_generations(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            builder_config = root / "builder.txt"
+            evaluator_config = root / "evaluator.txt"
+            builder_config.write_text("builder")
+            evaluator_config.write_text("evaluator")
+            checkpoint = root / "training_17_seed_104729_gen-3"
+            checkpoint.write_bytes(b"checkpoint")
+            population = SimpleNamespace(
+                generation=3,
+                species=SimpleNamespace(species={}),
+                add_reporter=Mock(),
+                run=Mock(return_value=SimpleNamespace(fitness=12.5)),
+            )
+            training = Training(
+                id=17,
+                start_date="earlier",
+                metadata='{"observed_populations":[]}',
+            )
+            logger = SimpleNamespace(
+                get_training=Mock(return_value=training),
+                save_training=Mock(return_value=training),
+            )
+            fake_checkpointer = SimpleNamespace(
+                restore_checkpoint=Mock(return_value=population),
+            )
+
+            with (
+                patch.dict(
+                    os.environ,
+                    {"TRAINING_ARTIFACT_DIR": str(root)},
+                    clear=False,
+                ),
+                patch(
+                    "neat_ai.deck_builder_trainer.shutil.disk_usage",
+                    return_value=SimpleNamespace(free=2 << 30),
+                ),
+                patch(
+                    "neat_ai.deck_builder_trainer.config_path",
+                    side_effect=(builder_config, evaluator_config),
+                ),
+                patch("neat_ai.deck_builder_trainer.neat.Config"),
+                patch(
+                    "neat_ai.deck_builder_trainer.neat.Checkpointer",
+                    return_value=fake_checkpointer,
+                ) as checkpointer_type,
+                patch(
+                    "neat_ai.deck_builder_trainer.AITrainingLogger",
+                    return_value=logger,
+                ),
+                patch("neat_ai.deck_builder_trainer.emit_training_event"),
+                patch("builtins.print"),
+            ):
+                checkpointer_type.restore_checkpoint = fake_checkpointer.restore_checkpoint
+                train_deck_builder(
+                    BuilderSettings(
+                        seed=104729,
+                        outer_generations=10,
+                        checkpoint_path=str(checkpoint),
+                        resume_training_id=17,
+                    )
+                )
+
+        self.assertEqual(population.generation, 4)
+        population.run.assert_called_once_with(ANY, 6)
+        logger.get_training.assert_called_once_with(17)
+        self.assertIsNotNone(training.end_date)
+
+    def test_round_turn_limit_forces_pass_and_resets_each_round(self):
+        first_deck = Deck()
+        second_deck = Deck()
+        first_deck.cards = [SimpleNamespace(name="Loop one")]
+        second_deck.cards = [SimpleNamespace(name="Loop two")]
+        first = Player(1, first_deck, NeverPassStrategy)
+        second = Player(2, second_deck, NeverPassStrategy)
+        board = Board(dragons=[])
+        NeverPassStrategy.pass_checks = 0
+
+        with (
+            patch("core.game_loop.play_card"),
+            patch("core.game_loop.battle_dragon", return_value=None),
+            patch.object(Config, "max_rounds", 1),
+            patch.object(Config, "turn_count_limit", 50),
+        ):
+            run(
+                first,
+                second,
+                DisplayStrategyNone,
+                board=board,
+                starting_player_id=1,
+            )
+
+        self.assertEqual(NeverPassStrategy.pass_checks, 100)
+        self.assertEqual(board.round, 2)
+        self.assertTrue(first.passed)
+        self.assertTrue(second.passed)
+
     def test_zero_damage_battle_resolves_as_dragon_surviving(self):
         owner = object()
         card = SimpleNamespace(hp=2, dmg=0, owner=owner)
@@ -241,10 +429,68 @@ class TrainingPlanTests(unittest.TestCase):
         self.assertTrue(strategy.get_choice_use_ability())
         self.assertEqual(strategy.get_choice_ability_target(), 1)
 
+    def test_neat_strategy_targets_automatic_ability_without_use_prompt(self):
+        outputs = [0.0] * ACTION_OUTPUT_COUNT
+        outputs[2] = 1.0
+        outputs[16] = 1.0
+        outputs[23] = 10.0
+
+        player = SimpleNamespace()
+        player.net = FixedNetwork(outputs)
+        selected_card = SimpleNamespace(
+            ability=SimpleNamespace(
+                is_onPlay=True,
+                auto_activate_on_play=True,
+                requires_target=True,
+                legal_target_positions=lambda card, board: [1],
+            )
+        )
+        player.hand = SimpleNamespace(cards=[selected_card])
+        strategy = PlayerChoiceStrategyNeat(player)
+        strategy.info = SimpleNamespace(
+            get_game_info=lambda: [0.0] * GAME_INFO_INPUT_COUNT,
+            game_board=SimpleNamespace(
+                positions=[None, SimpleNamespace(owner=player), None, None, None, None]
+            ),
+        )
+
+        strategy.begin_turn_choices()
+        strategy.get_choice_card()
+        self.assertEqual(strategy.get_choice_pos(), 2)
+        self.assertEqual(strategy.get_choice_ability_target(), 1)
+
     def test_outcome_fitness_is_normalized(self):
         result = GameResult(2, 1, 1, 3, 1, 123)
         self.assertEqual(fitness_from_result(result, 1), 110.0)
         self.assertEqual(fitness_from_result(result, 2), -110.0)
+
+    def test_training_seat_swap_preserves_original_deck_perspectives(self):
+        deck_a = SimpleNamespace(id="deck-a", cards=[])
+        deck_b = SimpleNamespace(id="deck-b", cards=[])
+        result = GameResult(3, 1, 1, 4, 1, 987)
+
+        with (
+            patch("neat_ai.deck_evaluator.neat.nn.FeedForwardNetwork.create")
+            as create_network,
+            patch("neat_ai.deck_evaluator.run_game", return_value=result) as play,
+        ):
+            outcome = _play_training_game(
+                (11, "genome-a"),
+                (22, "genome-b"),
+                "config",
+                deck_a,
+                deck_b,
+                seed=987,
+                starting_player_id=1,
+                seat_swap=True,
+            )
+
+        player_1, player_2 = play.call_args.args[:2]
+        self.assertEqual((player_1.deck.id, player_2.deck.id), ("deck-b", "deck-a"))
+        self.assertEqual(create_network.call_args_list[0].args[0], "genome-b")
+        self.assertEqual(create_network.call_args_list[1].args[0], "genome-a")
+        self.assertEqual(outcome[:4], (11, -120.0, 22, 120.0))
+        self.assertTrue(outcome[-1])
 
     def test_seeded_games_repeat(self):
         original1 = DBUtil().load_deck("Starter Blue_1")
@@ -280,6 +526,31 @@ class TrainingPlanTests(unittest.TestCase):
         seeds = holdout_game_seeds(settings)
         self.assertEqual(len(seeds), 20)
         self.assertEqual(len(set(seeds)), 20)
+
+    def test_evaluation_seed_key_uses_composition_not_deck_identity_or_order(self):
+        first = DBUtil().load_deck("Starter Blue_1")
+        same_composition = copy.deepcopy(first)
+        same_composition.id = "different-genome-deck-id"
+        same_composition.cards.reverse()
+        opponent = DBUtil().load_deck("Killer Queen_1")
+
+        key = deck_evaluation_seed_key(first, opponent)
+        self.assertEqual(
+            key,
+            deck_evaluation_seed_key(same_composition, opponent),
+        )
+        self.assertEqual(key, deck_evaluation_seed_key(opponent, first))
+
+    def test_evaluation_seed_key_changes_with_composition(self):
+        first = DBUtil().load_deck("Starter Blue_1")
+        opponent = DBUtil().load_deck("Killer Queen_1")
+        changed = copy.deepcopy(first)
+        changed.cards[-1] = opponent.cards[0]
+
+        self.assertNotEqual(
+            deck_evaluation_seed_key(first, opponent),
+            deck_evaluation_seed_key(changed, opponent),
+        )
 
     def test_diagnostic_holdouts_stop_before_final_generation(self):
         settings = EvaluatorSettings(generations=20)

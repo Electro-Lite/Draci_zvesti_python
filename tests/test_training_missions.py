@@ -90,6 +90,7 @@ class TrainingMissionTests(unittest.TestCase):
         self.assertEqual(evaluator.early_holdout_generation, 1)
         self.assertEqual(evaluator.diagnostic_holdout_generations, (1, 10, 25))
         self.assertEqual(evaluator.holdout_seed_pairs, 10)
+        self.assertTrue(evaluator.training_seat_swaps)
 
     def test_matchup_summary_can_persist_a_partial_checkpoint(self):
         settings = MatchupTrainerSettings(generations=40, evaluation_games=20)

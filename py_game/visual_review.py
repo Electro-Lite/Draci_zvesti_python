@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import os
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -75,7 +76,10 @@ def _main(game, output, size):
     menu.refresh_layout()
     menu.build_menu_buttons(list(menu.ITEMS), 0, top_ratio=0.25, bottom_ratio=0.91, width_ratio=0.46)
     menu.draw_background()
-    menu.draw_title("Dračí zvěsti", "Build a deck, challenge a rival, and face the dragons")
+    menu.draw_title(
+        "Dračí zvěsti",
+        "Rumor has it the dragons are comming back. Time to claim the fame of being a dragon slayer.",
+    )
     menu.draw_buttons()
     _save(game, output, "main", size)
 
@@ -227,20 +231,16 @@ def _settings(game, output, size):
 def _decks(game, output, size):
     menu = DeckMenu(game)
     menu.refresh_layout()
-    visible = menu.items[: min(10, len(menu.items))]
-    menu.build_menu_buttons(visible, 0, top_ratio=0.22, bottom_ratio=0.86, width_ratio=0.64)
-    menu.draw_background()
-    menu.draw_title("Deck Management", "Create a deck or select one to edit")
-    menu.draw_buttons()
+    menu._build_controls()
+    menu._draw()
     _save(game, output, "decks", size)
 
 
 def _editor(game, output, size):
     menu = DeckBuilderMenu(game)
     menu.refresh_layout()
-    menu.draw_background()
-    menu.draw_title("Deck Builder", "New deck  •  0/12 cards  •  drag cards between lists")
-    menu._draw_responsive_editor()
+    menu._build_controls()
+    menu._draw()
     _save(game, output, "deck-editor", size)
 
 
@@ -253,6 +253,18 @@ def _training(game, output, size):
         menu.setup_scroll = menu._current_setup_layout().max_scroll
         menu.draw_training_cockpit()
         _save(game, output, "training-workbench-counter-bottom", size)
+
+
+def _training_counter_v2(game, output, size):
+    menu = TrainingMenu(game)
+    menu.refresh_layout()
+    menu.cockpit.switch(TrainingKind.COUNTER_V2)
+    menu.draw_training_cockpit()
+    _save(game, output, "training-workbench-counter-v2", size)
+    if size == (640, 480):
+        menu.setup_scroll = menu._current_setup_layout().max_scroll
+        menu.draw_training_cockpit()
+        _save(game, output, "training-workbench-counter-v2-bottom", size)
 
 
 def _training_matchup_setup(game, output, size):
@@ -271,7 +283,7 @@ def _training_matchup_setup(game, output, size):
 def _training_builder(game, output, size):
     menu = TrainingMenu(game)
     menu.refresh_layout()
-    menu.cockpit.switch(TrainingKind.DECK_BUILDER)
+    menu.cockpit.switch(TrainingKind.DECK_POOL_V2)
     menu.cockpit.set_value("run_label", "replicated-study")
     menu.cockpit.set_value("seeds", "400009, 450001, 500009, 550007")
     menu.cockpit.set_value("workers", "12")
@@ -286,21 +298,20 @@ def _training_builder(game, output, size):
 def _training_advanced(game, output, size):
     menu = TrainingMenu(game)
     menu.refresh_layout()
-    menu.cockpit.switch(TrainingKind.DECK_BUILDER)
-    menu.advanced_editor = AdvancedNeatEditor(TrainingKind.DECK_BUILDER)
-    menu.advanced_editor.values["builder"]["NEAT.pop_size"] = "32"
-    menu.draw_advanced_neat()
-    _save(game, output, "training-advanced-builder", size)
-    menu.advanced_editor.switch_profile(1)
-    menu.advanced_editor.page = 2
+    menu.cockpit.switch(TrainingKind.DECK_POOL_V2)
+    menu.advanced_editor = AdvancedNeatEditor(TrainingKind.DECK_POOL_V2)
+    menu.advanced_editor.values["evaluator"]["NEAT.pop_size"] = "18"
     menu.draw_advanced_neat()
     _save(game, output, "training-advanced-evaluator", size)
+    menu.advanced_editor.page = 2
+    menu.draw_advanced_neat()
+    _save(game, output, "training-advanced-evaluator-page-3", size)
 
 
 def _training_review(game, output, size):
     menu = TrainingMenu(game)
     menu.refresh_layout()
-    menu.cockpit.switch(TrainingKind.DECK_BUILDER)
+    menu.cockpit.switch(TrainingKind.DECK_POOL_V2)
     menu.cockpit.set_value("run_label", "replicated-study")
     menu.cockpit.set_value("seeds", "400009, 450001, 500009, 550007")
     menu.cockpit.set_value("workers", "12")
@@ -350,6 +361,39 @@ def _training_runs_filter(game, output, size):
     menu.run_filter_pending_status = 3
     menu.draw_training_runs()
     _save(game, output, "training-runs-filter", size)
+
+
+def _training_run_details(game, output, size):
+    menu = TrainingMenu(game)
+    menu.refresh_layout()
+    # //placeholder: deterministic run identity used only for responsive review.
+    job = TrainingJob(
+        job_id="20261028-120000-a1b2c3d4",
+        request={
+            "kind": TrainingKind.DECK_BUILDER.value,
+            "run_label": "evolution_balanced_281026-12",
+            "outer_generations": 10,
+            "evaluator_generations": 50,
+            "matches_per_genome": 12,
+            "workers": 8,
+            "seeds": [104729, 400009],
+        },
+        command=[],
+        created_at="2026-10-28T12:00:00",
+        status="paused",
+        pid=None,
+        log_path=".ui_training/review/training.log",
+        progress_path=".ui_training/review/progress.log",
+        summary_path=".ui_training/review/summary.json",
+        training_id=91,
+        paused_generation=4,
+        paused_seed=104729,
+    )
+    menu.draw_lines_panel(
+        "Run details · evolution_balanced_281026-12",
+        menu.service.run_detail_lines(job),
+    )
+    _save(game, output, "training-run-details", size)
 
 
 def _sample_training_dashboard():
@@ -592,10 +636,10 @@ def _sample_matchup_dashboard():
         population_size=15,
         requested_generations=40,
         completed_generations=40,
-        games_per_genome_per_generation=15,
-        learning_games_per_generation=225,
-        planned_learning_games=9000,
-        completed_learning_games_estimate=9000,
+        games_per_genome_per_generation=30,
+        learning_games_per_generation=450,
+        planned_learning_games=18000,
+        completed_learning_games_estimate=18000,
         planned_checkpoint_generations=(1, 10, 25, 40),
         recorded_checkpoints=4,
         games_per_checkpoint=100,
@@ -675,6 +719,32 @@ def _training_progress(game, output, size):
     _save(game, output, "training-progress", size)
 
 
+def _training_paused(game, output, size):
+    menu = TrainingMenu(game)
+    menu.refresh_layout()
+    menu.dashboard_item, telemetry, insights = _sample_training_dashboard()
+    menu.dashboard_item.status = "paused"
+    menu.dashboard_item.paused_generation = 14
+    menu.dashboard_item.paused_seed = 104729
+    menu.dashboard_item.checkpoint_path = "checkpoints/training_70_seed_104729_gen-13"
+    telemetry = replace(
+        telemetry,
+        status="paused",
+        phase="paused",
+        generation=14,
+        round_completed=0,
+        round_total=0,
+        phase_progress=14 / 35,
+        eta_seconds=None,
+    )
+    menu.dashboard_watching_live = True
+    menu.service.can_pause = lambda _job: False
+    menu.service.can_resume = lambda _job: True
+    menu.service.can_stop = lambda _job: False
+    menu.draw_training_dashboard(telemetry, insights)
+    _save(game, output, "training-paused", size)
+
+
 def _training_completion_handoff(game, output, size):
     menu = TrainingMenu(game)
     menu.refresh_layout()
@@ -686,6 +756,20 @@ def _training_completion_handoff(game, output, size):
     )
     menu.draw_training_dashboard(telemetry, insights)
     _save(game, output, "training-completion-handoff", size)
+
+
+def _training_partial_handoff(game, output, size):
+    menu = TrainingMenu(game)
+    menu.refresh_layout()
+    menu.dashboard_item, telemetry, insights = _sample_evolution_dashboard()
+    menu.dashboard_item.status = "failed"
+    telemetry = replace(telemetry, status="failed", phase="failed")
+    menu.dashboard_insights = insights
+    menu.dashboard_artifact_status = ResultArtifactStatus.partial(
+        "Partial Evolution evidence verified · 80 stored decks · 240 scored pairings"
+    )
+    menu.draw_training_dashboard(telemetry, insights)
+    _save(game, output, "training-partial-handoff", size)
 
 
 def _training_evolution_adopt(game, output, size):
@@ -916,8 +1000,12 @@ def _training_about_builder(game, output, size):
     _training_about_page(game, output, size, 2, "training-about-builder")
 
 
+def _training_about_pool_v2(game, output, size):
+    _training_about_page(game, output, size, 3, "training-about-pool-v2")
+
+
 def _training_about_recommendations(game, output, size):
-    _training_about_page(game, output, size, 3, "training-about-recommendations")
+    _training_about_page(game, output, size, 4, "training-about-recommendations")
 
 
 def _sample_gameplay_state():
@@ -948,8 +1036,22 @@ def _sample_gameplay_state():
         "round": 3,
         "mana": "BLUE",
         "turn": "local",
-        "local": {"id": 1, "score": 1, "deck_count": 5, "graveyard_count": 2, "hand": cards},
-        "opponent": {"id": 2, "score": 1, "deck_count": 4, "graveyard_count": 3, "hand_count": 5},
+        "local": {
+            "id": 1,
+            "score": 1,
+            "deck_count": 5,
+            "graveyard_count": 2,
+            "graveyard_top": {**cards[3], "owner": "local"},
+            "hand": cards,
+        },
+        "opponent": {
+            "id": 2,
+            "score": 1,
+            "deck_count": 4,
+            "graveyard_count": 3,
+            "graveyard_top": {**cards[4], "owner": "opponent"},
+            "hand_count": 5,
+        },
         "board": [{**cards[0], "hp": 3, "dmg": 3}, None, {**cards[1], "owner": "opponent"}, None, None, cards[2]],
         "dragon": None,
         "dragon_deck_count": 2,
@@ -1142,14 +1244,18 @@ def generate(output: Path, sizes=REVIEW_SIZES) -> list[Path]:
         _decks,
         _editor,
         _training,
+        _training_counter_v2,
         _training_matchup_setup,
         _training_builder,
         _training_advanced,
         _training_review,
         _training_runs,
         _training_runs_filter,
+        _training_run_details,
         _training_progress,
+        _training_paused,
         _training_completion_handoff,
+        _training_partial_handoff,
         _training_evolution_adopt,
         _training_dashboard,
         _training_matchup_duel,
@@ -1165,6 +1271,7 @@ def generate(output: Path, sizes=REVIEW_SIZES) -> list[Path]:
         _training_about_player,
         _training_about_matchup,
         _training_about_builder,
+        _training_about_pool_v2,
         _training_about_recommendations,
         _gameplay,
         _hotseat_handoff,

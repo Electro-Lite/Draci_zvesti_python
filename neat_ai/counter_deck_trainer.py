@@ -29,6 +29,7 @@ from neat_ai.deck_evaluator import fitness_from_result
 from neat_ai.player_artifacts import export_player_artifact, safe_artifact_segment
 from neat_ai.training_telemetry import emit_training_event
 from utils.database_utils import DBUtil
+from cards.power import Power
 
 
 @dataclass(frozen=True)
@@ -39,6 +40,8 @@ class CounterDeckTrainerSettings:
     evaluation_games: int = 1_000
     seed: int = 104729
     run_label: str = "counter-deck-lab"
+    max_card_power: int = Power.LEGENDARY.value
+    banned_card_ids: tuple[str, ...] = ()
 
     def __post_init__(self):
         if not 1 <= self.counter_generations <= 1_000:
@@ -51,6 +54,7 @@ class CounterDeckTrainerSettings:
             raise ValueError(
                 "Evaluation games must be an even number between 2 and 100000"
             )
+        Power(self.max_card_power)
 
 
 def controller_generation_targets(
@@ -415,7 +419,9 @@ def train_counter_decks(subject_deck, settings: CounterDeckTrainerSettings | Non
         valid_genomes = {}
         for builder_id, genome in builder_genomes:
             deck = build_deck(
-                neat.nn.FeedForwardNetwork.create(genome, neat_builder_config)
+                neat.nn.FeedForwardNetwork.create(genome, neat_builder_config),
+                max_power=Power(settings.max_card_power),
+                banned_card_ids=settings.banned_card_ids,
             )
             deck.id = f"counter-g{outer_generation}-{builder_id}"
             deck.name = f"Counter G{outer_generation} #{builder_id}"
@@ -612,6 +618,8 @@ def parse_args():
     parser.add_argument("--evaluation-games", type=int, default=1_000)
     parser.add_argument("--seed", type=int, default=104729)
     parser.add_argument("--run-label", default="counter-deck-lab")
+    parser.add_argument("--max-card-power", type=int, choices=range(3), default=2)
+    parser.add_argument("--banned-card-id", action="append", default=[])
     return parser.parse_args()
 
 
@@ -626,5 +634,7 @@ if __name__ == "__main__":
             evaluation_games=arguments.evaluation_games,
             seed=arguments.seed,
             run_label=arguments.run_label,
+            max_card_power=arguments.max_card_power,
+            banned_card_ids=tuple(arguments.banned_card_id),
         ),
     )

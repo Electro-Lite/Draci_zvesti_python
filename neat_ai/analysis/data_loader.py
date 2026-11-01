@@ -7,18 +7,46 @@ import pandas as pd
 
 
 PROJECT_ROOT_NAME = "Draci_zvesti_merged"
-ANALYSIS_TRAINING_ID: int | None = 75
+LATEST_USABLE_RUN = "latest"
+ANALYSIS_TRAINING_ID: int | None | str = LATEST_USABLE_RUN
+ANALYSIS_TRAINING_ID = 95
 
-
-def set_analysis_training_id(training_id: int | None) -> None:
-    """Set a global training filter for all analysis loaders."""
+def set_analysis_training_id(training_id: int | None | str) -> None:
+    """Set the analysis run: an ID, ``None`` for all, or ``"latest"``."""
     global ANALYSIS_TRAINING_ID
-    ANALYSIS_TRAINING_ID = None if training_id is None else int(training_id)
+    if training_id is None:
+        ANALYSIS_TRAINING_ID = None
+    elif str(training_id).strip().lower() == LATEST_USABLE_RUN:
+        ANALYSIS_TRAINING_ID = LATEST_USABLE_RUN
+    else:
+        ANALYSIS_TRAINING_ID = int(training_id)
 
 
 def get_analysis_training_id() -> int | None:
-    """Return the global training filter used by analysis loaders."""
-    return ANALYSIS_TRAINING_ID
+    """Return the selected ID, resolving the latest completed/paused run."""
+    if ANALYSIS_TRAINING_ID != LATEST_USABLE_RUN:
+        return ANALYSIS_TRAINING_ID
+    train_path, _ = get_db_paths()
+    with sqlite3.connect(f"file:{train_path}?mode=ro", uri=True) as conn:
+        row = conn.execute(
+            """
+            SELECT t.id
+            FROM training t
+            WHERE CASE
+                    WHEN json_valid(t.metadata)
+                    THEN json_extract(t.metadata, '$.termination_reason')
+                  END IN ('completed', 'paused')
+              AND EXISTS (
+                  SELECT 1 FROM genome g
+                  WHERE g.training_id = t.id AND g.score IS NOT NULL
+              )
+            ORDER BY t.id DESC
+            LIMIT 1
+            """
+        ).fetchone()
+    if row is None:
+        raise RuntimeError("No completed or paused training run with usable genome data exists")
+    return int(row[0])
 
 
 def get_project_root(start: Path | None = None) -> Path:
@@ -322,20 +350,31 @@ def load_matchup_df(
             selected_phase = phase
             if phase == "auto":
                 base_where = f"WHERE {' AND '.join(filters)}" if filters else "WHERE 1=1"
-                holdout_query = f"""
-                    SELECT 1
+                phase_query = f"""
+                    SELECT COALESCE(p.phase, 'training') AS available_phase
                     FROM pc_match p
                     JOIN match_dbt m ON p.match_dbt_guid = m.guid
                     {match_joins}
                     {base_where}
-                      AND COALESCE(p.phase, 'training') = 'holdout'
-                    LIMIT 1
+                    GROUP BY COALESCE(p.phase, 'training')
+                    ORDER BY CASE COALESCE(p.phase, 'training')
+                        WHEN 'holdout' THEN 1
+                        WHEN 'holdout_checkpoint' THEN 2
+                        WHEN 'holdout_early' THEN 3
+                        WHEN 'training' THEN 4
+                        ELSE 5
+                    END
                 """
-                selected_phase = (
-                    "holdout"
-                    if conn.execute(holdout_query, params).fetchone() is not None
-                    else "training"
-                )
+                phase_rows = [row[0] for row in conn.execute(phase_query, params).fetchall()]
+                if inner_gen is not None:
+                    preferred = (
+                        "holdout" if inner_gen >= 65
+                        else "holdout_checkpoint" if inner_gen >= 20
+                        else "holdout_early"
+                    )
+                    selected_phase = preferred if preferred in phase_rows else (phase_rows[0] if phase_rows else "training")
+                else:
+                    selected_phase = phase_rows[0] if phase_rows else "training"
             filters.append("COALESCE(p.phase, 'training') = :phase")
             params["phase"] = selected_phase
         where_sql = f"WHERE {' AND '.join(filters)}" if filters else ""

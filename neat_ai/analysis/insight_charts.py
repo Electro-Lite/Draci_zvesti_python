@@ -1,5 +1,3 @@
-from itertools import combinations
-
 import numpy as np
 import pandas as pd
 import plotly.express as px
@@ -15,6 +13,8 @@ from .academic_metrics import (
 )
 from .data_loader import load_deck_compositions, load_master_df, load_matchup_df
 from .learning_curves import get_high_skill_decks, load_deck_learning_curves
+from .synergies import get_card_combo_synergies
+from .counters import get_card_counters
 
 
 GENERATION_GROUP_COLUMN = "generation_group"
@@ -165,73 +165,35 @@ def get_card_meta_timeline(group_count: int = 3) -> pd.DataFrame:
 
 def get_card_pair_synergy_timeline(
     group_count: int = 3,
-    min_appearances: int = 2,
+    min_appearances: int = 10,
 ) -> pd.DataFrame:
-    """
-    Return pair-level score lift per generation group.
-
-    Lift is the pair deck average score minus the baseline average score for all
-    decks in the same generation group.
-    """
-    master = load_master_df()
-    if master.empty:
-        return pd.DataFrame()
-
-    deck_rows = (
-        master.groupby(["guid", "gen", "deck_id"], as_index=False)
-        .agg(
-            score=("score", "first"),
-            cards=("card_id", lambda cards: sorted(set(cards))),
-        )
-        .rename(columns={"gen": "outer_gen"})
+    """Backward-compatible pair-only view of model-adjusted synergy."""
+    metrics = get_card_combo_synergies(
+        group_count=group_count,
+        min_appearances=min_appearances,
+        max_combo_size=2,
     )
-    deck_rows, group_order = add_generation_groups(deck_rows, group_count=group_count)
+    metrics = metrics[metrics["combo_type"] == "pair"].copy()
+    if metrics.empty:
+        return metrics
+    metrics["pair"] = metrics["combo"]
+    metrics["average_score"] = metrics["observed_score"]
+    metrics["baseline_score"] = metrics["additive_expected_score"]
+    metrics["lift"] = metrics["synergy_score"]
+    metrics["pair_pick_rate"] = metrics["combo_pick_rate"]
+    return metrics
 
-    baseline = (
-        deck_rows.groupby(GENERATION_GROUP_COLUMN, observed=True)
-        .agg(
-            baseline_score=("score", "mean"),
-            total_decks=("guid", "nunique"),
-        )
-        .reset_index()
+
+def get_card_combo_synergy_timeline(
+    group_count: int = 3,
+    min_appearances: int = 10,
+) -> pd.DataFrame:
+    """Return adjusted pair, duplicate, duplicate-pair, and triple effects."""
+    return get_card_combo_synergies(
+        group_count=group_count,
+        min_appearances=min_appearances,
+        max_combo_size=3,
     )
-
-    pair_rows = []
-    for row in deck_rows.itertuples(index=False):
-        for card_a, card_b in combinations(row.cards, 2):
-            pair_rows.append(
-                {
-                    GENERATION_GROUP_COLUMN: getattr(row, GENERATION_GROUP_COLUMN),
-                    "guid": row.guid,
-                    "card_A": card_a,
-                    "card_B": card_b,
-                    "pair": f"{card_a} + {card_b}",
-                    "score": row.score,
-                }
-            )
-
-    if not pair_rows:
-        return pd.DataFrame()
-
-    pairs = pd.DataFrame(pair_rows)
-    metrics = (
-        pairs.groupby([GENERATION_GROUP_COLUMN, "card_A", "card_B", "pair"], observed=True)
-        .agg(
-            appearances=("guid", "nunique"),
-            average_score=("score", "mean"),
-        )
-        .reset_index()
-    )
-    metrics = metrics.merge(baseline, on=GENERATION_GROUP_COLUMN, how="left")
-    metrics["lift"] = metrics["average_score"] - metrics["baseline_score"]
-    metrics["pair_pick_rate"] = metrics["appearances"] / metrics["total_decks"]
-    metrics = metrics[metrics["appearances"] >= min_appearances]
-    metrics[GENERATION_GROUP_COLUMN] = pd.Categorical(
-        metrics[GENERATION_GROUP_COLUMN],
-        categories=group_order,
-        ordered=True,
-    )
-    return metrics.sort_values([GENERATION_GROUP_COLUMN, "lift"], ascending=[True, False])
 
 
 def plot_outer_fitness_distribution(group_count: int = 3) -> go.Figure:
@@ -336,10 +298,10 @@ def plot_card_meta_timeline(
 def plot_card_pair_synergy_timeline(
     group_count: int = 3,
     top_n_per_group: int = 8,
-    min_appearances: int = 2,
+    min_appearances: int = 10,
 ) -> go.Figure:
-    """Facet bar chart of strongest card-pair lifts per generation group."""
-    metrics = get_card_pair_synergy_timeline(
+    """Facet chart of model-adjusted card-combination interactions."""
+    metrics = get_card_combo_synergy_timeline(
         group_count=group_count,
         min_appearances=min_appearances,
     )
@@ -347,39 +309,90 @@ def plot_card_pair_synergy_timeline(
         return go.Figure()
 
     group_order = list(metrics[GENERATION_GROUP_COLUMN].cat.categories)
-    top_pairs = (
-        metrics.sort_values([GENERATION_GROUP_COLUMN, "lift"], ascending=[True, False])
+    top_combos = (
+        metrics.sort_values([GENERATION_GROUP_COLUMN, "synergy_score"], ascending=[True, False])
         .groupby(GENERATION_GROUP_COLUMN, observed=True)
         .head(top_n_per_group)
         .copy()
     )
 
     fig = px.bar(
-        top_pairs,
-        x="lift",
-        y="pair",
-        color="average_score",
+        top_combos,
+        x="synergy_score",
+        y="combo",
+        color="combo_type",
         facet_col=GENERATION_GROUP_COLUMN,
         facet_col_wrap=1 if len(group_order) > 3 else 3,
         category_orders={GENERATION_GROUP_COLUMN: group_order},
         hover_data={
             "appearances": True,
-            "pair_pick_rate": ":.1%",
-            "baseline_score": ":.2f",
-            "average_score": ":.2f",
-            "lift": ":.2f",
+            "combo_pick_rate": ":.1%",
+            "additive_expected_score": ":.2f",
+            "observed_score": ":.2f",
+            "constituent_interaction": ":.2f",
+            "standard_error": ":.2f",
+            "synergy_score": ":.2f",
         },
-        title="Card Pair Synergy Lift by Generation Group",
+        title="Model-Adjusted Card Combo Synergy by Generation Group",
         labels={
-            "lift": "Score lift versus group baseline",
-            "pair": "Card pair",
-            "average_score": "Pair average score",
+            "synergy_score": "Excess fitness beyond card main effects",
+            "combo": "Card combination",
+            "combo_type": "Combination type",
             GENERATION_GROUP_COLUMN: "Generation group",
         },
-        color_continuous_scale="RdYlGn",
     )
     fig.update_yaxes(matches=None, showticklabels=True)
-    fig.update_layout(coloraxis_colorbar={"title": "Avg score"})
+    return fig
+
+
+def plot_card_counters(
+    top_n_per_type: int = 12,
+    min_matchups: int = 10,
+    min_target_appearances: int = 20,
+    max_target_builds: int = 100,
+) -> go.Figure:
+    """Show cards with matchup-specific advantages into cards or builds."""
+    metrics = get_card_counters(
+        min_matchups=min_matchups,
+        min_target_appearances=min_target_appearances,
+        max_target_builds=max_target_builds,
+    )
+    metrics = metrics[metrics["counter_score"] > 0].copy()
+    if metrics.empty:
+        return go.Figure()
+    metrics["relationship"] = metrics["counter_card"] + "  →  " + metrics["target"]
+    selected = (
+        metrics.sort_values("counter_score", ascending=False)
+        .groupby("target_type", sort=False)
+        .head(top_n_per_type)
+    )
+    fig = px.bar(
+        selected,
+        x="counter_score",
+        y="relationship",
+        color="target_type",
+        facet_col="target_type",
+        facet_col_wrap=2,
+        orientation="h",
+        hover_data={
+            "matchups": True,
+            "game_samples": True,
+            "counter_pick_rate": ":.1%",
+            "target_rate": ":.1%",
+            "observed_score": ":.2f",
+            "additive_expected_score": ":.2f",
+            "specific_counter_effect": ":.2f",
+            "standard_error": ":.2f",
+            "counter_score": ":.2f",
+        },
+        title="Matchup-Specific Card Counters",
+        labels={
+            "counter_score": "Specific advantage beyond general card strength",
+            "relationship": "Counter card → opposing target",
+            "target_type": "Target type",
+        },
+    )
+    fig.update_yaxes(matches=None, showticklabels=True, categoryorder="total ascending")
     return fig
 
 
@@ -444,9 +457,9 @@ def plot_deck_archetype_learning_curves(
             "composition": True,
         },
         markers=True,
-        title="High-Skill Deck Archetype Learning Curves",
+        title="High-Skill Deck Controller Evaluation Curves (Logged Checkpoints)",
         labels={
-            "inner_gen": "Inner player-controller generation",
+            "inner_gen": "Logged inner-generation checkpoint",
             "score": "Deck-perspective average controller score",
             "deck_label": "Deck archetype",
             GENERATION_GROUP_COLUMN: "Outer generation group",

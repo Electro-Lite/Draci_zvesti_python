@@ -6,6 +6,7 @@ import math
 import os
 import pickle
 import random
+import re
 import shutil
 import subprocess
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -15,6 +16,7 @@ from time import ctime, time
 
 import neat
 
+from cards.power import Power
 from neat_ai.config_profiles import config_path
 
 from neat_ai.ai_training_logger import AITrainingLogger, Genome, MatchDBT, Training
@@ -49,6 +51,11 @@ MAX_EFFECTIVE_POPULATION = 24
 MIN_SPECIES = 2
 MAX_SPECIES = 6
 MIN_FREE_DISK_BYTES = 1 << 30
+PAUSE_REQUEST_ENV = "TRAINING_PAUSE_REQUEST_PATH"
+
+
+class TrainingPauseRequested(Exception):
+    """Stop the CLI cleanly after the UI requested checkpoint rollback."""
 
 
 @dataclass(frozen=True)
@@ -71,7 +78,10 @@ class BuilderSettings:
     )
     log_training_games: bool = False
     checkpoint_path: str | None = None
+    resume_training_id: int | None = None
     enforce_population_guard: bool = True
+    max_card_power: int = Power.LEGENDARY.value
+    banned_card_ids: tuple[str, ...] = ()
 
     def __post_init__(self):
         if self.outer_generations < 1:
@@ -82,6 +92,7 @@ class BuilderSettings:
             raise ValueError("Matches per genome must be even for seat balance")
         if self.outer_workers < 1:
             raise ValueError("Outer workers must be positive")
+        Power(self.max_card_power)
         self.evaluator_settings()
 
     def evaluator_settings(self) -> EvaluatorSettings:
@@ -99,6 +110,13 @@ class BuilderSettings:
 
 def _genome_guid(training_id: int, generation: int, genome_id: int) -> str:
     return f"{training_id}-gen{generation}-{genome_id}"
+
+
+def checkpoint_completed_generation(path: str | Path) -> int:
+    match = re.search(r"gen-(\d+)$", str(path))
+    if match is None:
+        raise ValueError("Checkpoint filename does not contain its generation")
+    return int(match.group(1)) + 1
 
 
 def _file_sha256(path: Path) -> str | None:
@@ -288,7 +306,11 @@ def eval_genomes(
     decks_by_genome = {}
     for genome_id, genome in genomes:
         net = neat.nn.FeedForwardNetwork.create(genome, config)
-        deck = build_deck(net)
+        deck = build_deck(
+            net,
+            max_power=Power(settings.max_card_power),
+            banned_card_ids=settings.banned_card_ids,
+        )
         deck.name = f"Gen{generation}_ID{genome_id}"
         logger.save_training_deck(deck, training_row.id)
         decks_by_genome[genome_id] = deck
@@ -468,32 +490,64 @@ def train_deck_builder(settings: BuilderSettings):
     )
 
     random.seed(settings.seed)
+    completed_generations = 0
     if settings.checkpoint_path:
         population = neat.Checkpointer.restore_checkpoint(settings.checkpoint_path)
+        completed_generations = checkpoint_completed_generation(
+            settings.checkpoint_path
+        )
+        if completed_generations >= settings.outer_generations:
+            raise ValueError("Checkpoint already reached the requested generation count")
+        # neat-python stores the next population with the generation that just
+        # finished. Advance the counter so resumed evaluation is not recorded
+        # as a duplicate generation.
+        population.generation = completed_generations
     else:
         population = neat.Population(config)
 
     logger = AITrainingLogger()
-    metadata = _training_metadata(
-        project_root,
-        builder_config_text,
-        evaluator_config_text,
-        settings,
-    )
-    training_row = logger.save_training(
-        Training(
-            start_date=str(datetime.datetime.now()),
-            config=builder_config_text,
-            metadata=json.dumps(metadata, sort_keys=True),
-            description=settings.description,
+    if settings.resume_training_id is not None:
+        training_row = logger.get_training(settings.resume_training_id)
+        if training_row is None:
+            raise ValueError(
+                f"Training run {settings.resume_training_id} no longer exists"
+            )
+        try:
+            metadata = json.loads(training_row.metadata or "{}")
+        except (TypeError, json.JSONDecodeError):
+            metadata = {}
+        if not isinstance(metadata, dict):
+            metadata = {}
+        metadata.setdefault("observed_populations", [])
+        metadata["settings"] = asdict(settings)
+        metadata["termination_reason"] = None
+        metadata["resumed_from_generation"] = completed_generations
+        training_row.end_date = None
+        training_row.config = builder_config_text
+        training_row.metadata = json.dumps(metadata, sort_keys=True)
+        training_row.description = settings.description
+        logger.save_training(training_row)
+    else:
+        metadata = _training_metadata(
+            project_root,
+            builder_config_text,
+            evaluator_config_text,
+            settings,
         )
-    )
+        training_row = logger.save_training(
+            Training(
+                start_date=str(datetime.datetime.now()),
+                config=builder_config_text,
+                metadata=json.dumps(metadata, sort_keys=True),
+                description=settings.description,
+            )
+        )
     print(f"training id: {training_row.id} | seed: {settings.seed}")
     emit_training_event(
-        "run_started",
+        "run_resumed" if settings.checkpoint_path else "run_started",
         phase="deck_evolution",
         training_id=training_row.id,
-        generation=0,
+        generation=completed_generations,
         total_generations=settings.outer_generations,
         phase_progress=0.0,
         seed=settings.seed,
@@ -509,7 +563,7 @@ def train_deck_builder(settings: BuilderSettings):
         neat.Checkpointer(generation_interval=1, filename_prefix=str(checkpoint_prefix))
     )
 
-    generation = population.generation
+    generation = completed_generations
     started_at = time()
 
     def evaluate_generation(genomes, neat_config):
@@ -527,9 +581,28 @@ def train_deck_builder(settings: BuilderSettings):
         )
 
     try:
-        winner = population.run(evaluate_generation, settings.outer_generations)
+        winner = population.run(
+            evaluate_generation,
+            settings.outer_generations - completed_generations,
+        )
         metadata["termination_reason"] = "completed"
     except BaseException as error:
+        pause_path = os.environ.get(PAUSE_REQUEST_ENV)
+        if pause_path and Path(pause_path).exists():
+            metadata["termination_reason"] = "paused"
+            metadata["paused_after_generation"] = completed_generations
+            training_row.end_date = None
+            training_row.metadata = json.dumps(metadata, sort_keys=True)
+            logger.save_training(training_row)
+            emit_training_event(
+                "run_paused",
+                phase="paused",
+                training_id=training_row.id,
+                generation=completed_generations,
+                total_generations=settings.outer_generations,
+                elapsed_seconds=time() - started_at,
+            )
+            raise TrainingPauseRequested() from None
         metadata["termination_reason"] = f"failed: {type(error).__name__}: {error}"
         training_row.end_date = str(datetime.datetime.now())
         training_row.metadata = json.dumps(metadata, sort_keys=True)
@@ -619,21 +692,37 @@ def parse_args():
         ),
     )
     parser.add_argument("--checkpoint")
+    parser.add_argument("--resume-training-id", type=int)
+    parser.add_argument("--resume-seed", type=int)
+    parser.add_argument("--max-card-power", type=int, choices=range(3), default=2)
+    parser.add_argument("--banned-card-id", action="append", default=[])
     parser.add_argument(
         "--allow-population-outside-guard",
         action="store_true",
-        help="Disable the 18-24 effective population safety check",
+        help=(
+            "Disable the fixed 18-24 population and 2-6 species protocol "
+            "checks for custom NEAT configurations"
+        ),
     )
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     arguments = parse_args()
-    if arguments.checkpoint and len(arguments.seeds) != 1:
-        raise SystemExit("--checkpoint requires exactly one --seeds value")
-    for run_seed in arguments.seeds:
-        train_deck_builder(
-            BuilderSettings(
+    run_seeds = list(arguments.seeds)
+    if arguments.checkpoint:
+        if arguments.resume_seed is None:
+            if len(run_seeds) != 1:
+                raise SystemExit(
+                    "--checkpoint with multiple seeds requires --resume-seed"
+                )
+            arguments.resume_seed = run_seeds[0]
+        if arguments.resume_seed not in run_seeds:
+            raise SystemExit("--resume-seed must be present in --seeds")
+        run_seeds = run_seeds[run_seeds.index(arguments.resume_seed):]
+    try:
+        for index, run_seed in enumerate(run_seeds):
+            train_deck_builder(BuilderSettings(
                 seed=run_seed,
                 run_label=arguments.run_label,
                 description=arguments.description,
@@ -651,7 +740,13 @@ if __name__ == "__main__":
                     arguments.crossplay_reference_generation
                 ),
                 log_training_games=arguments.log_training_games,
-                checkpoint_path=arguments.checkpoint,
+                checkpoint_path=arguments.checkpoint if index == 0 else None,
+                resume_training_id=(
+                    arguments.resume_training_id if index == 0 else None
+                ),
+                max_card_power=arguments.max_card_power,
+                banned_card_ids=tuple(arguments.banned_card_id),
                 enforce_population_guard=not arguments.allow_population_outside_guard,
-            )
-        )
+            ))
+    except TrainingPauseRequested:
+        raise SystemExit(75) from None

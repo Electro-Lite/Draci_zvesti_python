@@ -31,6 +31,8 @@ if __name__ == "__main__":
             evaluation_games=arguments.evaluation_games,
             seed=arguments.seed,
             run_label=arguments.run_label,
+            max_card_power=arguments.max_card_power,
+            banned_card_ids=tuple(arguments.banned_card_id),
         ),
     )
 

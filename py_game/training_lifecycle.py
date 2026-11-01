@@ -10,9 +10,14 @@ from dataclasses import dataclass
 from enum import Enum
 
 
-ACTIVE_STATUSES = frozenset({"pending", "running", "stopping"})
+ACTIVE_STATUSES = frozenset(
+    {"pending", "running", "pausing", "paused", "stopping"}
+)
 TERMINAL_NO_RESULT_STATUSES = frozenset(
     {"failed", "stopped", "cancelled", "interrupted", "incomplete"}
+)
+PARTIAL_RESULT_STATUSES = frozenset(
+    {"paused", "failed", "stopped", "cancelled", "interrupted"}
 )
 
 
@@ -38,6 +43,10 @@ class ResultArtifactStatus:
         return cls(True, "ready", message)
 
     @classmethod
+    def partial(cls, message: str = "Usable partial evidence verified"):
+        return cls(True, "partial", message)
+
+    @classmethod
     def invalid(cls, message: str):
         return cls(False, "invalid", message)
 
@@ -51,8 +60,16 @@ def arena_destination(
 ) -> ArenaDestination:
     """Return the only legal Arena destination for the current run state."""
     normalized = str(status or "pending").lower()
+    if normalized == "paused":
+        if artifact is not None and artifact.ready and results_opened:
+            return ArenaDestination.RESULTS
+        return ArenaDestination.PROGRESS
     if normalized in ACTIVE_STATUSES:
         return ArenaDestination.PROGRESS
+    if normalized in PARTIAL_RESULT_STATUSES:
+        if artifact is not None and artifact.ready and results_opened:
+            return ArenaDestination.RESULTS
+        return ArenaDestination.TERMINAL
     if normalized != "completed":
         return ArenaDestination.TERMINAL
     if artifact is None or not artifact.ready:
@@ -93,22 +110,28 @@ def eta_label(telemetry, duration_formatter) -> str:
 def mission_result_label(kind: str) -> str:
     return {
         "player_deck": "Counter results",
-        "Counter-deck training": "Counter results",
+        "Counter-deck training": "Counter v1 results",
+        "Counter-deck evolution v2": "Counter v2 results",
         "matchup_evaluation": "Duel results",
         "Deck matchup evaluation": "Duel results",
         "deck_builder": "Evolution results",
         "Deck builder experiment": "Evolution results",
+        "deck_pool_v2": "Evolution v2 results",
+        "Deck pool evolution v2": "Evolution v2 results",
     }.get(str(kind), "results")
 
 
 def mission_progress_name(kind: str) -> str:
     return {
         "player_deck": "Counter finding",
-        "Counter-deck training": "Counter finding",
+        "Counter-deck training": "Counter evolution v1",
+        "Counter-deck evolution v2": "Counter evolution v2",
         "matchup_evaluation": "Matchup evaluation",
         "Deck matchup evaluation": "Matchup evaluation",
-        "deck_builder": "Deck evolution",
-        "Deck builder experiment": "Deck evolution",
+        "deck_builder": "Deck evolution v1",
+        "Deck builder experiment": "Deck evolution v1",
+        "deck_pool_v2": "Deck evolution v2",
+        "Deck pool evolution v2": "Deck evolution v2",
     }.get(str(kind), "AI training")
 
 
@@ -121,8 +144,10 @@ def progress_levels(kind: str, telemetry) -> tuple[tuple[str, str, float | None]
     phase = str(getattr(telemetry, "phase", "") or "")
     kind = {
         "Counter-deck training": "player_deck",
+        "Counter-deck evolution v2": "player_deck",
         "Deck matchup evaluation": "matchup_evaluation",
         "Deck builder experiment": "deck_builder",
+        "Deck pool evolution v2": "deck_builder",
     }.get(str(kind), str(kind))
     rows = []
     if total_generations:

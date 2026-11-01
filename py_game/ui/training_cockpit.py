@@ -20,6 +20,8 @@ COUNTER_FIELDS = (
     "evaluator_generations",
     "workers",
     "evaluation_games",
+    "max_card_power",
+    "banned_card_ids",
 )
 MATCHUP_FIELDS = (
     "run_label",
@@ -37,6 +39,8 @@ BUILDER_FIELDS = (
     "matches_per_genome",
     "workers",
     "holdout_seed_pairs",
+    "max_card_power",
+    "banned_card_ids",
 )
 PRESET_FIELDS = {
     "seeds",
@@ -47,6 +51,8 @@ PRESET_FIELDS = {
     "holdout_seed_pairs",
     "evaluation_games",
 }
+EVOLUTION_KINDS = {TrainingKind.DECK_BUILDER, TrainingKind.DECK_POOL_V2}
+COUNTER_KINDS = {TrainingKind.PLAYER_DECK, TrainingKind.COUNTER_V2}
 
 
 @dataclass
@@ -61,6 +67,8 @@ class TrainingDraft:
     workers: str = "8"
     holdout_seed_pairs: str = "20"
     evaluation_games: str = "1000"
+    max_card_power: str = "2"
+    banned_card_ids: str = ""
     preset_index: int | None = 1
     auto_run_label: bool = True
     run_stamp: str = field(
@@ -92,8 +100,9 @@ def default_run_label(kind: TrainingKind, draft: TrainingDraft) -> str:
         if draft.preset_index in range(3)
         else "custom"
     )
-    if kind == TrainingKind.PLAYER_DECK:
-        prefix = f"counter_{preset}_{draft.run_stamp}_"
+    if kind in COUNTER_KINDS:
+        mission = "counter-v2" if kind == TrainingKind.COUNTER_V2 else "counter-v1"
+        prefix = f"{mission}_{preset}_{draft.run_stamp}_"
         deck = _run_name_segment(draft.deck_id, "no-deck")
         deck = _bounded_segment(deck, 64 - len(prefix))
         return f"{prefix}{deck}"
@@ -111,7 +120,12 @@ def default_run_label(kind: TrainingKind, draft: TrainingDraft) -> str:
             second_width,
         )
         return f"{prefix}{first}-vs-{second}"
-    return f"deck-builder_{preset}_{draft.run_stamp}"
+    prefix = (
+        "deck-evolution-v2"
+        if kind == TrainingKind.DECK_POOL_V2
+        else "deck-evolution-v1"
+    )
+    return f"{prefix}_{preset}_{draft.run_stamp}"
 
 
 @dataclass(frozen=True)
@@ -127,12 +141,18 @@ class CockpitValidation:
 class TrainingCockpitState:
     """Own independent, editable drafts for both training missions."""
 
-    def __init__(self, deck_ids=()):
+    def __init__(self, deck_ids=(), card_catalog=()):
         self.deck_ids = tuple(str(deck_id) for deck_id in deck_ids)
+        self.card_catalog = tuple(card_catalog)
         first = self.deck_ids[0] if self.deck_ids else ""
         second = self.deck_ids[1] if len(self.deck_ids) > 1 else first
         self.drafts = {
             TrainingKind.PLAYER_DECK: TrainingDraft(
+                deck_id=first,
+                outer_generations="5",
+                evaluation_games="1000",
+            ),
+            TrainingKind.COUNTER_V2: TrainingDraft(
                 deck_id=first,
                 outer_generations="5",
                 evaluation_games="1000",
@@ -142,6 +162,9 @@ class TrainingCockpitState:
                 opponent_deck_id=second,
             ),
             TrainingKind.DECK_BUILDER: TrainingDraft(
+                evaluator_generations="50",
+            ),
+            TrainingKind.DECK_POOL_V2: TrainingDraft(
                 evaluator_generations="50",
             ),
         }
@@ -155,7 +178,7 @@ class TrainingCockpitState:
 
     @property
     def field_keys(self) -> tuple[str, ...]:
-        if self.kind == TrainingKind.PLAYER_DECK:
+        if self.kind in COUNTER_KINDS:
             return COUNTER_FIELDS
         if self.kind == TrainingKind.MATCHUP_EVALUATION:
             return MATCHUP_FIELDS
@@ -197,7 +220,7 @@ class TrainingCockpitState:
         self.draft.outer_generations = str(preset.outer_generations)
         self.draft.matches_per_genome = str(preset.matches_per_genome)
         self.draft.holdout_seed_pairs = str(preset.holdout_seed_pairs)
-        if self.kind == TrainingKind.DECK_BUILDER:
+        if self.kind in EVOLUTION_KINDS:
             seed_sets = (
                 (104729,),
                 (400009,),
@@ -222,6 +245,9 @@ class TrainingCockpitState:
         try:
             current = int(self.value(key).strip())
         except ValueError:
+            return
+        if key == "max_card_power":
+            self.set_value(key, str((current + direction) % 3))
             return
         step = 2 if key == "matches_per_genome" else 1
         self.set_value(key, str(current + direction * step))
@@ -274,7 +300,7 @@ class TrainingCockpitState:
         generations = self._integer(
             draft.evaluator_generations,
             "evaluator_generations",
-            "Generations",
+            "Inner generations",
             2 if self.kind == TrainingKind.MATCHUP_EVALUATION else 1,
             10_000,
             errors,
@@ -287,8 +313,24 @@ class TrainingCockpitState:
             128,
             errors,
         )
+        max_card_power = 2
+        banned_card_ids: tuple[str, ...] = ()
+        if self.kind != TrainingKind.MATCHUP_EVALUATION:
+            max_card_power = self._integer(
+                draft.max_card_power,
+                "max_card_power",
+                "Maximum card level",
+                0,
+                2,
+                errors,
+            )
+            banned_card_ids = tuple(
+                card_id.strip()
+                for card_id in draft.banned_card_ids.split(",")
+                if card_id.strip()
+            )
 
-        if self.kind in {TrainingKind.PLAYER_DECK, TrainingKind.MATCHUP_EVALUATION}:
+        if self.kind in {*COUNTER_KINDS, TrainingKind.MATCHUP_EVALUATION}:
             if not self.deck_ids:
                 errors["deck_id"] = "Create a deck before training"
                 if self.kind == TrainingKind.MATCHUP_EVALUATION:
@@ -311,7 +353,7 @@ class TrainingCockpitState:
                 even=True,
             )
             outer = 1
-            if self.kind == TrainingKind.PLAYER_DECK:
+            if self.kind in COUNTER_KINDS:
                 outer = self._integer(
                     draft.outer_generations,
                     "outer_generations",
@@ -335,6 +377,8 @@ class TrainingCockpitState:
                 evaluator_generations=generations,
                 workers=workers,
                 evaluation_games=evaluation_games,
+                max_card_power=max_card_power,
+                banned_card_ids=banned_card_ids,
             )
         else:
             seeds = self._seeds(draft.seeds, errors)
@@ -349,7 +393,7 @@ class TrainingCockpitState:
             matches = self._integer(
                 draft.matches_per_genome,
                 "matches_per_genome",
-                "Rival decks per candidate",
+                "Rival decks per generation",
                 2,
                 10_000,
                 errors,
@@ -358,7 +402,7 @@ class TrainingCockpitState:
             holdout = self._integer(
                 draft.holdout_seed_pairs,
                 "holdout_seed_pairs",
-                "Holdout seed pairs",
+                "Validation seed pairs",
                 1,
                 10_000,
                 errors,
@@ -374,12 +418,35 @@ class TrainingCockpitState:
                 evaluator_generations=generations,
                 workers=workers,
                 holdout_seed_pairs=holdout,
+                max_card_power=max_card_power,
+                banned_card_ids=banned_card_ids,
             )
         try:
             request.validate()
         except ValueError as error:
             errors["request"] = str(error)
             return CockpitValidation(errors, None)
+        if self.kind != TrainingKind.MATCHUP_EVALUATION and self.card_catalog:
+            known_ids = {str(card.id) for card in self.card_catalog}
+            unknown = set(request.banned_card_ids) - known_ids
+            if unknown:
+                errors["banned_card_ids"] = (
+                    f"Unknown banned card: {sorted(unknown)[0]}"
+                )
+                return CockpitValidation(errors, None)
+            banned = set(request.banned_card_ids)
+            capacity = sum(
+                1 if getattr(card.power, "value", card.power) == 2 else 4
+                for card in self.card_catalog
+                if str(card.id) not in banned
+                and getattr(card.power, "value", card.power)
+                <= request.max_card_power
+            )
+            if capacity < 10:
+                errors["banned_card_ids"] = (
+                    "Card level and bans leave fewer than 10 legal deck slots"
+                )
+                return CockpitValidation(errors, None)
         return CockpitValidation(errors, request)
 
     def checkpoints(self) -> tuple[int, ...]:
@@ -447,7 +514,13 @@ def _wide_layout(metrics, kind, header, body, gap):
     rail = RectSpec(body.x, body.y, rail_width, body.height)
     center = RectSpec(rail.right + gap, body.y, center_width, body.height)
     summary = RectSpec(center.right + gap, body.y, summary_width, body.height)
-    config_ratio = 64 if kind == TrainingKind.DECK_BUILDER else 59
+    config_ratio = (
+        70
+        if kind in EVOLUTION_KINDS
+        else 64
+        if kind in COUNTER_KINDS
+        else 59
+    )
     config_height = max(280, (center.height - gap) * config_ratio // 100)
     config = RectSpec(center.x, center.y, center.width, config_height)
     evidence = RectSpec(center.x, config.bottom + gap, center.width, center.bottom - config.bottom - gap)
@@ -458,13 +531,19 @@ def _wide_layout(metrics, kind, header, body, gap):
 
     rail_inner = rail.inset(pad)
     y = rail_inner.y + 52
-    for key in ("mission_counter", "mission_matchup", "mission_builder"):
+    for key in (
+        "mission_counter",
+        "mission_counter_v2",
+        "mission_matchup",
+        "mission_builder",
+        "mission_pool_v2",
+    ):
         controls[key] = RectSpec(rail_inner.x, y, rail_inner.width, target)
         y += target + 8
     bottom_y = rail_inner.bottom - target
-    controls["runs"] = RectSpec(rail_inner.x, bottom_y, rail_inner.width, target)
-    bottom_y -= target + 8
     controls["back"] = RectSpec(rail_inner.x, bottom_y, rail_inner.width, target)
+    bottom_y -= target + 8
+    controls["runs"] = RectSpec(rail_inner.x, bottom_y, rail_inner.width, target)
     bottom_y -= target + 8
     controls["about"] = RectSpec(rail_inner.x, bottom_y, rail_inner.width, target)
     bottom_y -= target + 8
@@ -497,7 +576,7 @@ def _wide_layout(metrics, kind, header, body, gap):
         controls["evaluation_games"] = RectSpec(games.x, games.y + 18, games.width, target)
         controls["checkpoint_display"] = RectSpec(checkpoints.x, checkpoints.y + 18, checkpoints.width, target)
         controls["deck_status"] = RectSpec(decks.x, decks.y + 18, decks.width, target)
-    elif kind == TrainingKind.PLAYER_DECK:
+    elif kind in COUNTER_KINDS:
         row = RectSpec(inner.x, field_top, inner.width, row_height)
         left, right = _columns(row, (1, 1), gap)
         controls["run_label"] = RectSpec(left.x, left.y + 18, left.width, target)
@@ -507,6 +586,10 @@ def _wide_layout(metrics, kind, header, body, gap):
         controls["outer_generations"] = RectSpec(outer.x, outer.y + 18, outer.width, target)
         controls["evaluator_generations"] = RectSpec(controller.x, controller.y + 18, controller.width, target)
         controls["workers"] = RectSpec(workers.x, workers.y + 18, workers.width, target)
+        row = RectSpec(inner.x, field_top + (row_height + 6) * 2, inner.width, row_height)
+        level, banned = _columns(row, (1, 2), gap)
+        controls["max_card_power"] = RectSpec(level.x, level.y + 18, level.width, target)
+        controls["banned_card_ids"] = RectSpec(banned.x, banned.y + 18, banned.width, target)
 
         evidence_inner = evidence.inset(pad)
         row = RectSpec(evidence_inner.x, evidence_inner.y + 66, evidence_inner.width, row_height)
@@ -515,19 +598,39 @@ def _wide_layout(metrics, kind, header, body, gap):
         controls["persistence_display"] = RectSpec(persistence.x, persistence.y + 18, persistence.width, target)
         controls["counter_pool"] = RectSpec(pool.x, pool.y + 18, pool.width, target)
     else:
-        row = RectSpec(inner.x, field_top, inner.width, row_height)
+        evolution_row_height = max(54, target + 10)
+        row = RectSpec(inner.x, field_top, inner.width, evolution_row_height)
         left, right = _columns(row, (1, 1), gap)
         controls["run_label"] = RectSpec(left.x, left.y + 18, left.width, target)
         controls["seeds"] = RectSpec(right.x, right.y + 18, right.width, target)
-        row = RectSpec(inner.x, field_top + row_height + 4, inner.width, row_height)
+        row = RectSpec(
+            inner.x,
+            field_top + evolution_row_height + 4,
+            inner.width,
+            evolution_row_height,
+        )
         outer, inner_gen, matches = _columns(row, (1, 1, 1), gap)
         controls["outer_generations"] = RectSpec(outer.x, outer.y + 18, outer.width, target)
         controls["evaluator_generations"] = RectSpec(inner_gen.x, inner_gen.y + 18, inner_gen.width, target)
         controls["matches_per_genome"] = RectSpec(matches.x, matches.y + 18, matches.width, target)
-        row = RectSpec(inner.x, field_top + (row_height + 4) * 2, inner.width, row_height)
+        row = RectSpec(
+            inner.x,
+            field_top + (evolution_row_height + 4) * 2,
+            inner.width,
+            evolution_row_height,
+        )
         workers, holdout = _columns(row, (1, 1), gap)
         controls["workers"] = RectSpec(workers.x, workers.y + 18, workers.width, target)
         controls["holdout_seed_pairs"] = RectSpec(holdout.x, holdout.y + 18, holdout.width, target)
+        row = RectSpec(
+            inner.x,
+            field_top + (evolution_row_height + 4) * 3,
+            inner.width,
+            evolution_row_height,
+        )
+        level, banned = _columns(row, (1, 2), gap)
+        controls["max_card_power"] = RectSpec(level.x, level.y + 18, level.width, target)
+        controls["banned_card_ids"] = RectSpec(banned.x, banned.y + 18, banned.width, target)
 
     controls["launch"] = RectSpec(
         summary.x + pad,
@@ -549,11 +652,17 @@ def _compact_layout(metrics, kind, header, body, gap, scroll):
     panels: dict[str, RectSpec] = {}
     logical_y = viewport.y
 
-    toolbar_height = target * 3 + gap * 4 + 34
+    toolbar_height = target * 5 + gap * 6 + 34
     rail = RectSpec(body.x, logical_y, content_width, toolbar_height)
     panels["rail"] = rail
     y = rail.y + 30
-    for key in ("mission_counter", "mission_matchup", "mission_builder"):
+    for key in (
+        "mission_counter",
+        "mission_counter_v2",
+        "mission_matchup",
+        "mission_builder",
+        "mission_pool_v2",
+    ):
         controls[key] = RectSpec(rail.x + pad, y, rail.width - pad * 2, target)
         y += target + gap
     logical_y = rail.bottom + gap
@@ -561,7 +670,7 @@ def _compact_layout(metrics, kind, header, body, gap, scroll):
 
     field_rows = len(
         COUNTER_FIELDS
-        if kind == TrainingKind.PLAYER_DECK
+        if kind in COUNTER_KINDS
         else MATCHUP_FIELDS
         if kind == TrainingKind.MATCHUP_EVALUATION
         else BUILDER_FIELDS
@@ -583,7 +692,7 @@ def _compact_layout(metrics, kind, header, body, gap, scroll):
     y = chip_y + target * 2 + chip_gap + 20
     field_keys = (
         COUNTER_FIELDS
-        if kind == TrainingKind.PLAYER_DECK
+        if kind in COUNTER_KINDS
         else MATCHUP_FIELDS
         if kind == TrainingKind.MATCHUP_EVALUATION
         else BUILDER_FIELDS
@@ -594,21 +703,21 @@ def _compact_layout(metrics, kind, header, body, gap, scroll):
     logical_y = config.bottom + gap
     section_scroll["evidence"] = logical_y - viewport.y
 
-    evidence_height = 205 if kind != TrainingKind.DECK_BUILDER else 190
+    evidence_height = 190 if kind in EVOLUTION_KINDS else 205
     evidence = RectSpec(body.x, logical_y, content_width, evidence_height)
     panels["evidence"] = evidence
     if kind == TrainingKind.MATCHUP_EVALUATION:
         inner = evidence.inset(pad)
         controls["checkpoint_display"] = RectSpec(inner.x, inner.y + 66, inner.width, target)
         controls["deck_status"] = RectSpec(inner.x, inner.y + 66 + target + gap, inner.width, target)
-    elif kind == TrainingKind.PLAYER_DECK:
+    elif kind in COUNTER_KINDS:
         inner = evidence.inset(pad)
         controls["persistence_display"] = RectSpec(inner.x, inner.y + 66, inner.width, target)
         controls["counter_pool"] = RectSpec(inner.x, inner.y + 66 + target + gap, inner.width, target)
     logical_y = evidence.bottom + gap
     section_scroll["preflight"] = logical_y - viewport.y
 
-    summary_height = 420 if kind != TrainingKind.DECK_BUILDER else 400
+    summary_height = 400 if kind in EVOLUTION_KINDS else 420
     summary = RectSpec(body.x, logical_y, content_width, summary_height)
     panels["summary"] = summary
     logical_y = summary.bottom + gap
@@ -616,7 +725,7 @@ def _compact_layout(metrics, kind, header, body, gap, scroll):
     actions = RectSpec(body.x, logical_y, content_width, action_height)
     panels["actions"] = actions
     action_inner = actions.inset(gap)
-    advanced, about, runs, back = _columns(
+    advanced, about, back, runs = _columns(
         action_inner, (1, 1, 1, 1), max(4, gap // 2)
     )
     controls["advanced"] = advanced

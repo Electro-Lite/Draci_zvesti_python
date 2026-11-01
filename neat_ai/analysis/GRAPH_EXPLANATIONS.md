@@ -4,8 +4,9 @@ This guide explains what each graph means, how the metric is computed, and which
 
 ## Global Scope
 
-All helper-driven analysis can now be limited to a single training run through the top-level parameter in `neat_ai/analysis/data_loader.py`:
+All helper-driven analysis can be limited to a single training run through the top-level parameter in `neat_ai/analysis/data_loader.py`:
 
+- `ANALYSIS_TRAINING_ID = "latest"`: use the newest completed or paused run that has usable genome data (the default).
 - `ANALYSIS_TRAINING_ID = None`: analyze all trainings together.
 - `ANALYSIS_TRAINING_ID = 5`: analyze only training `5`.
 
@@ -14,6 +15,8 @@ You can also set it from Python or a notebook:
 ```python
 from neat_ai.analysis import set_analysis_training_id
 set_analysis_training_id(5)
+# Later, return to automatic selection:
+set_analysis_training_id("latest")
 ```
 
 Important: notebook cells that execute their own raw SQL do not automatically inherit this filter unless they call the shared loader helpers. At the time of writing, the old `analysis.ipynb` card-power slider setup has already been updated to use the shared loaders.
@@ -22,7 +25,7 @@ Important: notebook cells that execute their own raw SQL do not automatically in
 
 The current training data has two different generation concepts:
 
-- `outer_gen`: deck-builder generation. A genome builds a deck, that deck is saved, and the deck is evaluated against other generated decks.
+- `outer_gen`: deck-evolution generation. In v2 the genome is the canonical card composition itself; historical v1 runs used a NEAT network that built the deck. The resulting deck is saved and evaluated against other generated decks.
 - `inner_gen`: player-controller or evaluator generation. For a fixed pair of decks, NEAT trains controllers that learn how to pilot those decks.
 
 Most CCG statistics must stay separated by `outer_gen` or by `outer_gen` group. A card that looks strong globally may only look strong because it appeared late, after overall deck quality improved.
@@ -37,8 +40,14 @@ Currently supported:
 - Deck-vs-deck matchup scores.
 - Deck or archetype prevalence.
 - Card presence in generated decks.
-- Card pair presence in generated decks.
+- Model-adjusted pair, triple, and duplicate-card composition effects.
+- Matchup-specific card counters against opposing cards and common build cores.
 - Inner evaluator learning curves.
+
+Newer runs may persist evaluator checkpoints (currently inner generations 5,
+20, 35, and 65) instead of every training generation. Learning-curve charts
+use those checkpoints when raw training rows do not exist; they must therefore
+be read as sampled evaluation evidence, not a continuous training trace.
 
 Not currently supported:
 
@@ -56,9 +65,9 @@ File: `neat_ai/analysis/notebooks/insight_charts.ipynb`
 
 ### 1. Outer Deck-Builder Fitness by Generation
 
-Question answered: Is the deck-builder producing better decks over outer generations?
+Question answered: Is the outer deck optimizer producing better decks over generations?
 
-Each point is one logged deck-builder genome or deck. The y-axis is final genome fitness after deck evaluation. The x-axis is `outer_gen`. The box shows the distribution inside one generation: median, spread, and outliers.
+Each point is one logged composition genome or historical builder genome. The y-axis is relative fitness after deck evaluation. The x-axis is `outer_gen`. The box shows the distribution inside one generation: median, spread, and outliers.
 
 How to read it:
 
@@ -69,7 +78,7 @@ How to read it:
 
 Safe interpretation:
 
-- This is a direct deck-builder progress view.
+- This is a direct outer deck-evolution progress view.
 - It says nothing about whether a deck is easy or hard to pilot. That belongs to `inner_gen` analysis.
 
 ### 2. Card Meta Timeline by Generation Group
@@ -100,28 +109,78 @@ Important limitation:
 
 - This is card presence in decks, not drawn-card or played-card win rate.
 
-### 3. Card Pair Synergy Lift by Generation Group
+### 3. Model-Adjusted Card Combo Synergy by Generation Group
 
-Question answered: Which two-card combinations lift deck fitness within their own generation group?
+Question answered: Which pairs, triples, duplicates, or duplicate-plus-card
+patterns perform better than their cards' independently estimated value?
 
-The chart ranks pairs by lift relative to the generation-local baseline.
+The first stage fits an additive ridge model to card copy counts while
+controlling for exact outer generation:
 
-Formula:
+- `expected_fitness(deck) = intercept + generation_effect + sum(card_copy_count × card_main_effect)`
+- `residual(deck) = observed_fitness - expected_fitness`
+- `pair_synergy(A,B) = shrink(mean(residual | A and B))`
 
-- `pair_lift(A,B) = avg_score(decks containing A and B) - avg_score(all decks in same generation group)`
+The sample-size shrinkage factor is `n / (n + shrinkage)`, so combinations with
+few appearances are pulled toward zero. A triple's unique score subtracts all
+three constituent pair effects. A `2× A + B` score subtracts both the `A + B`
+pair effect and the `2× A` duplicate effect. For these higher-order patterns,
+the displayed synergy is the lower of total adjusted excess and unique excess.
+This prevents a bad combination from being recommended merely because it is
+less bad than its already-negative constituent interactions.
 
 How to read it:
 
-- Positive lift means decks with the pair outperform the local baseline.
-- A pair that appears only in late groups may represent a genuinely advanced synergy.
-- Low appearance count makes a pair less reliable even if lift is high.
-- Pair lift is stronger evidence than raw co-occurrence because it compares against the same-generation baseline.
+- Positive synergy means the combination exceeds additive card main effects.
+- `observed_score` is descriptive; `synergy_score` is the adjusted interaction.
+- Check appearances, pick rate, and standard error before trusting the ranking.
+- Compare a combination across early/mid/late groups to see whether it persists.
+- Duplicate patterns make `2× A`, `2× A + B`, and ordinary `A + B` distinct.
 
 Important limitation:
 
-- This is deck-building synergy, not proof that the two cards interact in a specific board state.
+- This is observational deck-building synergy, not proof of a causal board-state interaction.
+- Correlated archetypes and combinations absent from the population cannot be fully disentangled.
+- Three-card search is supported; larger arbitrary itemsets are intentionally omitted to avoid an unreliable combinatorial explosion.
+- The displayed standard error describes the raw additive-model residual mean;
+  it is a warning about sampling noise, not a full confidence interval for the
+  pair-corrected three-way interaction.
 
-### 4. High-Skill Deck Archetype Learning Curves
+### 4. Matchup-Specific Card Counters
+
+Question answered: Which card performs better than expected specifically when
+the opposing deck contains a particular card or common two-card build?
+
+The model uses final held-out matchup scores from both deck perspectives. It
+first predicts matchup score from own card copy counts, opposing card copy
+counts, exact outer generation, and real game sample weights. General card
+strength and general target difficulty are therefore absorbed before a counter
+relationship is measured.
+
+The remaining interaction is double-centered:
+
+- `specific(A → T) = residual(A vs T) - residual(A overall) - residual(vs T overall) + residual(overall)`
+- `counter_score = specific(A → T) × n / (n + shrinkage)`
+
+Targets can be one opposing card or a common opposing build core (`B + C` or
+`2× B`). The arrow is directional: `A → B` does not imply `B → A`.
+
+How to read it:
+
+- Positive score means card A has an advantage specifically into that target,
+  beyond A merely being strong everywhere.
+- Compare observed score with additive expected score to understand magnitude.
+- Prefer relationships supported by many matchups and game samples.
+- Large standard error means the apparent counter may be unstable.
+
+Important limitation:
+
+- This is composition-level held-out evidence. It does not prove the cards were
+  drawn, played, or faced each other on the board.
+- A build target is a common pair/duplicate core, not a complete archetype or
+  exact deck list.
+
+### 5. High-Skill Deck Archetype Learning Curves
 
 Question answered: Which decks become much better when the player-controller has time to learn them?
 
@@ -144,7 +203,7 @@ How to read it:
 - Low but rising lines may be promising but undertrained.
 - Compare lines mainly within the same facet unless you intentionally want cross-generation comparisons.
 
-### 5. Top Deck Matchup Heatmaps by Generation Group
+### 6. Top Deck Matchup Heatmaps by Generation Group
 
 Question answered: Which top decks beat which other top decks within the same generation group?
 
@@ -364,16 +423,26 @@ Question answered: Does a deck archetype improve across inner evaluator generati
 
 This is now represented more cleanly by the high-skill deck archetype learning curves, because that newer chart explicitly separates `inner_gen` from `outer_gen`.
 
-### 6. Top Card Synergy Pairings
+### 6. Top Card Combination Synergies
 
-Question answered: Which pairs often co-occur in elite decks?
+Question answered: Which supported combinations exceed additive card value?
 
-This counts co-occurrence in high-scoring decks above a percentile threshold.
+The legacy notebook now calls the same adjusted combination estimator described
+above. It no longer labels frequent elite-deck co-occurrence as synergy.
 
 How to read it:
 
-- It is useful for discovery.
-- Pair lift by generation group is stronger evidence because it compares against a baseline instead of only counting elite co-occurrence.
+- Use it for discovery, then inspect appearances and standard error.
+- The generation-group timeline remains the stronger presentation because it
+  reveals whether an interaction persists or is confined to one training era.
+
+## Large Database Performance
+
+`pc_match` may contain hundreds of millions of rows. The optional
+`ensure_analysis_indexes()` helper can accelerate repeated checkpoint and
+matchup queries, but it mutates `train.db` and building indexes can require
+substantial temporary disk space and time. Back up the database and verify free
+space before running it; analysis never invokes it automatically.
 
 ## Presentation Advice
 
@@ -384,7 +453,7 @@ For professors or readers unfamiliar with the project, present the charts in thi
 3. Show outer fitness distribution to establish whether training progresses.
 4. Show meta entropy and viable archetypes to discuss diversity.
 5. Show weighted meta performance and matchup balance to discuss competitive health.
-6. Show card presence lift and pair synergy lift to discuss balance candidates.
+6. Show card presence lift and adjusted combo synergy to discuss balance candidates.
 7. Show high-skill deck learning curves to distinguish simple strong decks from decks that require learned play.
 8. Use the older notebook charts only as supporting inspection views.
 

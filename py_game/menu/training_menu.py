@@ -4,6 +4,7 @@ import json
 import math
 import queue
 import sqlite3
+import subprocess
 import threading
 from dataclasses import replace
 from pathlib import Path
@@ -42,6 +43,7 @@ from py_game.training_service import (
     TrainingService,
 )
 from utils.database_utils import DBUtil
+from cards.card_type import CardType
 from py_game.ui.layout import RectSpec
 from py_game.ui.counter_dashboard import counter_dashboard_layout
 from py_game.ui.evolution_dashboard import evolution_dashboard_layout
@@ -78,6 +80,7 @@ from py_game.ui.widgets import Button, TextInput
 from py_game.ui.neat_advanced import AdvancedNeatEditor, FIELDS_PER_PAGE
 from py_game.training_lifecycle import (
     ACTIVE_STATUSES,
+    PARTIAL_RESULT_STATUSES,
     ArenaDestination,
     ResultArtifactStatus,
     arena_destination,
@@ -87,6 +90,10 @@ from py_game.training_lifecycle import (
     overall_progress,
     progress_levels,
 )
+
+
+COUNTER_KINDS = {TrainingKind.PLAYER_DECK, TrainingKind.COUNTER_V2}
+COUNTER_KIND_VALUES = {kind.value for kind in COUNTER_KINDS}
 
 if TYPE_CHECKING:
     from py_game.game import Game
@@ -111,16 +118,31 @@ class TrainingMenu(Menu):
     ]
     ABOUT_PAGES = (
         (
-            "Counter-deck lab",
-            "Stress-test one deck against opponents that keep adapting",
+            "Evolve counter v1",
+            "The original NEAT deck builder searches for counters",
             (
-                ("Training type", "Choose counter-deck training, a two-deck matchup, or general deck evolution."),
+                ("Training type", "Choose Evolve deck v1 for the historical NEAT builder or Evolve counter v2 for direct composition evolution."),
+                ("Outer optimizer", "A NEAT deck-builder network constructs every counter candidate card by card."),
                 ("Run label", "Defaults to mission_preset_YYMMDD-HH_deck_run-ID and remains editable."),
-                ("Deck under test", "Your selected deck stays fixed while a population evolves decks designed to counter it."),
+                ("Deck", "Your selected deck stays fixed while a population evolves decks designed to counter it."),
                 ("Counter generations", "How many generations of counter-deck candidates survive, mutate, and improve."),
                 ("Controller generations", "Both sides keep the same evolving controller populations across every counter generation; progress is not reset between opponents."),
                 ("Games per counter", "Use at least 1,000 seat-balanced games for a comparison run. Smaller diagnostics remain exploratory."),
+                ("Card pool", "Maximum card level excludes every stronger card; banned cards are removed from all generated counter decks."),
                 ("Results", "Overall deck win rate aggregates the final counter population; Top counter is the opponent deck with the highest win rate against your deck."),
+            ),
+        ),
+        (
+            "Evolve counter v2",
+            "Evolve legal counter-deck compositions directly",
+            (
+                ("Outer optimizer", "Direct card mutation, crossover, elitism, tournament selection, and random injection replace the NEAT deck builder."),
+                ("Deck", "Your selected deck remains fixed; only the opposing deck population evolves."),
+                ("Persistent players", "The same subject and counter controller populations continue learning across every counter generation."),
+                ("Composition safety", "Every candidate is a unique legal 10-12 card multiset that respects normal and legendary copy limits."),
+                ("Card pool", "Maximum card level and the paginated banned-card selector constrain initialization, crossover, and mutation."),
+                ("Games per counter", "Use at least 1,000 seat-balanced games for comparison; smaller samples remain exploratory."),
+                ("Advanced configuration", "V2 uses NEAT only for controller/evaluator learning, so no deck-builder NEAT tab is shown."),
             ),
         ),
         (
@@ -135,15 +157,29 @@ class TrainingMenu(Menu):
             ),
         ),
         (
-            "General deck evolution",
-            "Evolve a broad population without one fixed target deck",
+            "Deck evolution v1",
+            "The original NEAT network learns how to construct candidate decks",
+            (
+                ("Outer optimizer", "A NEAT deck-builder network chooses cards sequentially. Its network genome is selected through the fitness of the deck it constructs."),
+                ("Best use", "Keep v1 for historical comparison and experiments about reusable deck-building policies."),
+                ("Tradeoff", "Network mutations affect deck construction indirectly and equivalent compositions may be represented by different builder genomes."),
+                ("Advanced groups", "V1 exposes separate Deck builder and Controller / evaluator NEAT configurations."),
+                ("Card pool", "Maximum card level and banned cards constrain every deck emitted by the NEAT builder."),
+            ),
+        ),
+        (
+            "Deck evolution v2",
+            "Evolve a broad population of deck compositions without one fixed target",
             (
                 ("Seeds", "One seed iterates quickly; four seeds give stronger, more reproducible evidence."),
-                ("Outer generations", "Deck evolution cycles; use 1 while tuning and 10 for a final study."),
+                ("Outer generations", "Direct composition-evolution cycles; use 1 while tuning and 10 for an initial study."),
                 ("Inner generations", "Controller training per candidate deck; 50 is the recommended balance."),
-                ("Rival decks per candidate", "How many other evolved decks each candidate faces in an outer generation. More rivals reduce schedule luck but cost more; the value must be even so seats stay balanced."),
+                ("Rival decks per generation", "How many distinct evolved decks each composition faces. More rivals reduce schedule luck but cost more; the value must be even so seats stay balanced."),
                 ("Evaluator workers", "Parallel inner matches; choose 8 normally or 12 with ample CPU and RAM."),
-                ("Holdout seed pairs", "Unseen checks against overfitting; keep 20 for reported results."),
+                ("Validation seed pairs", "Unseen seat-balanced checks against overfitting; keep 20 for reported results."),
+                ("Evolution v2", "Decks are now evolved directly with legal card mutation, crossover, elitism, and strict composition uniqueness. NEAT is used only to train players."),
+                ("Card pool", "Maximum card level and banned cards constrain the initial population and every later mutation or crossover."),
+                ("Pause and resume", "After the first outer generation, pause rolls back unfinished work to the latest checkpoint. Resume works after closing the game or restarting the OS."),
             ),
         ),
         (
@@ -159,10 +195,10 @@ class TrainingMenu(Menu):
             ),
         ),
         (
-            "Advanced NEAT configuration",
+            "NEAT config",
             "Tune evolution only when the mission-level controls are not enough",
             (
-                ("Configuration groups", "Deck evolution and counter finding expose separate deck-builder and controller/evaluator networks. Matchup evaluation needs only the controller/evaluator network."),
+                ("Configuration groups", "Deck evolution v1 exposes deck-builder and controller/evaluator networks. Evolve counter v2, Deck evolution v2, and matchup evaluation use NEAT only for controller/evaluator training."),
                 ("Pagination", "Each page contains eight parameters. Switch network groups with the tabs and pages with Left/Right or the page buttons."),
                 ("Named configurations", "Save a complete mission-specific setup under a name and load it into future runs. Applying a named setup does not alter the project defaults."),
                 ("Private job copies", "Every run receives its own validated config files in the run artifact directory, so later edits cannot change an active or historical run."),
@@ -180,7 +216,17 @@ class TrainingMenu(Menu):
         self.selected = 0
         self.deck_options = DBUtil().get_all_deck_options()
         self.deck_ids = [deck_id for deck_id, _name in self.deck_options]
-        self.cockpit = TrainingCockpitState(self.deck_ids)
+        self.training_cards = tuple(
+            sorted(
+                (
+                    card
+                    for card in DBUtil().get_all_cards()
+                    if card.type == CardType.PLAYER
+                ),
+                key=lambda card: (card.name.casefold(), str(card.id)),
+            )
+        )
+        self.cockpit = TrainingCockpitState(self.deck_ids, self.training_cards)
         self.setup_focus_key = "mission_counter"
         self.setup_scroll = 0
         self.setup_layout = None
@@ -207,6 +253,10 @@ class TrainingMenu(Menu):
         self._launch_thread = None
         self._stop_results = queue.Queue()
         self._stop_thread = None
+        self._pause_results = queue.Queue()
+        self._pause_thread = None
+        self._delete_results = queue.Queue()
+        self._delete_thread = None
         self._visible_offset = 0
         self.run_search = TextInput(max_length=64)
         self.run_search_rect = RectSpec(0, 0, 0, 0)
@@ -281,18 +331,60 @@ class TrainingMenu(Menu):
     def kind(self):
         return self.cockpit.kind
 
-    @staticmethod
-    def _mission_label(kind):
+    def _mission_label(self, kind):
         if kind == TrainingKind.PLAYER_DECK or kind == TrainingKind.PLAYER_DECK.value:
-            return "Train counters against a deck"
+            return self.tr("mission_counter_v1")
+        if kind == TrainingKind.COUNTER_V2 or kind == TrainingKind.COUNTER_V2.value:
+            return self.tr("mission_counter_v2")
         if kind == TrainingKind.MATCHUP_EVALUATION or kind == TrainingKind.MATCHUP_EVALUATION.value:
-            return "Evaluate a two-deck matchup"
+            return self.tr("mission_matchup")
         if kind == TrainingKind.DECK_BUILDER or kind == TrainingKind.DECK_BUILDER.value:
-            return "Evolve and study decks"
-        return "AI training"
+            return self.tr("mission_deck_v1")
+        if kind == TrainingKind.DECK_POOL_V2 or kind == TrainingKind.DECK_POOL_V2.value:
+            return self.tr("mission_deck_v2")
+        return self.tr("training_title")
+
+    def _preset_display_label(self, label):
+        return {
+            "Quick exploratory": self.tr("training_quick"),
+            "Balanced": self.tr("training_balanced"),
+            "Deep study": self.tr("training_deep"),
+            "Custom": self.tr("training_custom"),
+        }.get(label, label)
+
+    def _status_display_label(self, status):
+        return {
+            "failed": self.tr("training_status_failed"),
+            "paused": self.tr("training_status_paused"),
+            "completed": self.tr("training_status_completed"),
+            "running": self.tr("training_status_running"),
+            "cancelled": self.tr("training_status_cancelled"),
+            "canceled": self.tr("training_status_cancelled"),
+        }.get(str(status).lower(), str(status))
+
+    def _localized_telemetry_text(self, value):
+        text = str(value)
+        if getattr(self.game.language, "code", "en") != "cs":
+            return text
+        replacements = (
+            ("Partial Evolution evidence verified", self.tr("training_partial_verified")),
+            ("stored decks", self.tr("training_stored_decks")),
+            ("scored pairings", self.tr("training_scored_pairings")),
+            ("Outer generations", self.tr("training_outer_generations_label")),
+            ("Current deck-pairing queue", self.tr("training_pairing_queue")),
+            ("Deck evolution", self.tr("evolution_title")),
+            ("Failed", self.tr("training_status_failed").capitalize()),
+        )
+        for source, target in replacements:
+            text = text.replace(source, target)
+        return text
 
     def _generation_options(self):
-        return self.BUILDER_GENERATIONS if self.kind == TrainingKind.DECK_BUILDER else self.PLAYER_GENERATIONS
+        return (
+            self.BUILDER_GENERATIONS
+            if self.kind in {TrainingKind.DECK_BUILDER, TrainingKind.DECK_POOL_V2}
+            else self.PLAYER_GENERATIONS
+        )
 
     def _generation(self):
         try:
@@ -307,7 +399,7 @@ class TrainingMenu(Menu):
         return self.cockpit.preset_label
 
     def _preset_summary(self):
-        if self.kind == TrainingKind.PLAYER_DECK:
+        if self.kind in COUNTER_KINDS:
             return (
                 f"{self.cockpit.value('outer_generations')} counter · "
                 f"{self._generation()} controller gen"
@@ -425,6 +517,10 @@ class TrainingMenu(Menu):
         identity = "" if isinstance(item, TrainingJob) else f"{run_id(item)}  "
         return f"{identity}{run_title(item)}  [{run_status(item)}]"
 
+    def _localized_run_library_label(self, item):
+        identity = "" if isinstance(item, TrainingJob) else f"{run_id(item)}  "
+        return f"{identity}{run_title(item)}  [{self._status_display_label(run_status(item))}]"
+
     def _fitted_text_size(self, text, preferred_size, max_width, minimum=8):
         """Choose the largest font size whose rendered text fits max_width."""
         size = max(minimum, int(preferred_size))
@@ -452,32 +548,51 @@ class TrainingMenu(Menu):
         mouse = self.game.mouse_position
         metrics = self.game.layout
         self.run_search_rect = layout["search"]
+        actions = metrics.columns(layout["back"], (0.28, 0.34, 0.38))
         toolbar = layout["toolbar"]
-        columns = metrics.columns(toolbar, (0.24, 0.20, 0.20, 0.36))
-        pager = metrics.columns(columns[3], (0.20, 0.60, 0.20), gap=max(2, metrics.gap // 2))
+        columns = metrics.columns(toolbar, (0.19, 0.16, 0.15, 0.17, 0.33))
+        pager = metrics.columns(columns[4], (0.20, 0.60, 0.20), gap=max(2, metrics.gap // 2))
         filters = self._run_filters()
+        selected_item = page_items[self.run_selected] if page_items else None
+        selected_status = str(getattr(selected_item, "status", "") or "").lower()
+        can_delete = (
+            selected_item is not None
+            and selected_status not in {"pending", "running", "pausing", "stopping"}
+            and not (
+                self._delete_thread is not None
+                and self._delete_thread.is_alive()
+            )
+        )
         control_specs = (
-            ("back", "Back", layout["back"], True),
+            ("back", self.tr("back"), actions[0], True),
+            ("details", self.tr("training_view_details"), actions[1], selected_item is not None),
+            ("open", self.tr("training_open_run"), actions[2], selected_item is not None),
             (
                 "sort",
-                f"Sort by: {SORT_FIELDS[self.run_sort_index]}",
+                self.tr("training_sort_date") if SORT_FIELDS[self.run_sort_index] == "Date" else f"Sort by: {SORT_FIELDS[self.run_sort_index]}",
                 columns[0],
                 True,
             ),
             (
                 "order",
-                "Order: Desc" if self.run_sort_descending else "Order: Asc",
+                self.tr("training_order_desc") if self.run_sort_descending else self.tr("training_order_asc"),
                 columns[1],
                 True,
             ),
             (
                 "filter",
-                f"Filter ({filters.active_count})" if filters.active_count else "Filter",
+                f"{self.tr('training_filter')} ({filters.active_count})" if filters.active_count else self.tr("training_filter"),
                 columns[2],
                 True,
             ),
+            (
+                "delete",
+                self.tr("decks_delete") if self.game.DISPLAY_W < 900 else self.tr("training_delete_selected"),
+                columns[3],
+                can_delete,
+            ),
             ("previous_page", "<", pager[0], self.run_page > 0),
-            ("page", f"Page {self.run_page + 1}/{page_count}", pager[1], False),
+            ("page", self.tr("training_page", current=self.run_page + 1, total=page_count), pager[1], False),
             ("next_page", ">", pager[2], self.run_page + 1 < page_count),
         )
         self.run_buttons = [
@@ -487,6 +602,7 @@ class TrainingMenu(Menu):
                 rect,
                 enabled=enabled,
                 hovered=rect.contains(mouse),
+                destructive=key == "delete",
             )
             for key, label, rect, enabled in control_specs
         ]
@@ -500,7 +616,7 @@ class TrainingMenu(Menu):
             self.run_buttons.append(
                 Button(
                     f"run:{index}",
-                    self._run_library_label(item),
+                    self._localized_run_library_label(item),
                     rect,
                     selected=index == self.run_selected,
                     hovered=rect.contains(mouse),
@@ -565,32 +681,36 @@ class TrainingMenu(Menu):
         key = aliases.get(key, key)
         if key in {"deck_id", "opponent_deck_id"}:
             self.cockpit.cycle_deck(key, direction)
-        elif key in self.cockpit.field_keys and key != "run_label":
+        elif key in self.cockpit.field_keys and key not in {"run_label", "banned_card_ids"}:
             self.cockpit.step_integer(key, direction)
 
     def _setup_field_label(self, key):
         if key == "workers":
-            return "Evaluator workers" if self.kind == TrainingKind.DECK_BUILDER else "Workers"
-        if key == "outer_generations" and self.kind == TrainingKind.PLAYER_DECK:
-            return "Counter generations"
-        if key == "evaluator_generations" and self.kind != TrainingKind.DECK_BUILDER:
-            return "Controller generations"
-        if key == "evaluation_games" and self.kind == TrainingKind.PLAYER_DECK:
-            return "Games / counter deck"
+            return self.tr("training_evaluator_workers") if self.kind in {TrainingKind.DECK_BUILDER, TrainingKind.DECK_POOL_V2} else self.tr("training_workers")
+        if key == "outer_generations" and self.kind in COUNTER_KINDS:
+            return self.tr("training_counter_generations")
+        if key == "evaluator_generations" and self.kind not in {TrainingKind.DECK_BUILDER, TrainingKind.DECK_POOL_V2}:
+            return self.tr("training_controller_generations")
+        if key == "evaluation_games" and self.kind in COUNTER_KINDS:
+            return self.tr("training_games_counter")
         if key == "deck_id":
-            return "Deck under test" if self.kind == TrainingKind.PLAYER_DECK else "Deck A"
+            return self.tr("training_deck") if self.kind in COUNTER_KINDS else "Deck A"
         if key == "opponent_deck_id":
             return "Deck B"
+        if key == "max_card_power":
+            return self.tr("training_max_card_level")
+        if key == "banned_card_ids":
+            return self.tr("training_banned_cards")
         return {
-            "run_label": "Run label",
+            "run_label": self.tr("training_run_label"),
             "deck_id": "Player deck",
             "opponent_deck_id": "Opponent deck",
             "seeds": "Seed set",
-            "outer_generations": "Outer generations",
-            "evaluator_generations": "Generations",
-            "matches_per_genome": "Rival decks / candidate",
-            "workers": "Evaluator workers",
-            "holdout_seed_pairs": "Holdout seed pairs",
+            "outer_generations": self.tr("training_outer_generations"),
+            "evaluator_generations": self.tr("training_inner_generations"),
+            "matches_per_genome": self.tr("training_rivals_per_generation"),
+            "workers": self.tr("training_evaluator_workers"),
+            "holdout_seed_pairs": self.tr("training_validation_seed_pairs"),
             "evaluation_games": "Games / checkpoint",
         }.get(key, key.replace("_", " ").title())
 
@@ -598,8 +718,10 @@ class TrainingMenu(Menu):
         fields = list(self.cockpit.field_keys)
         return [
             "mission_counter",
+            "mission_counter_v2",
             "mission_matchup",
             "mission_builder",
+            "mission_pool_v2",
             "preset_0",
             "preset_1",
             "preset_2",
@@ -679,6 +801,11 @@ class TrainingMenu(Menu):
         return True
 
     def _open_setup_picker(self, key):
+        if key == "banned_card_ids":
+            self.setup_picker_key = key
+            self.setup_picker_index = 0
+            self.setup_picker_page = 0
+            return
         if not self.deck_ids:
             self.message = "Create a deck before configuring player training"
             self.message_color = self.game.palette.danger
@@ -695,17 +822,25 @@ class TrainingMenu(Menu):
         if key == "mission_counter":
             self.cockpit.switch(TrainingKind.PLAYER_DECK)
             self.setup_scroll = 0
+        elif key == "mission_counter_v2":
+            self.cockpit.switch(TrainingKind.COUNTER_V2)
+            self.setup_scroll = 0
         elif key == "mission_matchup":
             self.cockpit.switch(TrainingKind.MATCHUP_EVALUATION)
             self.setup_scroll = 0
         elif key == "mission_builder":
             self.cockpit.switch(TrainingKind.DECK_BUILDER)
             self.setup_scroll = 0
+        elif key == "mission_pool_v2":
+            self.cockpit.switch(TrainingKind.DECK_POOL_V2)
+            self.setup_scroll = 0
         elif key.startswith("preset_"):
             index = int(key.rsplit("_", 1)[1])
             self.cockpit.apply_preset(index if index < 3 else None)
-        elif key in {"deck_id", "opponent_deck_id"}:
+        elif key in {"deck_id", "opponent_deck_id", "banned_card_ids"}:
             self._open_setup_picker(key)
+        elif key == "max_card_power":
+            self.cockpit.step_integer(key, 1)
         elif key in self.cockpit.field_keys:
             self._begin_setup_edit(key)
         elif key == "about":
@@ -772,7 +907,36 @@ class TrainingMenu(Menu):
 
     def _picker_page_count(self, page_size=None):
         page_size = page_size or self._picker_page_size()
-        return max(1, math.ceil(len(self.deck_ids) / page_size))
+        return max(1, math.ceil(len(self._picker_items()) / page_size))
+
+    def _picker_items(self):
+        if getattr(self, "setup_picker_key", None) == "banned_card_ids":
+            return tuple(
+                (
+                    str(card.id),
+                    f"{card.name} · "
+                    f"{getattr(getattr(card, 'color', None), 'name', 'COLOR')} · "
+                    f"{getattr(getattr(card, 'power', None), 'name', 'LEVEL')}",
+                )
+                for card in getattr(self, "training_cards", ())
+            )
+        return tuple((deck_id, self._deck_label(deck_id)) for deck_id in self.deck_ids)
+
+    def _banned_card_ids(self):
+        return {
+            value.strip()
+            for value in self.cockpit.draft.banned_card_ids.split(",")
+            if value.strip()
+        }
+
+    def _toggle_banned_card(self, card_id):
+        banned = self._banned_card_ids()
+        if card_id in banned:
+            banned.remove(card_id)
+        else:
+            banned.add(card_id)
+        ordered = [str(card.id) for card in self.training_cards if str(card.id) in banned]
+        self.cockpit.set_value("banned_card_ids", ",".join(ordered), user_edit=False)
 
     def _sync_picker_page_to_selection(self):
         page_size = self._picker_page_size()
@@ -790,7 +954,7 @@ class TrainingMenu(Menu):
         row_on_page = self.setup_picker_index % page_size
         self.setup_picker_page = new_page
         self.setup_picker_index = min(
-            len(self.deck_ids) - 1,
+            len(self._picker_items()) - 1,
             new_page * page_size + row_on_page,
         )
 
@@ -812,12 +976,12 @@ class TrainingMenu(Menu):
         self.setup_picker_page = max(0, min(self.setup_picker_page, page_count - 1))
         start = self.setup_picker_page * visible_count
         rows = []
-        for offset, deck_id in enumerate(self.deck_ids[start : start + visible_count]):
+        for offset, (item_id, item_name) in enumerate(self._picker_items()[start : start + visible_count]):
             rows.append(
                 (
                     start + offset,
-                    deck_id,
-                    self._deck_label(deck_id),
+                    item_id,
+                    item_name,
                     RectSpec(
                         panel.x + self.game.layout.gap,
                         panel.y + 62 + offset * (row_height + 4),
@@ -841,17 +1005,21 @@ class TrainingMenu(Menu):
             self.setup_picker_index = max(0, self.setup_picker_index - 1)
             self._sync_picker_page_to_selection()
         elif self.game.DOWN_KEY:
-            self.setup_picker_index = min(len(self.deck_ids) - 1, self.setup_picker_index + 1)
+            self.setup_picker_index = min(len(self._picker_items()) - 1, self.setup_picker_index + 1)
             self._sync_picker_page_to_selection()
         if self.game.mouse_wheel:
             self._change_picker_page(-1 if self.game.mouse_wheel > 0 else 1)
         if self.game.START_KEY:
-            self.cockpit.set_value(
-                self.setup_picker_key,
-                self.deck_ids[self.setup_picker_index],
-                user_edit=False,
-            )
-            self.setup_picker_key = None
+            item_id = self._picker_items()[self.setup_picker_index][0]
+            if self.setup_picker_key == "banned_card_ids":
+                self._toggle_banned_card(item_id)
+            else:
+                self.cockpit.set_value(
+                    self.setup_picker_key,
+                    item_id,
+                    user_edit=False,
+                )
+                self.setup_picker_key = None
             self.game.START_KEY = False
             return
         if self.game.mouse_clicked:
@@ -866,8 +1034,11 @@ class TrainingMenu(Menu):
             for index, deck_id, _deck_name, rect in rows:
                 if rect.contains(self.game.mouse_position):
                     self.setup_picker_index = index
-                    self.cockpit.set_value(self.setup_picker_key, deck_id, user_edit=False)
-                    self.setup_picker_key = None
+                    if self.setup_picker_key == "banned_card_ids":
+                        self._toggle_banned_card(deck_id)
+                    else:
+                        self.cockpit.set_value(self.setup_picker_key, deck_id, user_edit=False)
+                        self.setup_picker_key = None
                     return
 
     def _review_buttons(self):
@@ -945,7 +1116,7 @@ class TrainingMenu(Menu):
             direction = 1 if self.game.RIGHT_KEY else -1
             if self.setup_focus_key in {"deck_id", "opponent_deck_id"}:
                 self.cockpit.cycle_deck(self.setup_focus_key, direction)
-            elif self.setup_focus_key in self.cockpit.field_keys and self.setup_focus_key != "run_label":
+            elif self.setup_focus_key in self.cockpit.field_keys and self.setup_focus_key not in {"run_label", "banned_card_ids"}:
                 self.cockpit.step_integer(self.setup_focus_key, direction)
             else:
                 self._move_setup_focus(direction)
@@ -982,6 +1153,7 @@ class TrainingMenu(Menu):
             hovered=rect.contains(self.game.mouse_position),
         )
         size = max(11, self.game.layout.font_small - (2 if compact else 0))
+        size = self._fitted_text_size(label, size, max(1, rect.width - 12), minimum=7)
         button.draw(self.game.display, pg.font.Font(self.game.font_name, size), self.game.palette)
 
     def _draw_setup_field(self, key, validation):
@@ -1007,6 +1179,19 @@ class TrainingMenu(Menu):
         value = self.cockpit.value(key)
         if key in {"deck_id", "opponent_deck_id"}:
             value = self._deck_label(value) + ("  v" if self.deck_ids else "")
+        elif key == "max_card_power":
+            value = {
+                "0": self.tr("card_level_starter"),
+                "1": self.tr("card_level_normal"),
+                "2": self.tr("card_level_legendary"),
+            }.get(value, value)
+        elif key == "banned_card_ids":
+            count = len(self._banned_card_ids())
+            value = (
+                self.tr("training_banned_count", count=count)
+                if count
+                else self.tr("training_no_banned_cards")
+            ) + "  v"
         if editing:
             value += " |"
         value_size = max(13, self.game.layout.font_normal - 3)
@@ -1035,70 +1220,56 @@ class TrainingMenu(Menu):
             )
 
     def _summary_rows(self, request):
-        if self.kind == TrainingKind.PLAYER_DECK:
+        if self.kind in COUNTER_KINDS:
             return (
-                ("MISSION", "Counter-deck training"),
-                ("PRESET", self.cockpit.preset_label),
-                ("DECK UNDER TEST", self._deck_label(request.deck_id if request else self.cockpit.value("deck_id"))),
-                ("COUNTER EVOLUTION", f"{request.outer_generations} generations" if request else self.cockpit.value("outer_generations")),
-                ("CONTROLLER LEARNING", f"{request.evaluator_generations} persistent generations" if request else self.cockpit.value("evaluator_generations")),
-                ("VALIDATION", f"{request.evaluation_games} games/counter" if request else f"{self.cockpit.value('evaluation_games')} games/counter"),
+                (
+                    self.tr("training_mission").upper(),
+                    self._mission_label(self.kind),
+                ),
+                (self.tr("training_preset").upper(), self._preset_display_label(self.cockpit.preset_label)),
+                (self.tr("training_deck_under_test").upper(), self._deck_label(request.deck_id if request else self.cockpit.value("deck_id"))),
+                (self.tr("training_counter_evolution").upper(), self.tr("training_generations_value", count=request.outer_generations) if request else self.cockpit.value("outer_generations")),
+                (self.tr("training_controller_learning").upper(), self.tr("training_persistent_generations", count=request.evaluator_generations) if request else self.cockpit.value("evaluator_generations")),
+                (self.tr("training_validation").upper(), self.tr("training_games_counter_value", count=request.evaluation_games) if request else self.tr("training_games_counter_value", count=self.cockpit.value('evaluation_games'))),
             )
         if self.kind == TrainingKind.MATCHUP_EVALUATION:
             return (
-                ("MISSION", "Two-deck matchup"),
-                ("PRESET", self.cockpit.preset_label),
+                (self.tr("training_mission").upper(), self._mission_label(self.kind)),
+                (self.tr("training_preset").upper(), self._preset_display_label(self.cockpit.preset_label)),
                 ("DECK A", self._deck_label(request.deck_id if request else self.cockpit.value("deck_id"))),
                 ("DECK B", self._deck_label(request.opponent_deck_id if request else self.cockpit.value("opponent_deck_id"))),
-                ("CONTROLLER LEARNING", str(request.evaluator_generations) if request else self.cockpit.value("evaluator_generations")),
-                ("CHECKPOINT", f"{request.evaluation_games} seat-balanced games" if request else self.cockpit.value("evaluation_games")),
+                (self.tr("training_controller_learning").upper(), str(request.evaluator_generations) if request else self.cockpit.value("evaluator_generations")),
+                (self.tr("training_checkpoint").upper(), f"{request.evaluation_games} seat-balanced games" if request else self.cockpit.value("evaluation_games")),
             )
         seeds = request.seeds if request else ()
         return (
-            ("MISSION", "Deck builder experiment"),
-            ("PRESET", self.cockpit.preset_label),
-            ("SEEDS", f"{len(seeds)} independent runs" if seeds else "Pending / invalid"),
-            ("EVOLUTION", f"{request.outer_generations} outer / {request.evaluator_generations} inner" if request else "Pending / invalid"),
-            ("RIVAL DECKS", f"{request.matches_per_genome} per candidate" if request else self.cockpit.value("matches_per_genome")),
-            ("HOLDOUT", f"{request.holdout_seed_pairs} seed pairs" if request else self.cockpit.value("holdout_seed_pairs")),
+            (
+                self.tr("training_mission").upper(),
+                self._mission_label(self.kind),
+            ),
+            (self.tr("training_preset").upper(), self._preset_display_label(self.cockpit.preset_label)),
+            (self.tr("training_seeds").upper(), f"{len(seeds)} independent runs" if seeds else self.tr("training_available")),
+            (self.tr("training_evolution").upper(), f"{request.outer_generations} outer / {request.evaluator_generations} inner" if request else self.tr("training_available")),
+            (self.tr("training_rivals_per_generation").upper(), f"{request.matches_per_genome}" if request else self.cockpit.value("matches_per_genome")),
+            (self.tr("training_validation_pairs").upper(), f"{request.holdout_seed_pairs}" if request else self.cockpit.value("holdout_seed_pairs")),
         )
 
     def _draw_cockpit_header(self, layout):
-        self.game.draw_text_left(
-            "DRACI ZVESTI / AI TRAINING",
-            max(11, self.game.layout.font_small - 2),
-            layout.header.x,
-            layout.header.y + 12,
-            self.game.palette.accent,
-            layout.header.width,
-        )
-        title = "Training workbench"
+        title = self.tr("training_title")
         self.game.draw_text_left(
             title,
             self.game.layout.font_large,
             layout.header.x,
-            layout.header.y + 43,
+            layout.header.y + layout.header.height // 2,
             self.game.palette.text,
             layout.header.width,
         )
-        if self.game.DISPLAY_W >= 900:
-            self.game.draw_text_left(
-                "Build counter-decks, evaluate matchups, and evolve new decks",
-                self.game.layout.font_small,
-                layout.header.x,
-                layout.header.y
-                + 43
-                + self.game.layout.font_large // 2
-                + self.game.layout.font_small,
-                self.game.palette.muted,
-                layout.header.width,
-            )
 
     def _draw_cockpit_rail(self, layout):
         rail = layout.panels["rail"]
         self._draw_cockpit_panel(rail, accent=(109, 169, 223))
         self.game.draw_text_left(
-            "Choose a mission" if layout.mode == "wide" else "Mission",
+            self.tr("training_choose_mission") if layout.mode == "wide" else self.tr("training_mission"),
             max(13, self.game.layout.font_small),
             rail.x + self.game.layout.gap,
             rail.y + 20,
@@ -1107,39 +1278,47 @@ class TrainingMenu(Menu):
         )
         self._draw_setup_button(
             "mission_counter",
-            "Train counters for my deck",
+            self.tr("mission_counter_v1"),
             selected=self.kind == TrainingKind.PLAYER_DECK,
             compact=layout.mode == "compact",
         )
         self._draw_setup_button(
+            "mission_counter_v2",
+            self.tr("mission_counter_v2"),
+            selected=self.kind == TrainingKind.COUNTER_V2,
+            compact=layout.mode == "compact",
+        )
+        self._draw_setup_button(
             "mission_matchup",
-            "Evaluate a matchup",
+            self.tr("mission_matchup"),
             selected=self.kind == TrainingKind.MATCHUP_EVALUATION,
             compact=layout.mode == "compact",
         )
         self._draw_setup_button(
             "mission_builder",
-            "Evolve general deck pool",
+            self.tr("mission_deck_v1"),
             selected=self.kind == TrainingKind.DECK_BUILDER,
+            compact=layout.mode == "compact",
+        )
+        self._draw_setup_button(
+            "mission_pool_v2",
+            self.tr("mission_deck_v2"),
+            selected=self.kind == TrainingKind.DECK_POOL_V2,
             compact=layout.mode == "compact",
         )
         if layout.mode == "wide":
             self._draw_setup_button(
-                "advanced", "Advanced NEAT configuration >", compact=True
+                "advanced", self.tr("training_neat_config") + " >", compact=True
             )
-            self._draw_setup_button("about", "Training guide >", compact=True)
-            self._draw_setup_button("back", "< Back to menu", compact=True)
-            self._draw_setup_button("runs", "Open run library >", compact=True)
+            self._draw_setup_button("about", self.tr("training_guide") + " >", compact=True)
+            self._draw_setup_button("back", "< " + self.tr("training_back_menu"), compact=True)
+            self._draw_setup_button("runs", self.tr("training_run_library") + " >", compact=True)
 
     def _draw_cockpit_config(self, layout, validation):
         panel = layout.panels["config"]
         self._draw_cockpit_panel(panel, accent=self.game.palette.accent)
         x = panel.x + self.game.layout.gap + 8
-        config_title = {
-            TrainingKind.PLAYER_DECK: "Configure counter-deck training",
-            TrainingKind.MATCHUP_EVALUATION: "Configure matchup evaluation",
-            TrainingKind.DECK_BUILDER: "Configure general deck evolution",
-        }[self.kind]
+        config_title = self.tr("training_configure", mission=self._mission_label(self.kind))
         self.game.draw_text_left(
             config_title,
             max(15, self.game.layout.font_normal - 1),
@@ -1148,16 +1327,16 @@ class TrainingMenu(Menu):
             self.game.palette.text,
             panel.width - self.game.layout.gap * 2,
         )
-        if layout.mode == "wide":
+        if self.kind == TrainingKind.DECK_BUILDER and layout.mode == "wide":
             self.game.draw_text_left(
-                "Presets fill fields; every value remains directly editable",
+                "NEAT evolves a deck builder that constructs each candidate.",
                 max(10, self.game.layout.font_small - 3),
                 x,
                 panel.y + 43,
                 self.game.palette.muted,
                 panel.width - self.game.layout.gap * 2,
             )
-        labels = [preset.label for preset in presets_for(self.kind)] + ["Custom"]
+        labels = [self._preset_display_label(preset.label) for preset in presets_for(self.kind)] + [self.tr("training_custom")]
         active = self.cockpit.draft.preset_index
         for index, label in enumerate(labels):
             self._draw_setup_button(
@@ -1169,7 +1348,7 @@ class TrainingMenu(Menu):
         for key in self.cockpit.field_keys:
             self._draw_setup_field(key, validation)
 
-    def _draw_read_only_field(self, key, label, value, *, helper=""):
+    def _draw_read_only_field(self, key, label, value):
         rect = self.setup_layout.controls.get(key)
         if rect is None or not self._setup_control_visible(rect):
             return
@@ -1178,47 +1357,50 @@ class TrainingMenu(Menu):
         pg.draw.rect(self.game.display, self.game.palette.border, pg_rect, 1, border_radius=7)
         self.game.draw_text_left(label.upper(), max(10, self.game.layout.font_small - 4), rect.x, rect.y - 7, self.game.palette.muted, rect.width)
         self.game.draw_text_left(str(value), max(13, self.game.layout.font_normal - 3), rect.x + 10, rect.y + rect.height // 2, self.game.palette.text, rect.width - 20)
-        if helper:
-            self.game.draw_text_left(helper, max(10, self.game.layout.font_small - 5), rect.x, rect.bottom + 7, (109, 169, 223), rect.width)
 
     def _draw_cockpit_evidence(self, layout, validation):
         panel = layout.panels["evidence"]
         self._draw_cockpit_panel(panel, accent=self.game.palette.success)
         x = panel.x + self.game.layout.gap + 8
         title = (
-            "Persistent learning & validation"
-            if self.kind == TrainingKind.PLAYER_DECK
-            else "Matchup checkpoints"
+            self.tr("training_persistent")
+            if self.kind in COUNTER_KINDS
+            else self.tr("training_matchup_checkpoints")
             if self.kind == TrainingKind.MATCHUP_EVALUATION
-            else "Workload & preflight"
+            else self.tr("training_workload")
         )
         self.game.draw_text_left(title, max(15, self.game.layout.font_normal - 1), x, panel.y + 22, self.game.palette.text, panel.width - 24)
         workload = training_workload(validation.request) if validation.request else None
-        if self.kind == TrainingKind.PLAYER_DECK:
+        if self.kind in COUNTER_KINDS:
             if layout.mode == "wide":
                 self._draw_setup_field("evaluation_games", validation)
             self._draw_read_only_field(
                 "persistence_display",
-                "Controller memory",
-                "Persists across all counters",
-                helper="Learning does not reset between deck candidates",
+                self.tr("training_controller_memory"),
+                self.tr("training_persists"),
             )
             self._draw_read_only_field(
                 "counter_pool",
-                "Counter population",
-                "20 evolving decks",
-                helper="Best final opponent is reported as Top counter",
+                self.tr("training_counter_population"),
+                (
+                    self.tr("training_direct_compositions")
+                    if self.kind == TrainingKind.COUNTER_V2
+                    else self.tr("training_neat_decks")
+                ),
             )
             if workload:
                 y = panel.bottom - max(42, self.game.layout.target_height)
-                self.game.draw_text_left(workload.headline, max(12, self.game.layout.font_small - 1), x, y, self.game.palette.accent, panel.width - 30)
+                headline = workload.headline
+                if headline.startswith("About ") and headline.endswith(" simulated games"):
+                    headline = self.tr("training_simulated_games", count=headline[6:-16])
+                self.game.draw_text_left(headline, max(12, self.game.layout.font_small - 1), x, y, self.game.palette.accent, panel.width - 30)
         elif self.kind == TrainingKind.MATCHUP_EVALUATION:
             if layout.mode == "wide":
                 self._draw_setup_field("evaluation_games", validation)
             checkpoints = " · ".join(map(str, self.cockpit.checkpoints())) or "Pending"
-            self._draw_read_only_field("checkpoint_display", "Win-rate checkpoints", checkpoints, helper="Both controllers evolve directly against each other")
+            self._draw_read_only_field("checkpoint_display", "Win-rate checkpoints", checkpoints)
             deck_status = "2 fixed decks selected" if self.deck_ids and not {"deck_id", "opponent_deck_id"} & validation.errors.keys() else "Deck selection incomplete"
-            self._draw_read_only_field("deck_status", "Matchup", deck_status, helper="Seats are balanced in every checkpoint")
+            self._draw_read_only_field("deck_status", "Matchup", deck_status)
             if workload:
                 y = panel.bottom - max(42, self.game.layout.target_height)
                 self.game.draw_text_left(workload.headline, max(12, self.game.layout.font_small - 1), x, y, self.game.palette.accent, panel.width - 30)
@@ -1231,7 +1413,7 @@ class TrainingMenu(Menu):
                 self.game.draw_text_left("Correct the highlighted settings to calculate workload", self.game.layout.font_small, x, panel.y + 68, self.game.palette.danger, panel.width - 30)
         ready = validation.valid and self.setup_edit_key is None
         status = (
-            "Ready for review"
+            self.tr("training_ready_review")
             if ready
             else "Finish editing to review"
             if validation.valid
@@ -1244,17 +1426,23 @@ class TrainingMenu(Menu):
         panel = layout.panels["summary"]
         self._draw_cockpit_panel(panel, accent=self.game.palette.accent)
         x = panel.x + self.game.layout.gap + 8
-        self.game.draw_text_left("Run summary", max(15, self.game.layout.font_normal - 1), x, panel.y + 22, self.game.palette.text, panel.width - 24)
-        self.game.draw_text_left("Always visible before committing", max(10, self.game.layout.font_small - 3), x, panel.y + 43, self.game.palette.muted, panel.width - 24)
-        y = panel.y + 72
-        row_gap = 47 if layout.mode == "wide" else 40
+        self.game.draw_text_left(self.tr("training_run_summary"), max(15, self.game.layout.font_normal - 1), x, panel.y + 22, self.game.palette.text, panel.width - 24)
+        y = panel.y + 52
+        row_gap = max(
+            47 if layout.mode == "wide" else 40,
+            self.game.layout.font_normal + self.game.layout.font_small + 10,
+        )
         for label, value in self._summary_rows(validation.request):
-            self.game.draw_text_left(label, max(9, self.game.layout.font_small - 5), x, y, self.game.palette.muted, panel.width - 24)
-            self.game.draw_text_left(str(value or "Pending"), max(12, self.game.layout.font_normal - 3), x, y + 18, self.game.palette.text, panel.width - 24)
+            row_width = panel.width - 24
+            shown_value = str(value or self.tr("training_available"))
+            label_size = self._fitted_text_size(label, max(9, self.game.layout.font_small - 5), row_width, minimum=6)
+            value_size = self._fitted_text_size(shown_value, max(12, self.game.layout.font_normal - 3), row_width, minimum=7)
+            self.game.draw_text_left(label, label_size, x, y, self.game.palette.muted, row_width)
+            self.game.draw_text_left(shown_value, value_size, x, y + 18, self.game.palette.text, row_width)
             y += row_gap
         ready = validation.valid and self.setup_edit_key is None
         status_text = (
-            "READY TO REVIEW"
+            self.tr("training_ready_review_upper")
             if ready
             else "FINISH EDITING"
             if validation.valid
@@ -1276,7 +1464,7 @@ class TrainingMenu(Menu):
                 self._draw_setup_button("runs", "Runs", compact=True)
                 self._draw_setup_button("back", "Back", compact=True)
         launch_enabled = validation.valid and self.setup_edit_key is None and not self.setup_starting
-        label = "Starting training…" if self.setup_starting else "Review & launch >"
+        label = self.tr("training_starting") if self.setup_starting else self.tr("training_review_launch") + " >"
         self._draw_setup_button("launch", label, selected=False, enabled=launch_enabled)
 
     def _draw_setup_scrollbar(self, layout):
@@ -1315,15 +1503,6 @@ class TrainingMenu(Menu):
             self._draw_setup_button("launch", label, selected=False, enabled=launch_enabled)
         else:
             self._draw_cockpit_actions(layout, validation)
-        if self.message:
-            self.game.draw_text_left(
-                self.message,
-                max(10, self.game.layout.font_small - 3),
-                layout.header.x,
-                layout.header.bottom - 2,
-                self.message_color,
-                layout.header.width,
-            )
         if self.setup_picker_key is not None:
             self._draw_setup_picker()
         if self.setup_review_open:
@@ -1336,7 +1515,9 @@ class TrainingMenu(Menu):
         panel, rows = self._picker_panel()
         self._draw_cockpit_panel(panel, accent=self.game.palette.accent)
         title = (
-            "Select Deck B"
+            self.tr("training_select_banned")
+            if self.setup_picker_key == "banned_card_ids"
+            else "Select Deck B"
             if self.setup_picker_key == "opponent_deck_id"
             else "Select Deck A"
             if self.kind == TrainingKind.MATCHUP_EVALUATION
@@ -1344,12 +1525,17 @@ class TrainingMenu(Menu):
         )
         self.game.draw_text_left(title, self.game.layout.font_normal, panel.x + self.game.layout.gap, panel.y + 27, self.game.palette.text, panel.width - self.game.layout.gap * 2)
         font = pg.font.Font(self.game.font_name, max(12, self.game.layout.font_small))
+        banned = self._banned_card_ids()
         for index, _deck_id, deck_name, rect in rows:
             Button(
                 str(index),
-                deck_name,
+                ("✓ " if _deck_id in banned else "") + deck_name,
                 rect,
-                selected=index == self.setup_picker_index,
+                selected=(
+                    _deck_id in banned
+                    if self.setup_picker_key == "banned_card_ids"
+                    else index == self.setup_picker_index
+                ),
                 hovered=rect.contains(self.game.mouse_position),
             ).draw(self.game.display, font, self.game.palette)
         page_size = self._picker_page_size(panel)
@@ -1370,7 +1556,12 @@ class TrainingMenu(Menu):
             hovered=next_rect.contains(self.game.mouse_position),
         ).draw(self.game.display, font, self.game.palette)
         self.game.draw_text(
-            f"Page {self.setup_picker_page + 1} / {page_count}  •  {len(self.deck_ids)} decks",
+            (
+                f"Page {self.setup_picker_page + 1} / {page_count}  •  "
+                f"{len(banned)} {self.tr('training_banned_cards').lower()}  •  Esc: {self.tr('training_done')}"
+                if self.setup_picker_key == "banned_card_ids"
+                else f"Page {self.setup_picker_page + 1} / {page_count}  •  {len(self.deck_ids)} decks"
+            ),
             max(10, self.game.layout.font_small - 2),
             panel.center[0],
             previous_rect.y + previous_rect.height // 2,
@@ -1383,15 +1574,27 @@ class TrainingMenu(Menu):
             for values in (request.neat_config_overrides or {}).values()
         )
         advanced_label = f"{advanced} override(s)" if advanced else "Project defaults"
-        if request.kind == TrainingKind.PLAYER_DECK:
+        level_label = {
+            0: self.tr("card_level_starter"),
+            1: self.tr("card_level_normal"),
+            2: self.tr("card_level_legendary"),
+        }.get(request.max_card_power, str(request.max_card_power))
+        restrictions = f"{level_label} · {len(request.banned_card_ids)} banned"
+        if request.kind in COUNTER_KINDS:
             return (
-                ("Deck under test", self._deck_label(request.deck_id)),
+                ("Deck", self._deck_label(request.deck_id)),
                 ("Counter generations", request.outer_generations),
                 ("Persistent controller generations", request.evaluator_generations),
                 ("Workers", request.workers),
                 ("Games / counter deck", request.evaluation_games),
-                ("Counter population", "20 candidates per generation"),
-                ("Advanced NEAT", advanced_label),
+                ("Card pool", restrictions),
+                (
+                    "Counter optimizer",
+                    "Direct composition GA v2"
+                    if request.kind == TrainingKind.COUNTER_V2
+                    else "NEAT deck builder v1",
+                ),
+                ("NEAT config", advanced_label),
             )
         if request.kind == TrainingKind.MATCHUP_EVALUATION:
             checkpoints = ", ".join(
@@ -1404,16 +1607,22 @@ class TrainingMenu(Menu):
                 ("Workers", request.workers),
                 ("Games / checkpoint", request.evaluation_games),
                 ("Checkpoints", checkpoints),
-                ("Advanced NEAT", advanced_label),
+                ("NEAT config", advanced_label),
             )
         return (
             ("Seed set", ", ".join(map(str, request.seeds))),
             ("Generations", f"{request.outer_generations} outer · {request.evaluator_generations} inner"),
-            ("Rival decks / candidate", request.matches_per_genome),
+            ("Rival decks per gen", request.matches_per_genome),
             ("Evaluator workers", request.workers),
-            ("Holdout seed pairs", request.holdout_seed_pairs),
-            ("Engine", "20 target decks · 2 fixed outer workers"),
-            ("Advanced NEAT", advanced_label),
+            ("Validation seed pairs", request.holdout_seed_pairs),
+            ("Card pool", restrictions),
+            (
+                "Engine",
+                "20 unique compositions · direct genetic evolution"
+                if request.kind == TrainingKind.DECK_POOL_V2
+                else "20 NEAT deck-builder genomes · indirect construction",
+            ),
+            ("NEAT config", advanced_label),
         )
 
     def _draw_setup_review(self):
@@ -1500,7 +1709,10 @@ class TrainingMenu(Menu):
                         ):
                             self.dashboard_artifact_status = None
                             self.dashboard_insights = None
-                        if replacement_status == "completed":
+                        if replacement_status in {
+                            "completed",
+                            *PARTIAL_RESULT_STATUSES,
+                        }:
                             self._start_insight_refresh(replacement)
             else:
                 self.message = f"Could not refresh runs: {result[1]}"
@@ -1670,7 +1882,147 @@ class TrainingMenu(Menu):
         ):
             self.dashboard_item = value
             self.dashboard_telemetry = None
+            self.dashboard_results_opened = False
+            self.dashboard_artifact_status = None
+            self.dashboard_insights = None
+            self._start_insight_refresh(value)
         self.message = "Training stopped; artifacts and logs were kept"
+        self.message_color = self.game.palette.accent
+        self._refresh_runs(force=True)
+
+    def _delete_selected_run(self):
+        if self._delete_thread is not None and self._delete_thread.is_alive():
+            return
+        if not self.run_page_items:
+            return
+        item = self.run_page_items[
+            min(self.run_selected, len(self.run_page_items) - 1)
+        ]
+        status = str(getattr(item, "status", "") or "").lower()
+        if status in {"pending", "running", "pausing", "stopping"}:
+            self.message = "Stop this training run before deleting it"
+            self.message_color = self.game.palette.danger
+            return
+        label = self._run_library_label(item)
+        if not self.confirm_action(
+            "Delete this training run?",
+            (
+                label,
+                "Stored training evidence, logs, and UI artifacts will be deleted.",
+                "Decks already adopted into My decks will be preserved.",
+            ),
+            confirm_label="Delete run",
+        ):
+            return
+        self.message = "Deleting training run…"
+        self.message_color = self.game.palette.muted
+
+        def delete():
+            try:
+                result = self.service.delete_run(item)
+                self._delete_results.put(("ok", item, result))
+            except (OSError, RuntimeError, sqlite3.Error) as error:
+                self._delete_results.put(("error", item, str(error)))
+
+        self._delete_thread = threading.Thread(
+            target=delete,
+            name="training-delete",
+            daemon=True,
+        )
+        self._delete_thread.start()
+
+    def _consume_delete_result(self):
+        try:
+            status, item, value = self._delete_results.get_nowait()
+        except queue.Empty:
+            return
+        if status == "error":
+            self.message = f"Could not delete training run: {value}"
+            self.message_color = self.game.palette.danger
+            return
+        if self.dashboard_item is item:
+            self.dashboard_item = None
+            self.view = "runs"
+        self.run_selected = max(0, self.run_selected - 1)
+        self.message = "Training run deleted"
+        self.message_color = self.game.palette.accent
+        self.last_refresh = -1000
+        self._refresh_runs(force=True)
+
+    def _toggle_pause_dashboard_job(self):
+        item = self.dashboard_item
+        if not isinstance(item, TrainingJob):
+            return
+        if self._pause_thread is not None and self._pause_thread.is_alive():
+            return
+        try:
+            if self.service.can_resume(item):
+                self.service.resume_job(item)
+                self.message = (
+                    "Deck Evolution resumed from outer generation "
+                    f"{item.paused_generation}"
+                )
+                self.message_color = self.game.palette.accent
+                self.dashboard_telemetry = None
+                self._refresh_runs(force=True)
+                return
+        except (OSError, RuntimeError) as error:
+            self.message = f"Could not resume training: {error}"
+            self.message_color = self.game.palette.danger
+            return
+        checkpoint = self.service.pause_checkpoint(item)
+        if not self.service.can_pause(item) or checkpoint is None:
+            return
+        generation, seed = checkpoint
+        if not self.confirm_action(
+            "Pause Deck Evolution?",
+            (
+                f"Resume will start from outer generation {generation} (seed {seed}).",
+                "All unfinished work after that checkpoint will be discarded.",
+                "The checkpoint remains resumable after an OS restart.",
+            ),
+            confirm_label="Pause at checkpoint",
+        ):
+            return
+        self.message = "Pausing at the latest outer-generation checkpoint…"
+        self.message_color = self.game.palette.muted
+
+        def pause():
+            try:
+                self._pause_results.put(("ok", self.service.pause_job(item)))
+            except (OSError, RuntimeError, subprocess.SubprocessError) as error:
+                self._pause_results.put(("error", str(error)))
+
+        self._pause_thread = threading.Thread(
+            target=pause,
+            name="training-checkpoint-pause",
+            daemon=True,
+        )
+        self._pause_thread.start()
+
+    def _consume_pause_result(self):
+        try:
+            status, value = self._pause_results.get_nowait()
+        except queue.Empty:
+            return
+        if status == "error":
+            self.message = f"Could not pause training: {value}"
+            self.message_color = self.game.palette.danger
+            return
+        if (
+            isinstance(self.dashboard_item, TrainingJob)
+            and self.dashboard_item.job_id == value.job_id
+        ):
+            self.dashboard_item = value
+            self.dashboard_telemetry = None
+            self.dashboard_results_opened = False
+            self.dashboard_artifact_status = None
+            self.dashboard_insights = None
+            self._start_insight_refresh(value)
+        self.message = (
+            "Training paused at outer generation "
+            f"{value.paused_generation}; later work was discarded"
+        )
         self.message_color = self.game.palette.accent
         self._refresh_runs(force=True)
 
@@ -1682,15 +2034,19 @@ class TrainingMenu(Menu):
         elif key == "kind":
             kinds = (
                 TrainingKind.PLAYER_DECK,
+                TrainingKind.COUNTER_V2,
                 TrainingKind.MATCHUP_EVALUATION,
                 TrainingKind.DECK_BUILDER,
+                TrainingKind.DECK_POOL_V2,
             )
             target = kinds[(kinds.index(self.kind) + 1) % len(kinds)]
             self._activate_setup_control(
                 {
                     TrainingKind.PLAYER_DECK: "mission_counter",
+                    TrainingKind.COUNTER_V2: "mission_counter_v2",
                     TrainingKind.MATCHUP_EVALUATION: "mission_matchup",
                     TrainingKind.DECK_BUILDER: "mission_builder",
+                    TrainingKind.DECK_POOL_V2: "mission_pool_v2",
                 }[target]
             )
         elif key == "preset":
@@ -1744,7 +2100,10 @@ class TrainingMenu(Menu):
             self._close_adoption()
             self._dashboard_last_refresh = -1000
             self.view = "dashboard"
-            if str(getattr(value, "status", "")).lower() == "completed":
+            if str(getattr(value, "status", "")).lower() in {
+                "completed",
+                *PARTIAL_RESULT_STATUSES,
+            }:
                 self._start_insight_refresh(value)
 
     def _start_insight_refresh(self, item):
@@ -1906,6 +2265,12 @@ class TrainingMenu(Menu):
             self.run_selected = 0
         elif key == "filter":
             self._open_run_filter()
+        elif key == "delete":
+            self._delete_selected_run()
+        elif key == "details":
+            self._show_selected_run_details()
+        elif key == "open":
+            self._open_selected_run()
         elif key == "previous_page":
             self.run_page = max(0, self.run_page - 1)
             self.run_selected = 0
@@ -1915,7 +2280,24 @@ class TrainingMenu(Menu):
         elif key.startswith("run:"):
             index = int(key.split(":", 1)[1])
             if 0 <= index < len(self.run_page_items):
-                self._activate_run(self.run_page_items[index])
+                self.run_selected = index
+
+    def _selected_library_run(self):
+        if not self.run_page_items:
+            return None
+        return self.run_page_items[
+            min(self.run_selected, len(self.run_page_items) - 1)
+        ]
+
+    def _open_selected_run(self):
+        item = self._selected_library_run()
+        if item is not None:
+            self._activate_run(item)
+
+    def _show_selected_run_details(self):
+        item = self._selected_library_run()
+        if item is not None:
+            self._detail_dialog(item)
 
     def _check_runs_input(self):
         self._prepare_run_view()
@@ -1951,6 +2333,20 @@ class TrainingMenu(Menu):
             self.run_search.focused = False
             for button in self.run_buttons:
                 if button.hit_test(self.game.mouse_position):
+                    if button.key.startswith("run:"):
+                        index = int(button.key.split(":", 1)[1])
+                        if 0 <= index < len(self.run_page_items):
+                            self.run_selected = index
+                            double_clicked = any(
+                                event.type == pg.MOUSEBUTTONDOWN
+                                and event.button == 1
+                                and getattr(event, "clicks", 1) >= 2
+                                and button.rect.contains(event.pos)
+                                for event in self.game.events
+                            )
+                            if double_clicked:
+                                self._open_selected_run()
+                        return
                     self._activate_run_library_button(button.key)
                     return
 
@@ -1973,7 +2369,17 @@ class TrainingMenu(Menu):
             elif self.game.DOWN_KEY:
                 self.run_selected = (self.run_selected + 1) % len(self.run_page_items)
             if self.game.START_KEY:
-                self._activate_run(self.run_page_items[self.run_selected])
+                self._open_selected_run()
+            if any(
+                event.type == pg.KEYDOWN and event.key == pg.K_d
+                for event in self.game.events
+            ):
+                self._show_selected_run_details()
+            if any(
+                event.type == pg.KEYDOWN and event.key == pg.K_DELETE
+                for event in self.game.events
+            ):
+                self._delete_selected_run()
 
     def _draw_run_filter_dialog(self):
         shade = pg.Surface((self.game.DISPLAY_W, self.game.DISPLAY_H), pg.SRCALPHA)
@@ -2008,8 +2414,8 @@ class TrainingMenu(Menu):
         layout, queried, _page_count = self._prepare_run_view()
         self.draw_background()
         self.draw_title(
-            "Training Runs",
-            f"Active and completed experiments · {len(queried)} matches · 10 per page",
+            self.tr("training_runs_title"),
+            self.tr("training_runs_subtitle", count=len(queried)),
         )
         for button in self.run_buttons:
             size = self.game.layout.font_normal
@@ -2049,7 +2455,7 @@ class TrainingMenu(Menu):
         )
         search_text = self.run_search.value
         self.game.draw_text_left(
-            search_text or "Search by name…",
+            search_text or self.tr("training_search_name"),
             self.game.layout.font_normal,
             search.x + self.game.layout.gap,
             search.centery,
@@ -2058,7 +2464,7 @@ class TrainingMenu(Menu):
         )
         if not self.run_page_items:
             self.game.draw_text(
-                "No runs match this name and filters",
+                self.tr("training_no_runs"),
                 self.game.layout.font_normal,
                 layout["list"].center[0],
                 layout["list"].center[1],
@@ -2095,7 +2501,12 @@ class TrainingMenu(Menu):
                 selected=index == editor.profile_index,
             )
             for index, label in enumerate(
-                PROFILE_LABELS[profile] for profile in editor.profiles
+                self.tr("training_deck_builder")
+                if PROFILE_LABELS[profile] == "Deck builder"
+                else self.tr("training_controller_evaluator")
+                if PROFILE_LABELS[profile] == "Controller / evaluator"
+                else PROFILE_LABELS[profile]
+                for profile in editor.profiles
             )
         ]
         field_top = group_y + group_height + metrics.gap
@@ -2114,13 +2525,13 @@ class TrainingMenu(Menu):
         footer = RectSpec(panel.x + metrics.gap, footer_y, panel.width - metrics.gap * 2, footer_height)
         columns = metrics.columns(footer, (1, 1, 1, 1, 1, 1, 1), gap=max(3, metrics.gap // 2))
         labels = (
-            ("back", "Back", True),
-            ("previous", "< Page", editor.page > 0),
-            ("next", "Page >", editor.page + 1 < editor.page_count),
-            ("reset", "Defaults", True),
-            ("load", "Load named", bool(editor.named_configs())),
-            ("save", "Save named", True),
-            ("apply", "Apply", True),
+            ("back", self.tr("back"), True),
+            ("previous", "< " + self.tr("training_previous"), editor.page > 0),
+            ("next", self.tr("training_next") + " >", editor.page + 1 < editor.page_count),
+            ("reset", self.tr("training_defaults"), True),
+            ("load", self.tr("training_load_named"), bool(editor.named_configs())),
+            ("save", self.tr("training_save_named"), True),
+            ("apply", self.tr("training_apply"), True),
         )
         buttons.extend(
             Button(key, label, rect, enabled=enabled)
@@ -2160,9 +2571,9 @@ class TrainingMenu(Menu):
                 return
             count = editor.changed_count
             self.message = (
-                f"Advanced NEAT configuration applied · {count} override(s)"
+                f"NEAT config applied · {count} override(s)"
                 if count
-                else "Advanced NEAT configuration uses defaults"
+                else "NEAT config uses defaults"
             )
             self.message_color = self.game.palette.accent
             self.view = "setup"
@@ -2361,8 +2772,10 @@ class TrainingMenu(Menu):
         self.draw_background()
         panel = self._prepare_advanced_layout()
         self.draw_title(
-            "Advanced NEAT configuration",
-            f"{self._mission_label(self.kind)} · {editor.profile_label} · page {editor.page + 1}/{editor.page_count}",
+            self.tr("training_neat_config"),
+            f"{self._mission_label(self.kind)} · "
+            f"{self.tr('training_deck_builder') if editor.profile_label == 'Deck builder' else self.tr('training_controller_evaluator') if editor.profile_label == 'Controller / evaluator' else editor.profile_label} · "
+            f"{self.tr('training_page', current=editor.page + 1, total=editor.page_count)}",
         )
         self._draw_cockpit_panel(panel, accent=self.game.palette.accent)
         font = pg.font.Font(self.game.font_name, max(10, self.game.layout.font_small - 2))
@@ -2379,8 +2792,8 @@ class TrainingMenu(Menu):
             value = editor.value(field.key) + (" |" if editing else "")
             self.game.draw_text_left(value, max(10, self.game.layout.font_small - 2), rect.x + label_width, rect.y + rect.height // 2, self.game.palette.muted if field.locked else self.game.palette.accent, rect.width - label_width - 10)
             if field.locked:
-                self.game.draw_text_left("LOCKED", 8, rect.right - 58, rect.y + rect.height // 2, self.game.palette.muted, 52)
-        note = self.advanced_message or f"{editor.changed_count} override(s) · Enter edits · Left/Right changes page · encoding dimensions stay locked"
+                self.game.draw_text_left(self.tr("training_locked"), 8, rect.right - 58, rect.y + rect.height // 2, self.game.palette.muted, 52)
+        note = self.advanced_message or self.tr("training_overrides_note", count=editor.changed_count)
         self.game.draw_text_left(note, max(9, self.game.layout.font_small - 3), panel.x + self.game.layout.gap, panel.bottom - max(50, self.game.layout.target_height) - 5, self.game.palette.accent, panel.width - self.game.layout.gap * 2)
         if self.advanced_dialog:
             self._draw_advanced_dialog()
@@ -2430,6 +2843,8 @@ class TrainingMenu(Menu):
         while self.run_display and self.game.running:
             self._consume_launch_result()
             self._consume_stop_result()
+            self._consume_pause_result()
+            self._consume_delete_result()
             self._consume_insight_result()
             self._refresh_runs()
             self.begin_frame()
@@ -2478,6 +2893,7 @@ class TrainingMenu(Menu):
             self.blit_screen()
 
     def _check_about_input(self):
+        pages = self._about_pages()
         if self.game.BACK_KEY:
             self.view = "setup"
             self.selected = 2
@@ -2485,7 +2901,7 @@ class TrainingMenu(Menu):
         if self.game.LEFT_KEY:
             self.about_page = max(0, self.about_page - 1)
         elif self.game.RIGHT_KEY:
-            self.about_page = min(len(self.ABOUT_PAGES) - 1, self.about_page + 1)
+            self.about_page = min(len(pages) - 1, self.about_page + 1)
         if self.game.mouse_clicked:
             for button in self.about_buttons:
                 if not button.hit_test(self.game.mouse_position):
@@ -2496,23 +2912,29 @@ class TrainingMenu(Menu):
                 elif button.key == "previous":
                     self.about_page = max(0, self.about_page - 1)
                 else:
-                    if self.about_page == len(self.ABOUT_PAGES) - 1:
+                    if self.about_page == len(pages) - 1:
                         self.view = "setup"
                         self.selected = 2
                     else:
                         self.about_page += 1
                 return
         if self.game.START_KEY:
-            if self.about_page == len(self.ABOUT_PAGES) - 1:
+            if self.about_page == len(pages) - 1:
                 self.view = "setup"
                 self.selected = 2
             else:
                 self.about_page += 1
 
+    def _about_pages(self):
+        pages = list(self.ABOUT_PAGES)
+        pages[0] = self.game.language.training_about_counter_v1
+        return tuple(pages)
+
     def draw_training_about(self):
         self.draw_background()
-        page_title, subtitle, entries = self.ABOUT_PAGES[self.about_page]
-        self.draw_title("About AI Training", f"{page_title} · {self.about_page + 1}/{len(self.ABOUT_PAGES)}")
+        pages = self._about_pages()
+        page_title, subtitle, entries = pages[self.about_page]
+        self.draw_title(self.tr("training_about_title"), f"{page_title} · {self.about_page + 1}/{len(pages)}")
         metrics = self.game.layout
         panel_top = metrics.margin + metrics.font_large + metrics.font_small + metrics.gap * 3
         footer_y = self.game.DISPLAY_H - metrics.margin - metrics.target_height
@@ -2573,11 +2995,11 @@ class TrainingMenu(Menu):
         gap = metrics.gap
         button_width = (footer.width - gap * 2) // 3
         labels = (
-            ("back", "Back"),
-            ("previous", "Previous"),
+            ("back", self.tr("back")),
+            ("previous", self.tr("training_previous")),
             (
                 "next",
-                "Done" if self.about_page == len(self.ABOUT_PAGES) - 1 else "Next",
+                self.tr("confirm") if self.about_page == len(pages) - 1 else self.tr("training_next"),
             ),
         )
         self.about_buttons = []
@@ -2608,13 +3030,16 @@ class TrainingMenu(Menu):
         if destination != ArenaDestination.RESULTS:
             self._check_progress_input(destination)
             return
-        if self._dashboard_kind() == TrainingKind.PLAYER_DECK.value:
+        if self._dashboard_kind() in COUNTER_KIND_VALUES:
             self._check_counter_dashboard_input()
             return
         if self._dashboard_kind() == TrainingKind.MATCHUP_EVALUATION.value:
             self._check_mission_dashboard_input()
             return
-        if self._dashboard_kind() == TrainingKind.DECK_BUILDER.value:
+        if self._dashboard_kind() in {
+            TrainingKind.DECK_BUILDER.value,
+            TrainingKind.DECK_POOL_V2.value,
+        }:
             self._check_evolution_dashboard_input()
             return
         pages = self._dashboard_pages()
@@ -2655,6 +3080,12 @@ class TrainingMenu(Menu):
             watched_live=getattr(self, "dashboard_watching_live", False),
             results_opened=getattr(self, "dashboard_results_opened", False),
             artifact=getattr(self, "dashboard_artifact_status", None),
+        )
+
+    def _dashboard_results_are_completed(self):
+        return (
+            str(getattr(self.dashboard_item, "status", "") or "").lower()
+            == "completed"
         )
 
     def _open_dashboard_log(self):
@@ -2724,6 +3155,8 @@ class TrainingMenu(Menu):
             self._open_dashboard_log()
         elif selected.key == "stop":
             self._stop_dashboard_job()
+        elif selected.key == "pause":
+            self._toggle_pause_dashboard_job()
         elif selected.key == "open_results":
             self.dashboard_results_opened = True
             self.dashboard_scroll = 0
@@ -2932,8 +3365,7 @@ class TrainingMenu(Menu):
 
     def _check_evolution_dashboard_input(self):
         if self.game.BACK_KEY:
-            self.view = "runs"
-            self.dashboard_item = None
+            self._leave_evolution_results()
             return
         pages = self._dashboard_pages()
         detail = (
@@ -3035,6 +3467,14 @@ class TrainingMenu(Menu):
                 if rect.contains(self.game.mouse_position):
                     self.evolution_focus = "decks"
                     self.evolution_selected_deck_id = key
+                    if any(
+                        event.type == pg.MOUSEBUTTONDOWN
+                        and event.button == 1
+                        and getattr(event, "clicks", 1) >= 2
+                        and rect.contains(event.pos)
+                        for event in self.game.events
+                    ):
+                        self._activate_evolution_button("adopt", detail)
                     return
             for index, button in enumerate(self.dashboard_buttons):
                 if not button.hit_test(self.game.mouse_position) or not button.enabled:
@@ -3058,8 +3498,7 @@ class TrainingMenu(Menu):
 
     def _activate_evolution_button(self, key, detail):
         if key == "back":
-            self.view = "runs"
-            self.dashboard_item = None
+            self._leave_evolution_results()
         elif key == "previous":
             self.dashboard_page = (self.dashboard_page - 1) % 5
             self.dashboard_scroll = 0
@@ -3102,8 +3541,23 @@ class TrainingMenu(Menu):
                     )
                 )
 
+    def _leave_evolution_results(self):
+        if str(getattr(self.dashboard_item, "status", "")).lower() == "paused":
+            self.dashboard_results_opened = False
+            self.dashboard_page = 0
+            self.dashboard_scroll = 0
+            self.dashboard_action = 0
+            self.evolution_focus = "actions"
+            return
+        self.view = "runs"
+        self.dashboard_item = None
+
     def _begin_adoption(self, source: AdoptableDeck):
-        if self._arena_destination() != ArenaDestination.RESULTS:
+        if (
+            self._arena_destination() != ArenaDestination.RESULTS
+            or str(getattr(self.dashboard_item, "status", "")).lower()
+            != "completed"
+        ):
             self.message = "Decks can be adopted only from completed results"
             self.message_color = self.game.palette.danger
             return
@@ -3302,10 +3756,19 @@ class TrainingMenu(Menu):
         kind = self._dashboard_kind(insights)
         if kind == TrainingKind.MATCHUP_EVALUATION.value:
             return ("Duel",)
-        if kind == TrainingKind.PLAYER_DECK.value:
+        if kind in COUNTER_KIND_VALUES:
             return ("Counters",)
-        if kind == TrainingKind.DECK_BUILDER.value:
-            return ("Run pulse", "Population", "Matchups", "Composition", "Research")
+        if kind in {
+            TrainingKind.DECK_BUILDER.value,
+            TrainingKind.DECK_POOL_V2.value,
+        }:
+            return (
+                self.tr("evolution_run_pulse"),
+                self.tr("evolution_population"),
+                self.tr("evolution_matchups"),
+                self.tr("evolution_composition"),
+                self.tr("evolution_research"),
+            )
         return self.BUILDER_DASHBOARD_PAGES
 
     def _dashboard_telemetry(self) -> TrainingTelemetry:
@@ -3494,7 +3957,7 @@ class TrainingMenu(Menu):
             self._draw_empty_insights(content)
             return
         metrics = self.game.layout
-        is_counter = insights.run_kind == TrainingKind.PLAYER_DECK.value
+        is_counter = insights.run_kind in COUNTER_KIND_VALUES
         is_matchup = insights.run_kind == TrainingKind.MATCHUP_EVALUATION.value
         is_evaluation = is_counter or is_matchup
         chart_spec, facts_spec = metrics.columns(content, (0.68, 0.32))
@@ -3691,7 +4154,7 @@ class TrainingMenu(Menu):
             self._draw_empty_insights(content)
             return
         metrics = self.game.layout
-        is_counter = insights.run_kind == TrainingKind.PLAYER_DECK.value
+        is_counter = insights.run_kind in COUNTER_KIND_VALUES
         is_matchup = insights.run_kind == TrainingKind.MATCHUP_EVALUATION.value
         hero_spec, outcomes_spec = metrics.columns(content, (0.40, 0.60))
         hero = self._draw_dashboard_panel(hero_spec, accent=self.game.palette.accent)
@@ -4037,9 +4500,10 @@ class TrainingMenu(Menu):
                 color=self.game.palette.text,
             )
 
-        is_counter = insights.run_kind == TrainingKind.PLAYER_DECK.value
+        is_counter = insights.run_kind in COUNTER_KIND_VALUES
         is_evaluation = insights.run_kind in {
             TrainingKind.PLAYER_DECK.value,
+            TrainingKind.COUNTER_V2.value,
             TrainingKind.MATCHUP_EVALUATION.value,
         }
         self.game.draw_text_left(
@@ -4173,7 +4637,7 @@ class TrainingMenu(Menu):
         labels = [("back", "Back to runs")]
         if self._can_stop_dashboard_job():
             labels.append(("stop", "Stop training"))
-        if allow_adopt:
+        if allow_adopt and self._dashboard_results_are_completed():
             labels.append(("adopt", "Adopt selected deck"))
         gap = self.game.layout.gap
         button_width = min(
@@ -5200,7 +5664,17 @@ class TrainingMenu(Menu):
         )
 
     def _draw_progress_footer(self, footer, destination):
-        labels = [("back", "Back to runs"), ("log", "View log")]
+        labels = [("back", self.tr("training_back_runs")), ("log", self.tr("training_view_log"))]
+        item = self.dashboard_item
+        status = str(getattr(item, "status", "") or "").lower()
+        if (
+            destination == ArenaDestination.PROGRESS
+            and isinstance(item, TrainingJob)
+            and (self.service.can_pause(item) or self.service.can_resume(item))
+        ):
+            labels.append(
+                ("pause", "Resume training" if item.status == "paused" else "Pause training")
+            )
         if destination == ArenaDestination.PROGRESS and self._can_stop_dashboard_job():
             labels.append(("stop", "Stop training"))
         if destination == ArenaDestination.COMPLETION_HANDOFF:
@@ -5211,11 +5685,17 @@ class TrainingMenu(Menu):
                     f"Open {mission_result_label(self._dashboard_kind())}",
                 )
             )
+        elif (
+            (
+                destination == ArenaDestination.TERMINAL
+                or destination == ArenaDestination.PROGRESS and status == "paused"
+            )
+            and self.dashboard_artifact_status is not None
+            and self.dashboard_artifact_status.ready
+        ):
+            labels.append(("open_results", self.tr("training_view_partial")))
         gap = self.game.layout.gap
-        width = min(
-            330,
-            (footer.width - gap * (len(labels) - 1)) // max(1, len(labels)),
-        )
+        width = (footer.width - gap * (len(labels) - 1)) // max(1, len(labels))
         self.dashboard_buttons = []
         for index, (key, label) in enumerate(labels):
             enabled = not (
@@ -5263,14 +5743,20 @@ class TrainingMenu(Menu):
             )
         )
         if destination == ArenaDestination.PROGRESS:
-            title = "Training in progress" if status != "stopping" else "Stopping training"
-            subtitle = f"{mission_progress_name(kind)} · {identity}"
+            title = (
+                self.tr("training_paused")
+                if status == "paused"
+                else self.tr("training_stopping")
+                if status == "stopping"
+                else self.tr("training_in_progress")
+            )
+            subtitle = f"{self._mission_label(kind)} · {identity}"
         elif destination == ArenaDestination.COMPLETION_HANDOFF:
-            title = "Training complete"
-            subtitle = f"{mission_progress_name(kind)} · {identity}"
+            title = self.tr("training_complete")
+            subtitle = f"{self._mission_label(kind)} · {identity}"
         else:
-            title = "Training did not complete"
-            subtitle = f"{mission_progress_name(kind)} · {identity} · {status.upper()}"
+            title = self.tr("training_failed")
+            subtitle = f"{self._mission_label(kind)} · {identity} · {self._status_display_label(status).upper()}"
         self.draw_title(title, subtitle)
         layout = training_progress_layout(
             self.game.layout,
@@ -5334,12 +5820,16 @@ class TrainingMenu(Menu):
         hero_width = max(1, hero.right - metrics.margin - hero_x)
         if destination == ArenaDestination.PROGRESS:
             eyebrow = (
-                f"Generation {telemetry.generation} / {telemetry.total_generations}"
+                f"Checkpoint: outer generation {item.paused_generation}"
+                if status == "paused" and isinstance(item, TrainingJob)
+                else f"Generation {telemetry.generation} / {telemetry.total_generations}"
                 if telemetry.total_generations
                 else "Waiting for measured work counters"
             )
             heading = f"Current phase: {self._phase_label(telemetry.phase)}"
-            note = "Mission results and deck adoption remain locked until authoritative completion."
+            note = "" if status == "paused" else (
+                "Mission results and deck adoption remain locked until authoritative completion."
+            )
         elif destination == ArenaDestination.COMPLETION_HANDOFF:
             artifact = self.dashboard_artifact_status
             eyebrow = "Authoritative job status: completed"
@@ -5356,9 +5846,18 @@ class TrainingMenu(Menu):
                 else "Verifying the mission result artifact in the background"
             )
         else:
-            eyebrow = f"Stopped at generation {telemetry.generation} of {telemetry.total_generations or '?'}"
-            heading = "No completed result is available"
-            note = "Partial logs and artifacts remain available for diagnosis; finished-result analysis stays locked."
+            eyebrow = self.tr("training_stopped_generation", done=telemetry.generation, total=telemetry.total_generations or "?")
+            partial_artifact = self.dashboard_artifact_status
+            heading = (
+                self.tr("training_partial_available")
+                if partial_artifact is not None and partial_artifact.ready
+                else self.tr("training_no_partial")
+            )
+            note = (
+                self._localized_telemetry_text(partial_artifact.message)
+                if partial_artifact is not None
+                else "Checking stored evidence from the unfinished run."
+            )
         self.game.draw_text_left(
             eyebrow,
             metrics.font_small,
@@ -5389,7 +5888,7 @@ class TrainingMenu(Menu):
         x = levels_panel.x + metrics.margin
         width = levels_panel.width - metrics.margin * 2
         y = levels_panel.y + metrics.margin
-        self.game.draw_text_left("REPORTED PROGRESS", metrics.font_normal, x, y, self.game.palette.text, width)
+        self.game.draw_text_left(self.tr("training_reported_progress"), metrics.font_normal, x, y, self.game.palette.text, width)
         y += metrics.font_normal + metrics.gap
         levels = progress_levels(kind, telemetry)
         if not levels:
@@ -5403,6 +5902,7 @@ class TrainingMenu(Menu):
                 color=self.game.palette.muted,
             )
         for label, value, ratio in levels:
+            label = self._localized_telemetry_text(label)
             self.game.draw_text_left(label, metrics.font_small, x, y, self.game.palette.text, width)
             y += metrics.font_small
             self.game.draw_text_left(value, max(9, metrics.font_small - 3), x, y, self.game.palette.muted, width)
@@ -5422,58 +5922,28 @@ class TrainingMenu(Menu):
                 self._draw_dashboard_bar(bar, ratio, status_color)
             y += bar.height + metrics.gap * 2
 
-        phase_panel = self._draw_dashboard_panel(layout.phase, accent=self.game.palette.accent)
-        x = phase_panel.x + metrics.margin
-        width = phase_panel.width - metrics.margin * 2
-        y = phase_panel.y + metrics.margin
-        self.game.draw_text_left("CURRENT PHASE", metrics.font_normal, x, y, self.game.palette.text, width)
-        y += metrics.font_normal + metrics.gap
-        self.game.draw_text_left(
-            self._phase_label(telemetry.phase),
-            metrics.font_normal,
-            x,
-            y,
-            status_color,
-            width,
-        )
-        y += metrics.font_normal + metrics.gap
-        phase_explanation = {
-            TrainingKind.PLAYER_DECK.value: "Counter generation, persistent controller learning, and candidate validation appear only when each level is reported.",
-            TrainingKind.MATCHUP_EVALUATION.value: "Controller learning and checkpoint evaluation are distinct phases; no checkpoint outcome appears here.",
-            TrainingKind.DECK_BUILDER.value: "Outer deck pairings are reported. Exact progress inside nested controller learning is not streamed.",
-        }.get(kind, "Only trainer-reported work is shown.")
-        self._draw_wrapped_text(
-            phase_explanation,
-            metrics.font_small,
-            x,
-            y,
-            width,
-            max_lines=6,
-            color=self.game.palette.muted,
-        )
-
         timing_panel = self._draw_dashboard_panel(layout.timing, accent=(105, 172, 225))
         x = timing_panel.x + metrics.margin
         width = timing_panel.width - metrics.margin * 2
         y = timing_panel.y + metrics.margin
-        self.game.draw_text_left("TIME AND COMPUTE", metrics.font_normal, x, y, self.game.palette.text, width)
+        self.game.draw_text_left(self.tr("training_time_compute"), metrics.font_normal, x, y, self.game.palette.text, width)
         y += metrics.font_normal + metrics.gap * 2
         facts = (
-            ("Elapsed", self._duration_label(telemetry.elapsed_seconds)),
+            (self.tr("training_elapsed"), self._duration_label(telemetry.elapsed_seconds)),
             (
-                "Estimated remaining",
+                self.tr("training_estimated_remaining"),
                 eta_label(telemetry, self._duration_label)
                 if destination == ArenaDestination.PROGRESS
                 else "—",
             ),
-            ("Workers", str(telemetry.workers or "Not reported")),
+            (self.tr("training_workers"), str(telemetry.workers or self.tr("training_not_reported"))),
         )
         for label, value in facts:
             self.game.draw_text_left(label, metrics.font_small, x, y, self.game.palette.muted, width // 2)
             self.game.draw_text_left(value, metrics.font_small, x + width // 2, y, self.game.palette.text, width // 2)
             y += metrics.font_normal * 2
         self._draw_wrapped_text(
-            "ETA is shown only from fresh trainer evidence; otherwise it remains Estimating…",
+            self.tr("training_eta_note"),
             max(9, metrics.font_small - 2),
             x,
             y,
@@ -5486,28 +5956,33 @@ class TrainingMenu(Menu):
         x = events_panel.x + metrics.margin
         width = events_panel.width - metrics.margin * 2
         y = events_panel.y + metrics.margin
-        self.game.draw_text_left("LATEST RUN EVENTS", metrics.font_normal, x, y, self.game.palette.text, width)
+        self.game.draw_text_left(self.tr("training_latest_events"), metrics.font_normal, x, y, self.game.palette.text, width)
         y += metrics.font_normal + metrics.gap
         events = telemetry.recent_events
         if not events:
             self.game.draw_text_left(
-                "Waiting for timestamped trainer events…",
+                self.tr("training_waiting_events"),
                 metrics.font_small,
                 x,
                 y,
                 self.game.palette.muted,
                 width,
             )
-        for timestamp, event in events[-5:]:
+        event_row_height = max(16, metrics.font_normal)
+        event_capacity = max(
+            1,
+            (events_panel.bottom - metrics.margin - y) // event_row_height,
+        )
+        for timestamp, event in events[-event_capacity:]:
             self.game.draw_text_left(
-                f"{timestamp or '—'}  {event}",
+                f"{timestamp or '—'}  {self._localized_telemetry_text(event)}",
                 max(10, metrics.font_small - 2),
                 x,
                 y,
                 self.game.palette.text,
                 width,
             )
-            y += metrics.font_normal
+            y += event_row_height
 
         self.game.display.set_clip(None)
         self._draw_dashboard_scrollbar(layout.viewport)
@@ -5563,7 +6038,7 @@ class TrainingMenu(Menu):
         if layout.mode == "wide":
             panel = self._draw_dashboard_panel(layout.navigation, accent=self.game.palette.border)
             self.game.draw_text_left(
-                "DECK EVOLUTION",
+                self.tr("evolution_navigation"),
                 self.game.layout.font_small,
                 panel.x + self.game.layout.gap,
                 panel.y + self.game.layout.margin,
@@ -5629,18 +6104,38 @@ class TrainingMenu(Menu):
         self.draw_buttons(self.dashboard_buttons)
 
     def _draw_evolution_footer(self, footer, detail, selected):
-        labels = [("back", "Back to runs"), ("previous", "Previous"), ("next", "Next")]
+        back_label = (
+            self.tr("training_back_runs")
+            if str(getattr(self.dashboard_item, "status", "")).lower() == "paused"
+            else self.tr("training_back_runs")
+        )
+        labels = [
+            ("back", back_label),
+            ("previous", self.tr("training_previous")),
+            ("next", self.tr("training_next")),
+        ]
         if self.dashboard_page == 1:
             filter_name = (
                 "All generations"
                 if self.evolution_generation_filter is None
                 else f"Generation {self.evolution_generation_filter}"
             )
-            if self.game.DISPLAY_W < 900:
-                labels.extend((("filter", "Filter"), ("adopt", "Adopt")))
-            else:
-                labels.extend(
-                    (("filter", f"Filter: {filter_name}"), ("adopt", "Adopt selected deck"))
+            labels.append(
+                (
+                    "filter",
+                    "Filter"
+                    if self.game.DISPLAY_W < 900
+                    else f"Filter: {filter_name}",
+                )
+            )
+            if self._dashboard_results_are_completed():
+                labels.append(
+                    (
+                        "adopt",
+                        "Adopt"
+                        if self.game.DISPLAY_W < 900
+                        else "Adopt selected deck",
+                    )
                 )
         gap = self.game.layout.gap
         width = (footer.width - gap * (len(labels) - 1)) // len(labels)
@@ -5671,17 +6166,24 @@ class TrainingMenu(Menu):
         x, width = content.x, content.width
         y = content.y
         first, final = detail.first_generation, detail.final_generation
-        hero = self._draw_dashboard_panel(
-            RectSpec(x, y, width, 165), accent=self.game.palette.success
+        hero_height = max(
+            165,
+            metrics.margin * 3
+            + metrics.font_normal
+            + metrics.font_large
+            + metrics.font_small,
         )
-        self.game.draw_text_left("COMPLETED RUN EVIDENCE", metrics.font_normal, hero.x + metrics.margin, hero.y + metrics.margin, self.game.palette.text, hero.width - metrics.margin * 2)
+        hero = self._draw_dashboard_panel(
+            RectSpec(x, y, width, hero_height), accent=self.game.palette.success
+        )
+        self.game.draw_text_left(self.tr("evolution_completed_evidence"), metrics.font_normal, hero.x + metrics.margin, hero.y + metrics.margin, self.game.palette.text, hero.width - metrics.margin * 2)
         generation_text = (
-            f"{final.generation} / {detail.requested_outer_generations or final.generation} outer generations"
+            self.tr("evolution_outer_generations", done=final.generation, total=detail.requested_outer_generations or final.generation)
             if final else "No generation rows"
         )
         self.game.draw_text_left(generation_text, metrics.font_large, hero.x + metrics.margin, hero.y + metrics.margin + metrics.font_normal * 2, self.game.palette.success, hero.width - metrics.margin * 2)
         self.game.draw_text_left(
-            f"{detail.coverage.scored_pairings:,} observed outer pairings · these are not individual games",
+            self.tr("evolution_pairings", count=f"{detail.coverage.scored_pairings:,}"),
             metrics.font_small,
             hero.x + metrics.margin,
             hero.bottom - metrics.margin,
@@ -5689,9 +6191,13 @@ class TrainingMenu(Menu):
             hero.width - metrics.margin * 2,
         )
         y = hero.bottom + metrics.gap
-        left, right = metrics.columns(RectSpec(x, y, width, 300), (0.53, 0.47))
+        detail_height = max(
+            300,
+            metrics.margin * 2 + metrics.font_normal * 2 + metrics.font_normal * 10,
+        )
+        left, right = metrics.columns(RectSpec(x, y, width, detail_height), (0.53, 0.47))
         generation_panel = self._draw_dashboard_panel(left, accent=(105, 172, 225))
-        self.game.draw_text_left("GENERATION WORK", metrics.font_normal, generation_panel.x + metrics.margin, generation_panel.y + metrics.margin, self.game.palette.text, generation_panel.width - metrics.margin * 2)
+        self.game.draw_text_left(self.tr("evolution_generation_work"), metrics.font_normal, generation_panel.x + metrics.margin, generation_panel.y + metrics.margin, self.game.palette.text, generation_panel.width - metrics.margin * 2)
         chart = pg.Rect(generation_panel.x + metrics.margin, generation_panel.y + metrics.margin + metrics.font_normal * 2, generation_panel.width - metrics.margin * 2, generation_panel.height - metrics.margin * 3 - metrics.font_normal * 2)
         max_count = max((row.contenders for row in detail.generations), default=1)
         if detail.generations:
@@ -5701,24 +6207,27 @@ class TrainingMenu(Menu):
                 bar = pg.Rect(chart.x + index * slot + 2, chart.bottom - height, max(2, slot - 4), height)
                 pg.draw.rect(self.game.display, (105, 172, 225), bar, border_radius=3)
         evidence = self._draw_dashboard_panel(right, accent=self.game.palette.accent)
-        self.game.draw_text_left("EVIDENCE READINESS", metrics.font_normal, evidence.x + metrics.margin, evidence.y + metrics.margin, self.game.palette.text, evidence.width - metrics.margin * 2)
+        self.game.draw_text_left(self.tr("evolution_evidence_readiness"), metrics.font_normal, evidence.x + metrics.margin, evidence.y + metrics.margin, self.game.palette.text, evidence.width - metrics.margin * 2)
         facts = (
-            ("Genome rows", f"{detail.coverage.genome_rows:,} recorded"),
-            ("Outer matchup rows", f"{detail.coverage.scored_pairings:,} scored"),
-            ("Card compositions", f"{detail.coverage.stored_compositions:,} stored deck lists"),
-            ("Fixed benchmark", "Not recorded"),
-            ("Live inner-loop detail", "Not streamed per pairing"),
+            (self.tr("evolution_genome_rows"), self.tr("evolution_recorded", count=f"{detail.coverage.genome_rows:,}")),
+            (self.tr("evolution_matchup_rows"), self.tr("evolution_scored", count=f"{detail.coverage.scored_pairings:,}")),
+            (self.tr("evolution_compositions"), self.tr("evolution_stored_lists", count=f"{detail.coverage.stored_compositions:,}")),
+            (self.tr("evolution_fixed_benchmark"), self.tr("evolution_not_recorded")),
+            (self.tr("evolution_live_detail"), self.tr("evolution_not_streamed")),
         )
         fy = evidence.y + metrics.margin + metrics.font_normal * 2
         for label, value in facts:
-            self.game.draw_text_left(label, max(9, metrics.font_small - 2), evidence.x + metrics.margin, fy, self.game.palette.muted, evidence.width // 2)
-            self.game.draw_text_left(value, max(9, metrics.font_small - 2), evidence.x + evidence.width // 2, fy, self.game.palette.text, evidence.width // 2 - metrics.margin)
+            half = evidence.width // 2 - metrics.margin
+            label_size = self._fitted_text_size(label, max(9, metrics.font_small - 2), half, minimum=7)
+            value_size = self._fitted_text_size(value, max(9, metrics.font_small - 2), half, minimum=7)
+            self.game.draw_text_left(label, label_size, evidence.x + metrics.margin, fy, self.game.palette.muted, half)
+            self.game.draw_text_left(value, value_size, evidence.x + evidence.width // 2, fy, self.game.palette.text, half)
             fy += metrics.font_normal * 2
-        y += 300 + metrics.gap
+        y += detail_height + metrics.gap
         guard = self._draw_dashboard_panel(RectSpec(x, y, width, 155), accent=self.game.palette.danger)
-        self.game.draw_text_left("READ THIS CORRECTLY", metrics.font_normal, guard.x + metrics.margin, guard.y + metrics.margin, self.game.palette.text, guard.width - metrics.margin * 2)
+        self.game.draw_text_left(self.tr("evolution_read_correctly"), metrics.font_normal, guard.x + metrics.margin, guard.y + metrics.margin, self.game.palette.text, guard.width - metrics.margin * 2)
         self._draw_wrapped_text(
-            "Completion measures executed work and evidence coverage. It does not prove that decks improved. Relative fitness compares contemporaries whose opponents changed each generation.",
+            self.tr("evolution_interpretation"),
             metrics.font_small,
             guard.x + metrics.margin,
             guard.y + metrics.margin + metrics.font_normal * 2,
@@ -5972,17 +6481,23 @@ class TrainingMenu(Menu):
     def _draw_evolution_dashboard(self, telemetry, detail):
         self.draw_background()
         if detail is None:
-            self._draw_mission_placeholder(telemetry, TrainingKind.DECK_BUILDER.value)
+            self._draw_mission_placeholder(telemetry, self._dashboard_kind())
             return
         pages = self._dashboard_pages()
         self.dashboard_page %= len(pages)
         title = pages[self.dashboard_page].lower()
+        completed = self._dashboard_results_are_completed()
         self.draw_title(
-            f"Deck evolution / {title}",
-            f"Completed run DB {detail.training_id} · relative evidence, not absolute quality",
+            f"{self.tr('evolution_title')} / {self.tr('evolution_run_pulse') if self.dashboard_page == 0 else title}",
+            (
+                self.tr("evolution_completed_run", id=detail.training_id)
+                if completed
+                else self.tr("evolution_partial_run", id=detail.training_id, status=self._status_display_label(telemetry.status).upper())
+            )
+            + " · " + self.tr("evolution_relative_note"),
         )
         compact = self.game.DISPLAY_W < 1050
-        pulse_height = 650 + (150 if detail.issues else 0)
+        pulse_height = 850 + (150 if detail.issues else 0)
         heights = (pulse_height, 1180 if compact else 900, max(720, 150 + len(detail.deck_matchups(self.evolution_selected_deck_id)) * 45), max(760, len(detail.card_signals) * 46 + 110), 820 if compact else 560)
         layout = evolution_dashboard_layout(
             self.game.layout,
@@ -6013,8 +6528,10 @@ class TrainingMenu(Menu):
     def _draw_mission_placeholder(self, telemetry, kind):
         self.draw_background()
         mission = {
-            TrainingKind.PLAYER_DECK.value: "Counter-deck training",
-            TrainingKind.DECK_BUILDER.value: "General deck evolution",
+            TrainingKind.PLAYER_DECK.value: "Evolve deck v1",
+            TrainingKind.COUNTER_V2.value: "Evolve counter v2",
+            TrainingKind.DECK_BUILDER.value: "Deck evolution v1",
+            TrainingKind.DECK_POOL_V2.value: "Deck evolution v2",
         }.get(kind, "Training mission")
         item = self.dashboard_item
         identity = getattr(item, "job_id", getattr(item, "run_id", "Training run"))
@@ -6081,7 +6598,7 @@ class TrainingMenu(Menu):
         if destination != ArenaDestination.RESULTS:
             self._draw_training_progress(telemetry, destination)
             return
-        if kind == TrainingKind.PLAYER_DECK.value:
+        if kind in COUNTER_KIND_VALUES:
             detail = insights.counter if insights is not None else None
             self._draw_counter_dashboard(telemetry, detail)
             self._draw_adoption_overlay()
@@ -6090,7 +6607,10 @@ class TrainingMenu(Menu):
             detail = insights.matchup if insights is not None else None
             self._draw_matchup_dashboard(telemetry, detail)
             return
-        if kind == TrainingKind.DECK_BUILDER.value:
+        if kind in {
+            TrainingKind.DECK_BUILDER.value,
+            TrainingKind.DECK_POOL_V2.value,
+        }:
             detail = insights.evolution if insights is not None else None
             self._draw_evolution_dashboard(telemetry, detail)
             self._draw_adoption_overlay()
@@ -6114,6 +6634,7 @@ class TrainingMenu(Menu):
         if self.dashboard_page == 2:
             if self._dashboard_kind(insights) in {
                 TrainingKind.PLAYER_DECK.value,
+                TrainingKind.COUNTER_V2.value,
                 TrainingKind.MATCHUP_EVALUATION.value,
             }:
                 self._draw_evaluation_page(layout, insights)
@@ -6373,49 +6894,34 @@ class TrainingMenu(Menu):
         self._draw_dashboard_footer(layout)
 
     def _detail_dialog(self, item):
-        if isinstance(item, TrainingRunSummary):
-            lines = [
-                f"Status: {item.status}",
-                f"Started: {item.started}",
-                item.detail,
-                (
-                    f"Best fitness: {item.best_score:.2f}"
-                    if item.best_score is not None
-                    else "Best fitness: pending"
-                ),
-                f"Best deck: {item.best_deck_id or 'pending'}",
-            ]
-            title = f"{item.run_id}: {item.title}"
-        else:
-            job = self.service.refresh(item)
-            title = job.job_id
-            lines = [
-                f"Status: {job.status}",
-                f"Started: {job.created_at}",
-                f"Process: {job.pid or 'finished'}",
-                f"Output: {Path(job.log_path).parent}",
-            ]
-            try:
-                summary = json.loads(Path(job.summary_path).read_text())
-                evaluation = summary.get("evaluation", {})
-                lines.extend(
-                    [
-                        f"Best fitness: {summary.get('best_fitness', 0):.2f}",
-                        (
-                            "AI win rate: "
-                            f"{100 * evaluation.get('ai_win_rate', 0):.1f}% "
-                            f"({evaluation.get('games', 0)} games)"
-                        ),
-                        f"Artifact: {Path(summary.get('artifact_path', '')).name}",
-                    ]
-                )
-            except (OSError, ValueError, TypeError, json.JSONDecodeError):
-                lines.extend(
-                    self.service.tail(
-                        job.progress_path if Path(job.progress_path).exists() else job.log_path,
-                        max_lines=7,
-                    )
-                )
+        title = self.tr("training_run_details", title=run_title(item))
+        lines = self.service.run_detail_lines(item)
+        if getattr(self.game.language, "code", "en") == "cs":
+            prefixes = {
+                "Run ID:": "ID běhu:",
+                "Training ID:": "ID trénování:",
+                "Label:": "Název:",
+                "Mission:": "Úloha:",
+                "Status:": "Stav:",
+                "Depth:": "Hloubka:",
+                "Progress:": "Postup:",
+                "Seeds:": "Seedy:",
+                "Workers:": "Pracovní procesy:",
+                "Rival decks per generation:": "Soupeřící balíčky na generaci:",
+                "Checkpoint:": "Kontrolní bod:",
+                "Process:": "Proces:",
+            }
+            localized = []
+            for line in lines:
+                text = str(line)
+                for source, target in prefixes.items():
+                    if text.startswith(source):
+                        text = target + text[len(source):]
+                        break
+                for source in ("failed", "paused", "completed", "running", "cancelled"):
+                    text = text.replace(source, self._status_display_label(source))
+                localized.append(text)
+            lines = localized
         self.show_lines(title, lines)
 
     def _text_dialog(self, title, initial):

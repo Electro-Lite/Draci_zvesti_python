@@ -22,7 +22,11 @@ FIELDS_PER_PAGE = 8
 
 
 def profiles_for_mission(kind: TrainingKind) -> tuple[str, ...]:
-    if kind == TrainingKind.MATCHUP_EVALUATION:
+    if kind in {
+        TrainingKind.MATCHUP_EVALUATION,
+        TrainingKind.DECK_POOL_V2,
+        TrainingKind.COUNTER_V2,
+    }:
         return ("evaluator",)
     return ("builder", "evaluator")
 

@@ -52,7 +52,7 @@ from py_game.ui.training_setup import (
     wilson_interval,
 )
 from py_game.ui.training_cockpit import TrainingCockpitState
-from py_game.ui.layout import LayoutMetrics
+from py_game.ui.layout import LayoutMetrics, RectSpec
 from py_game.ui.widgets import TextInput
 from py_game.ui.training_runs import (
     RunFilters,
@@ -127,10 +127,36 @@ class PygameServiceTests(unittest.TestCase):
 
         self.assertEqual(
             menu.items,
-            ["Back", "Create deck", "Starter Blue", "Killer queen counter"],
+            ["Starter Blue", "Killer queen counter"],
         )
-        menu.selected = 3
+        menu.selected_deck_id = "user_24f0127"
         self.assertEqual(menu._selected_deck_id(), "user_24f0127")
+
+    def test_deck_management_search_and_pagination_keep_deck_ids(self):
+        game = SimpleNamespace(
+            DISPLAY_W=1280,
+            DISPLAY_H=720,
+            TEXT_SMALL=16,
+            TEXT_NORMAL=22,
+            TEXT_LARGE=36,
+        )
+        options = tuple(
+            (f"deck-{index}", f"{'Counter ' if index == 17 else ''}Deck {index}")
+            for index in range(23)
+        )
+        with patch.object(DBUtil, "get_all_deck_options", return_value=options):
+            menu = DeckMenu(game)
+
+        self.assertEqual(menu._page_count(), 3)
+        menu.selected_deck_id = "deck-10"
+        self.assertEqual(menu._selected_deck_id(), "deck-10")
+
+        menu.search.value = "counter"
+        menu.selected = 0
+        menu.page = 0
+        self.assertEqual(menu._filtered_decks(), (("deck-17", "Counter Deck 17"),))
+        self.assertEqual(menu._page_count(), 1)
+        self.assertEqual(menu._selected_deck_id(), "deck-17")
 
     def test_local_match_deck_rows_display_names_but_retain_ids(self):
         menu = BasicPlayMenu.__new__(BasicPlayMenu)
@@ -393,7 +419,7 @@ class PygameServiceTests(unittest.TestCase):
             {
                 "Training type",
                 "Run label",
-                "Deck under test",
+                "Deck",
                 "Deck A and Deck B",
                 "Counter generations",
                 "Controller generations",
@@ -403,9 +429,9 @@ class PygameServiceTests(unittest.TestCase):
                 "Seeds",
                 "Outer generations",
                 "Inner generations",
-                "Rival decks per candidate",
+                "Rival decks per generation",
                 "Evaluator workers",
-                "Holdout seed pairs",
+                "Validation seed pairs",
             }.issubset(headings)
         )
         self.assertIn("Balanced counter lab", headings)
@@ -442,7 +468,7 @@ class PygameServiceTests(unittest.TestCase):
             )
         )
         self.assertEqual(matchup.evaluation_games, 1_000)
-        self.assertIn("13,000 simulated games", matchup_workload.headline)
+        self.assertIn("22,000 simulated games", matchup_workload.headline)
 
     @staticmethod
     def _cockpit_menu(service):
@@ -477,6 +503,19 @@ class PygameServiceTests(unittest.TestCase):
         self.assertTrue(menu.setup_review_open)
         self.assertEqual(menu.setup_review_request.deck_id, "Blue")
         service.start.assert_not_called()
+
+    def test_maximum_card_power_click_cycles_without_text_editing(self):
+        menu = self._cockpit_menu(SimpleNamespace())
+        menu.setup_edit_key = None
+
+        menu._activate_setup_control("max_card_power")
+        self.assertEqual(menu.cockpit.value("max_card_power"), "0")
+        self.assertIsNone(menu.setup_edit_key)
+
+        menu._activate_setup_control("max_card_power")
+        self.assertEqual(menu.cockpit.value("max_card_power"), "1")
+        menu._activate_setup_control("max_card_power")
+        self.assertEqual(menu.cockpit.value("max_card_power"), "2")
 
     def test_cockpit_starts_exact_reviewed_request_only_once(self):
         entered = threading.Event()
@@ -607,6 +646,96 @@ class PygameServiceTests(unittest.TestCase):
         self.assertLess(size, 24)
         self.assertLessEqual(pg.font.Font(None, size).size(label)[0], 600)
 
+    def test_run_library_details_expose_job_ids_and_training_depth(self):
+        service = TrainingService.__new__(TrainingService)
+        service._processes = {}
+        service.job_telemetry = Mock(return_value=SimpleNamespace(
+            generation=4,
+            total_generations=10,
+        ))
+        job = TrainingJob(
+            job_id="20261028-120000-a1b2c3d4",
+            request={
+                "kind": TrainingKind.DECK_BUILDER.value,
+                "run_label": "evolution_balanced_281026-12",
+                "outer_generations": 10,
+                "evaluator_generations": 50,
+                "matches_per_genome": 12,
+                "workers": 8,
+                "seeds": [104729, 400009],
+            },
+            command=["trainer"],
+            created_at="2026-10-28T12:00:00",
+            status="running",
+            pid=4321,
+            log_path="missing/training.log",
+            progress_path="missing/progress.log",
+            summary_path="missing/summary.json",
+            training_id=91,
+        )
+
+        lines = service.run_detail_lines(job)
+
+        self.assertIn("Run ID: 20261028-120000-a1b2c3d4", lines)
+        self.assertIn("Training ID: 91", lines)
+        self.assertIn("Depth: 10 outer × 50 controller generations", lines)
+        self.assertTrue(any("Seeds: 104729, 400009" in line for line in lines))
+
+    def test_run_library_historical_details_read_database_configuration(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "train.db"
+            connection = sqlite3.connect(database)
+            connection.executescript(
+                """
+                CREATE TABLE training (
+                    id INTEGER PRIMARY KEY, end_date TEXT, metadata TEXT,
+                    description TEXT
+                );
+                INSERT INTO training VALUES (
+                    17,
+                    '2026-10-28T13:00:00',
+                    '{"settings":{"outer_generations":10,"evaluator_generations":65,"seed":104729}}',
+                    'Final balance study'
+                );
+                """
+            )
+            connection.commit()
+            connection.close()
+            run = TrainingRunSummary(
+                run_id="DB 17",
+                title="evolution_deep_281026-12",
+                status="completed",
+                started="2026-10-28T12:00:00",
+                detail="20 genomes",
+                generation=10,
+                total_generations=10,
+                genome_count=20,
+                workers=8,
+                run_kind=TrainingKind.DECK_BUILDER.value,
+            )
+
+            with patch("py_game.training_service.TRAIN_DB_PATH", database):
+                lines = TrainingService.__new__(TrainingService).run_detail_lines(run)
+
+        self.assertIn("Training ID: 17", lines)
+        self.assertIn("Depth: 10 outer × 65 controller generations", lines)
+        self.assertTrue(any("Final balance study" in line for line in lines))
+
+    def test_run_library_row_selection_does_not_open_until_requested(self):
+        first = self._run_summary(1)
+        second = self._run_summary(2)
+        menu = TrainingMenu.__new__(TrainingMenu)
+        menu.run_page_items = [first, second]
+        menu.run_selected = 0
+        menu._activate_run = Mock()
+
+        menu._activate_run_library_button("run:1")
+
+        self.assertEqual(menu.run_selected, 1)
+        menu._activate_run.assert_not_called()
+        menu._open_selected_run()
+        menu._activate_run.assert_called_once_with(second)
+
     def test_run_library_search_filters_sorting_and_ten_item_pages(self):
         runs = [self._run_summary(index) for index in range(1, 24)]
         runs[4] = self._run_summary(
@@ -614,24 +743,29 @@ class PygameServiceTests(unittest.TestCase):
             status="failed",
             kind=TrainingKind.PLAYER_DECK,
         )
+        paused = self._run_summary(24, status="paused")
 
         attention = query_runs(
             runs,
             search="run 05",
             sort_field="Name",
             descending=False,
-            filters=RunFilters("Needs attention", "Counter-deck training"),
+            filters=RunFilters("Needs attention", "Evolve deck v1"),
         )
         second_page, page, page_count = paginate_runs(runs, 1)
 
         self.assertEqual(attention, [runs[4]])
+        self.assertEqual(
+            query_runs([paused], filters=RunFilters(status="Running")),
+            [paused],
+        )
         self.assertEqual(len(second_page), 10)
         self.assertEqual((page, page_count), (1, 3))
 
     def test_run_library_searches_names_only_and_supports_extended_filters(self):
         runs = [self._run_summary(index) for index in range(1, 24)]
         filters = RunFilters(
-            mission="General deck evolution",
+            mission="Deck evolution v1",
             origin="Database history",
             started="Last 7 days",
             generations="25+ generations",
@@ -677,6 +811,25 @@ class PygameServiceTests(unittest.TestCase):
 
         self.assertEqual(menu.view, "dashboard")
         self.assertIs(menu.dashboard_item, job)
+        menu._start_insight_refresh.assert_called_once_with(job)
+
+    def test_failed_training_job_checks_for_partial_results(self):
+        job = TrainingJob(
+            job_id="failed-ui-run",
+            request={"kind": TrainingKind.DECK_BUILDER.value},
+            command=["trainer"],
+            created_at="2026-09-25T10:00:00",
+            status="failed",
+            pid=None,
+            log_path="training.log",
+            progress_path="progress.log",
+            summary_path="summary.json",
+        )
+        menu = TrainingMenu.__new__(TrainingMenu)
+        menu._start_insight_refresh = Mock()
+
+        menu._activate_run(job)
+
         menu._start_insight_refresh.assert_called_once_with(job)
 
     def test_counter_and_builder_runs_route_to_independent_detail_pages(self):
@@ -751,6 +904,52 @@ class PygameServiceTests(unittest.TestCase):
         source = menu._begin_adoption.call_args.args[0]
         self.assertEqual(source.source_id, "selected-id")
         self.assertEqual(source.card_ids, ("selected-card",) * 10)
+
+    def test_double_clicking_generated_deck_opens_adoption_for_that_deck(self):
+        detail = SimpleNamespace(decks=())
+        game = SimpleNamespace(
+            BACK_KEY=False,
+            LEFT_KEY=False,
+            RIGHT_KEY=False,
+            UP_KEY=False,
+            DOWN_KEY=False,
+            START_KEY=False,
+            DISPLAY_H=720,
+            layout=SimpleNamespace(target_height=48),
+            events=(
+                SimpleNamespace(
+                    type=pg.MOUSEBUTTONDOWN,
+                    button=1,
+                    clicks=2,
+                    pos=(20, 20),
+                ),
+            ),
+            mouse_clicked=True,
+            mouse_position=(20, 20),
+            mouse_wheel=0,
+        )
+        menu = TrainingMenu.__new__(TrainingMenu)
+        menu.game = game
+        menu.dashboard_page = 1
+        menu.dashboard_scroll = 0
+        menu.dashboard_max_scroll = 0
+        menu.dashboard_buttons = []
+        menu.dashboard_insights = SimpleNamespace(evolution=detail)
+        menu.evolution_focus = "decks"
+        menu.evolution_selected_deck_id = "other-deck"
+        menu.evolution_deck_keys = ("generated-deck",)
+        menu.evolution_deck_rects = (
+            ("generated-deck", RectSpec(0, 0, 40, 40)),
+        )
+        menu.evolution_deck_viewport = None
+        menu.evolution_deck_scroll = 0
+        menu._dashboard_pages = Mock(return_value=("one", "two", "three"))
+        menu._activate_evolution_button = Mock()
+
+        menu._check_evolution_dashboard_input()
+
+        self.assertEqual(menu.evolution_selected_deck_id, "generated-deck")
+        menu._activate_evolution_button.assert_called_once_with("adopt", detail)
 
     def test_human_turn_opens_as_card_or_pass_and_preselects_the_card(self):
         card = object()
@@ -867,7 +1066,7 @@ class PygameServiceTests(unittest.TestCase):
         advice = advisor.score_cards([], cards)
 
         self.assertEqual(advisor.net.last_input_length, 91)
-        eligible_count = sum(card.power <= Power.NORMAL for card in cards)
+        eligible_count = len(cards)
         self.assertEqual(len(advice), eligible_count)
         self.assertEqual(
             sorted(value.rank for value in advice.values()),
@@ -1023,6 +1222,42 @@ class PygameServiceTests(unittest.TestCase):
         self.assertEqual(command[command.index("--workers") + 1], "8")
         self.assertEqual(command[command.index("--evaluation-games") + 1], "20")
 
+    def test_counter_v2_uses_direct_composition_trainer(self):
+        request = TrainingRequest(
+            kind=TrainingKind.COUNTER_V2,
+            deck_id="Starter Blue_1",
+            outer_generations=6,
+            evaluator_generations=35,
+            workers=8,
+            evaluation_games=20,
+            run_label="direct-counter-demo",
+        )
+
+        command = build_command(request)
+
+        self.assertIn("neat_ai.counter_deck_trainer_v2", command)
+        self.assertNotIn("neat_ai.player_trainer", command)
+        request.neat_config_overrides = {"builder": {"NEAT.pop_size": "40"}}
+        with self.assertRaisesRegex(ValueError, "not used by this mission"):
+            build_command(request)
+
+    def test_training_command_passes_card_pool_restrictions(self):
+        request = TrainingRequest(
+            kind=TrainingKind.DECK_POOL_V2,
+            max_card_power=Power.NORMAL.value,
+            banned_card_ids=("Lucisnik_1", "Paladin_1"),
+        )
+
+        command = build_command(request)
+
+        self.assertEqual(command[command.index("--max-card-power") + 1], "1")
+        banned = [
+            command[index + 1]
+            for index, value in enumerate(command)
+            if value == "--banned-card-id"
+        ]
+        self.assertEqual(banned, ["Lucisnik_1", "Paladin_1"])
+
     def test_matchup_training_command_contains_both_decks(self):
         request = TrainingRequest(
             kind=TrainingKind.MATCHUP_EVALUATION,
@@ -1054,12 +1289,43 @@ class PygameServiceTests(unittest.TestCase):
             matches_per_genome=12,
         )
         command = build_command(request)
+        self.assertIn("neat_ai.deck_builder_trainer", command)
         seeds_at = command.index("--seeds")
         self.assertEqual(command[seeds_at + 1 : seeds_at + 3], ["400009", "450001"])
         self.assertEqual(
             command[command.index("--evaluator-generations") + 1],
             "50",
         )
+        self.assertNotIn("--allow-population-outside-guard", command)
+
+    def test_builder_training_allows_neat_builder_overrides(self):
+        request = TrainingRequest(
+            kind=TrainingKind.DECK_BUILDER,
+            neat_config_overrides={
+                "builder": {
+                    "NEAT.pop_size": "40",
+                    "DefaultReproduction.min_species_size": "5",
+                }
+            },
+        )
+
+        command = build_command(request)
+        self.assertIn("--allow-population-outside-guard", command)
+
+    def test_deck_pool_v2_uses_composition_trainer_and_rejects_builder_neat(self):
+        request = TrainingRequest(
+            kind=TrainingKind.DECK_POOL_V2,
+            seeds=(400009,),
+        )
+        command = build_command(request)
+        self.assertIn("neat_ai.deck_pool_evolution_v2", command)
+        self.assertNotIn("--allow-population-outside-guard", command)
+
+        request.neat_config_overrides = {
+            "builder": {"NEAT.pop_size": "40"}
+        }
+        with self.assertRaisesRegex(ValueError, "not used by this mission"):
+            build_command(request)
 
     def test_training_validation_rejects_unsafe_ranges(self):
         with self.assertRaisesRegex(ValueError, "between 1 and 128"):
@@ -1069,6 +1335,19 @@ class PygameServiceTests(unittest.TestCase):
                 kind=TrainingKind.DECK_BUILDER,
                 matches_per_genome=3,
             ).validate()
+
+    def test_training_request_validation_does_not_touch_shared_sqlite_connection(self):
+        request = TrainingRequest(
+            kind=TrainingKind.DECK_POOL_V2,
+            max_card_power=Power.NORMAL.value,
+            banned_card_ids=("Lucisnik_1",),
+        )
+
+        with patch(
+            "py_game.training_service.DBUtil.get_all_cards",
+            side_effect=AssertionError("validation must remain database-free"),
+        ):
+            request.validate()
 
     def test_training_service_does_not_block_on_stale_database_rows(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1159,6 +1438,286 @@ class PygameServiceTests(unittest.TestCase):
         self.assertEqual(job.status, "cancelled")
         kill_group.assert_called_once_with(4321, ANY)
         service._save_job.assert_called_once_with(job)
+
+    def test_deck_evolution_pause_persists_latest_outer_checkpoint(self):
+        with tempfile.TemporaryDirectory() as directory:
+            job_dir = Path(directory) / "evolution-job"
+            checkpoint_dir = job_dir / "checkpoints" / "deck_builder_trainer"
+            checkpoint_dir.mkdir(parents=True)
+            checkpoint = checkpoint_dir / "training_17_seed_104729_gen-3"
+            checkpoint.write_bytes(b"checkpoint")
+            process = SimpleNamespace(
+                pid=4321,
+                poll=lambda: None,
+                wait=Mock(return_value=75),
+                terminate=Mock(),
+                kill=Mock(),
+            )
+            job = TrainingJob(
+                job_id="evolution-job",
+                request={"kind": TrainingKind.DECK_BUILDER.value},
+                command=["trainer"],
+                created_at="now",
+                status="running",
+                pid=4321,
+                log_path=str(job_dir / "training.log"),
+                progress_path=str(job_dir / "progress.log"),
+                summary_path=str(job_dir / "summary.json"),
+            )
+            service = TrainingService.__new__(TrainingService)
+            service._processes = {job.job_id: process}
+            service._save_job = Mock()
+
+            with (
+                patch("py_game.training_service.os.killpg") as kill_group,
+                patch.object(service, "_rollback_training_after_generation") as rollback,
+            ):
+                service.pause_job(job)
+
+        self.assertEqual(job.status, "paused")
+        self.assertIsNone(job.pid)
+        self.assertEqual(job.training_id, 17)
+        self.assertEqual(job.paused_seed, 104729)
+        self.assertEqual(job.paused_generation, 4)
+        self.assertEqual(job.checkpoint_path, str(checkpoint.resolve()))
+        kill_group.assert_called_once_with(4321, ANY)
+        rollback.assert_called_once_with(17, 4)
+        service._save_job.assert_called_once_with(job)
+
+    def test_checkpoint_pause_requires_loss_confirmation(self):
+        job = TrainingJob(
+            job_id="evolution-job",
+            request={"kind": TrainingKind.DECK_BUILDER.value},
+            command=["trainer"],
+            created_at="now",
+            status="running",
+            pid=4321,
+            log_path="training.log",
+            progress_path="progress.log",
+            summary_path="summary.json",
+        )
+        service = SimpleNamespace(
+            can_resume=Mock(return_value=False),
+            can_pause=Mock(return_value=True),
+            pause_checkpoint=Mock(return_value=(4, 104729)),
+            pause_job=Mock(),
+        )
+        menu = TrainingMenu.__new__(TrainingMenu)
+        menu.dashboard_item = job
+        menu.service = service
+        menu._pause_thread = None
+        menu.confirm_action = Mock(return_value=False)
+        menu.game = SimpleNamespace(palette=PALETTE)
+
+        menu._toggle_pause_dashboard_job()
+
+        menu.confirm_action.assert_called_once()
+        confirmation_lines = menu.confirm_action.call_args.args[1]
+        self.assertTrue(any("discarded" in line for line in confirmation_lines))
+        service.pause_job.assert_not_called()
+
+    def test_paused_deck_evolution_resumes_in_new_process_after_restart(self):
+        with tempfile.TemporaryDirectory() as directory:
+            job_dir = Path(directory) / "evolution-job"
+            job_dir.mkdir(parents=True)
+            checkpoint = job_dir / "checkpoint"
+            checkpoint.write_bytes(b"checkpoint")
+            job = TrainingJob(
+                job_id="evolution-job",
+                request={
+                    "kind": TrainingKind.DECK_BUILDER.value,
+                    "neat_config_overrides": {},
+                },
+                command=["trainer", "--seeds", "11", "22"],
+                created_at="now",
+                status="paused",
+                pid=None,
+                log_path=str(job_dir / "training.log"),
+                progress_path=str(job_dir / "progress.log"),
+                summary_path=str(job_dir / "summary.json"),
+                telemetry_path=str(job_dir / "telemetry.jsonl"),
+                checkpoint_path=str(checkpoint),
+                training_id=17,
+                paused_generation=4,
+                paused_seed=22,
+            )
+            service = TrainingService.__new__(TrainingService)
+            service._processes = {}
+            service._save_job = Mock()
+            resumed_process = SimpleNamespace(pid=9876)
+
+            with (
+                patch.object(service, "_rollback_training_after_generation") as rollback,
+                patch(
+                    "py_game.training_service.materialize_configs",
+                    return_value={},
+                ),
+                patch(
+                    "py_game.training_service.subprocess.Popen",
+                    return_value=resumed_process,
+                ) as popen,
+            ):
+                service.resume_job(job)
+
+        self.assertEqual(job.status, "running")
+        self.assertEqual(job.pid, 9876)
+        rollback.assert_called_once_with(17, 4)
+        command = popen.call_args.args[0]
+        self.assertEqual(command[-6:], [
+            "--checkpoint",
+            str(checkpoint),
+            "--resume-training-id",
+            "17",
+            "--resume-seed",
+            "22",
+        ])
+        service._save_job.assert_called_once_with(job)
+
+    def test_checkpoint_resume_discards_only_newer_generation_evidence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "train.db"
+            connection = sqlite3.connect(database)
+            connection.executescript(
+                """
+                CREATE TABLE training (
+                    id INTEGER PRIMARY KEY, end_date TEXT, metadata TEXT
+                );
+                CREATE TABLE genome (
+                    guid TEXT PRIMARY KEY, gen INTEGER, training_id INTEGER,
+                    deck_id TEXT
+                );
+                CREATE TABLE match_dbt (
+                    guid TEXT PRIMARY KEY, genome_1 TEXT, genome_2 TEXT,
+                    deck_1 TEXT, deck_2 TEXT, gen INTEGER
+                );
+                CREATE TABLE pc_match (match_dbt_guid TEXT);
+                CREATE TABLE ai_training_decks (id TEXT PRIMARY KEY, training_id INTEGER);
+                CREATE TABLE ai_training_deck_lines (deck_id TEXT, card_id TEXT);
+                INSERT INTO training VALUES (
+                    7, 'finished',
+                    '{"observed_populations":[{"generation":1},{"generation":2}]}'
+                );
+                INSERT INTO genome VALUES ('g1', 1, 7, 'd1');
+                INSERT INTO genome VALUES ('g2', 2, 7, 'd2');
+                INSERT INTO match_dbt VALUES ('T7:m1', 'g1', 'g1', 'd1', 'd1', 1);
+                INSERT INTO match_dbt VALUES ('T7:m2', 'g2', 'g2', 'd2', 'd2', 2);
+                INSERT INTO pc_match VALUES ('T7:m1');
+                INSERT INTO pc_match VALUES ('T7:m2');
+                INSERT INTO ai_training_decks VALUES ('d1', 7);
+                INSERT INTO ai_training_decks VALUES ('d2', 7);
+                INSERT INTO ai_training_deck_lines VALUES ('d1', 'card-1');
+                INSERT INTO ai_training_deck_lines VALUES ('d2', 'card-2');
+                """
+            )
+            connection.commit()
+            connection.close()
+
+            with patch("py_game.training_service.TRAIN_DB_PATH", database):
+                TrainingService._rollback_training_after_generation(7, 1)
+
+            connection = sqlite3.connect(database)
+            remaining = {
+                "genomes": connection.execute(
+                    "SELECT guid FROM genome ORDER BY guid"
+                ).fetchall(),
+                "matches": connection.execute(
+                    "SELECT guid FROM match_dbt ORDER BY guid"
+                ).fetchall(),
+                "games": connection.execute(
+                    "SELECT match_dbt_guid FROM pc_match ORDER BY match_dbt_guid"
+                ).fetchall(),
+                "decks": connection.execute(
+                    "SELECT id FROM ai_training_decks ORDER BY id"
+                ).fetchall(),
+            }
+            end_date, metadata_raw = connection.execute(
+                "SELECT end_date, metadata FROM training WHERE id = 7"
+            ).fetchone()
+            connection.close()
+
+        self.assertEqual(remaining["genomes"], [("g1",)])
+        self.assertEqual(remaining["matches"], [("T7:m1",)])
+        self.assertEqual(remaining["games"], [("T7:m1",)])
+        self.assertEqual(remaining["decks"], [("d1",)])
+        self.assertIsNone(end_date)
+        metadata = json.loads(metadata_raw)
+        self.assertEqual(metadata["observed_populations"], [{"generation": 1}])
+        self.assertEqual(metadata["termination_reason"], "paused")
+
+    def test_delete_ui_training_run_removes_linked_evidence_and_job_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            job_root = root / "jobs"
+            job_dir = job_root / "finished-job"
+            job_dir.mkdir(parents=True)
+            log_path = job_dir / "training.log"
+            log_path.write_text("training id: 7\n")
+            (job_dir / "summary.json").write_text("{}")
+            database = root / "train.db"
+            connection = sqlite3.connect(database)
+            connection.executescript(
+                """
+                CREATE TABLE training (id INTEGER PRIMARY KEY);
+                CREATE TABLE genome (
+                    guid TEXT PRIMARY KEY, training_id INTEGER, deck_id TEXT
+                );
+                CREATE TABLE match_dbt (
+                    guid TEXT PRIMARY KEY, genome_1 TEXT, genome_2 TEXT
+                );
+                CREATE TABLE pc_match (match_dbt_guid TEXT);
+                CREATE TABLE ai_training_decks (id TEXT PRIMARY KEY, training_id INTEGER);
+                CREATE TABLE ai_training_deck_lines (deck_id TEXT, card_id TEXT);
+                INSERT INTO training VALUES (7);
+                INSERT INTO genome VALUES ('g1', 7, 'generated');
+                INSERT INTO genome VALUES ('g2', 7, 'generated');
+                INSERT INTO match_dbt VALUES ('m1', 'g1', 'g2');
+                INSERT INTO pc_match VALUES ('m1');
+                INSERT INTO ai_training_decks VALUES ('generated', 7);
+                INSERT INTO ai_training_deck_lines VALUES ('generated', 'card');
+                """
+            )
+            connection.commit()
+            connection.close()
+            job = TrainingJob(
+                job_id="finished-job",
+                request={"kind": TrainingKind.DECK_BUILDER.value},
+                command=["trainer"],
+                created_at="now",
+                status="completed",
+                pid=None,
+                log_path=str(log_path),
+                progress_path=str(job_dir / "progress.log"),
+                summary_path=str(job_dir / "summary.json"),
+            )
+            service = TrainingService.__new__(TrainingService)
+            service._processes = {}
+
+            with (
+                patch("py_game.training_service.JOB_ROOT", job_root),
+                patch("py_game.training_service.TRAIN_DB_PATH", database),
+            ):
+                result = service.delete_run(job)
+
+            connection = sqlite3.connect(database)
+            counts = {
+                table: connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+                for table in (
+                    "training",
+                    "genome",
+                    "match_dbt",
+                    "pc_match",
+                    "ai_training_decks",
+                    "ai_training_deck_lines",
+                )
+            }
+            connection.close()
+
+        self.assertEqual(counts, {table: 0 for table in counts})
+        self.assertFalse(job_dir.exists())
+        self.assertEqual(
+            result,
+            {"database_deleted": True, "files_deleted": True},
+        )
 
     def test_quit_requires_confirmation_and_stops_owned_training(self):
         job = SimpleNamespace(job_id="ui-job")
@@ -1342,6 +1901,46 @@ class PygameServiceTests(unittest.TestCase):
         self.assertEqual(telemetry.fitness_history, ((1, 8.5), (2, 12.25)))
         self.assertEqual(telemetry.workers, 8)
 
+    def test_paused_telemetry_rolls_back_to_persisted_outer_checkpoint(self):
+        service = TrainingService.__new__(TrainingService)
+        service._processes = {}
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            telemetry_path = root / "telemetry.jsonl"
+            telemetry_path.write_text(json.dumps({
+                "schema_version": 1,
+                "event": "phase_progress",
+                "phase": "deck_evolution",
+                "generation": 5,
+                "total_generations": 10,
+                "completed": 6,
+                "total": 12,
+                "phase_progress": 0.45,
+            }))
+            job = TrainingJob(
+                job_id="paused-job",
+                request={
+                    "kind": TrainingKind.DECK_BUILDER.value,
+                    "outer_generations": 10,
+                },
+                command=["trainer"],
+                created_at="2026-10-28T10:00:00",
+                status="paused",
+                pid=None,
+                log_path=str(root / "training.log"),
+                progress_path=str(root / "progress.log"),
+                summary_path=str(root / "summary.json"),
+                telemetry_path=str(telemetry_path),
+                paused_generation=4,
+            )
+
+            telemetry = service.job_telemetry(job)
+
+        self.assertEqual(telemetry.generation, 4)
+        self.assertEqual(telemetry.phase_progress, 0.4)
+        self.assertEqual((telemetry.round_completed, telemetry.round_total), (0, 0))
+        self.assertEqual(telemetry.phase, "paused")
+
     def test_training_telemetry_prefers_structured_phase_and_eta_events(self):
         service = TrainingService.__new__(TrainingService)
         service._processes = {}
@@ -1404,6 +2003,47 @@ class PygameServiceTests(unittest.TestCase):
         self.assertEqual(telemetry.eta_seconds, 42.0)
         self.assertEqual(telemetry.checkpoint_generation, 25)
         self.assertEqual((telemetry.round_completed, telemetry.round_total), (150, 300))
+
+    def test_training_telemetry_retains_enough_events_to_fill_dashboard(self):
+        service = TrainingService.__new__(TrainingService)
+        service._processes = {}
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            telemetry_path = root / "telemetry.jsonl"
+            telemetry_path.write_text(
+                "\n".join(
+                    json.dumps(
+                        {
+                            "schema_version": 1,
+                            "event": "phase_progress",
+                            "phase": "deck_evolution",
+                            "completed": index,
+                            "total": 20,
+                        }
+                    )
+                    for index in range(1, 21)
+                )
+            )
+            job = TrainingJob(
+                job_id="event-history-job",
+                request={
+                    "kind": TrainingKind.DECK_POOL_V2.value,
+                    "outer_generations": 10,
+                },
+                command=["trainer"],
+                created_at="2026-11-01T08:00:00",
+                status="running",
+                pid=None,
+                log_path=str(root / "training.log"),
+                progress_path=str(root / "progress.log"),
+                summary_path=str(root / "summary.json"),
+                telemetry_path=str(telemetry_path),
+            )
+
+            telemetry = service.job_telemetry(job)
+
+        self.assertEqual(len(telemetry.recent_events), 20)
+        self.assertTrue(telemetry.recent_events[-1][1].endswith("20/20"))
 
     def test_completed_builder_job_loads_its_database_analytics(self):
         service = TrainingService.__new__(TrainingService)

@@ -19,9 +19,11 @@ SORT_FIELDS = ("Date", "Name", "Status", "Mission")
 STATUS_FILTERS = ("All statuses", "Running", "Completed", "Needs attention")
 MISSION_FILTERS = (
     "All missions",
-    "Counter-deck training",
+    "Evolve deck v1",
+    "Evolve counter v2",
     "Matchup evaluation",
-    "General deck evolution",
+    "Deck evolution v1",
+    "Deck evolution v2",
 )
 ORIGIN_FILTERS = ("All origins", "UI-launched runs", "Database history")
 STARTED_FILTERS = ("Any time", "Last 24 hours", "Last 7 days", "Last 30 days")
@@ -82,12 +84,16 @@ def run_kind(item: RunItem) -> str:
 
 def run_mission(item: RunItem) -> str:
     return (
-        "Counter-deck training"
+        "Evolve deck v1"
         if run_kind(item) == TrainingKind.PLAYER_DECK.value
+        else "Evolve counter v2"
+        if run_kind(item) == TrainingKind.COUNTER_V2.value
         else "Matchup evaluation"
         if run_kind(item) == TrainingKind.MATCHUP_EVALUATION.value
-        else "General deck evolution"
+        else "Deck evolution v1"
         if run_kind(item) == TrainingKind.DECK_BUILDER.value
+        else "Deck evolution v2"
+        if run_kind(item) == TrainingKind.DECK_POOL_V2.value
         else "AI training"
     )
 
@@ -103,7 +109,12 @@ def run_generations(item: RunItem) -> int:
     key = (
         "outer_generations"
         if run_kind(item)
-        in {TrainingKind.DECK_BUILDER.value, TrainingKind.PLAYER_DECK.value}
+        in {
+            TrainingKind.DECK_BUILDER.value,
+            TrainingKind.DECK_POOL_V2.value,
+            TrainingKind.PLAYER_DECK.value,
+            TrainingKind.COUNTER_V2.value,
+        }
         and request.get("outer_generations") is not None
         else "evaluator_generations"
     )
@@ -147,7 +158,11 @@ def query_runs(
 
     def included(item: RunItem) -> bool:
         status = run_status(item)
-        if filters.status == "Running" and status != "running":
+        if filters.status == "Running" and status not in {
+            "running",
+            "pausing",
+            "paused",
+        }:
             return False
         if filters.status == "Completed" and status != "completed":
             return False

@@ -283,13 +283,14 @@ def load_matchup_presentation(
         max((row.generation for row in checkpoints), default=0),
         max(0, completed_generations or 0),
     )
-    learning_per_generation = pop_size * pop_size
+    # Every controller pairing is trained once in each seat/player-ID role.
+    learning_per_generation = pop_size * pop_size * 2
     recorded_games = sum(row.games for row in checkpoints if row.valid)
     workload = MatchupWorkload(
         population_size=pop_size,
         requested_generations=requested_generations,
         completed_generations=min(completed_generations, requested_generations),
-        games_per_genome_per_generation=pop_size,
+        games_per_genome_per_generation=pop_size * 2,
         learning_games_per_generation=learning_per_generation,
         planned_learning_games=learning_per_generation * requested_generations,
         completed_learning_games_estimate=learning_per_generation

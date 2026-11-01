@@ -48,6 +48,7 @@ def evaluator_settings(settings: MatchupTrainerSettings) -> EvaluatorSettings:
         crossplay_reference_generation=None,
         seed=settings.seed,
         log_training_games=False,
+        training_seat_swaps=True,
     )
 
 

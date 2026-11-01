@@ -47,7 +47,7 @@ class TrainingWorkload:
 
 
 def presets_for(kind: TrainingKind) -> tuple[TrainingPreset, ...]:
-    if kind == TrainingKind.PLAYER_DECK:
+    if kind in {TrainingKind.PLAYER_DECK, TrainingKind.COUNTER_V2}:
         return PLAYER_PRESETS
     if kind == TrainingKind.MATCHUP_EVALUATION:
         return MATCHUP_PRESETS
@@ -59,7 +59,7 @@ def training_workload(request: TrainingRequest) -> TrainingWorkload:
     comparison_prefix = (
         "Exploratory · " if request.evaluation_games < 1_000 else ""
     )
-    if request.kind == TrainingKind.PLAYER_DECK:
+    if request.kind in {TrainingKind.PLAYER_DECK, TrainingKind.COUNTER_V2}:
         controller_games = request.evaluator_generations * (15 * 15)
         candidate_games = (
             request.outer_generations * 20 * request.evaluation_games
@@ -68,7 +68,14 @@ def training_workload(request: TrainingRequest) -> TrainingWorkload:
         return TrainingWorkload(
             headline=f"{comparison_prefix}About {total_games:,} simulated games",
             details=(
-                f"{request.outer_generations} persistent counter-deck generations · up to 20 legal candidates each",
+                (
+                    f"{request.outer_generations} persistent counter-deck generations · "
+                    + (
+                        "20 direct composition candidates each"
+                        if request.kind == TrainingKind.COUNTER_V2
+                        else "up to 20 NEAT-built legal candidates each"
+                    )
+                ),
                 f"{request.evaluator_generations} persistent controller generations · about {controller_games:,} learning games",
                 f"{request.evaluation_games} validation games per candidate · {candidate_games:,} counter tests",
                 "Planned validation assumes all 20 generated decks are legal; 1,000 games per candidate is the comparison target.",
@@ -78,12 +85,14 @@ def training_workload(request: TrainingRequest) -> TrainingWorkload:
     if request.kind == TrainingKind.MATCHUP_EVALUATION:
         checkpoints = matchup_checkpoints(request.evaluator_generations)
         checkpoint_games = len(checkpoints) * request.evaluation_games
-        training_games = request.evaluator_generations * (15 * 15)
+        # Matchup controller learning evaluates every genome pairing from
+        # both seat/player-ID perspectives using the same game seed.
+        training_games = request.evaluator_generations * (15 * 15) * 2
         total_games = training_games + checkpoint_games
         return TrainingWorkload(
             headline=f"{comparison_prefix}About {total_games:,} simulated games",
             details=(
-                f"Two controller populations coevolve for {request.evaluator_generations} generations · about {training_games:,} learning games",
+                f"Two controller populations coevolve for {request.evaluator_generations} generations · about {training_games:,} paired-seat learning games",
                 f"{len(checkpoints)} win-rate checkpoints · {checkpoint_games:,} seat-balanced evaluation games",
                 f"{request.workers} workers · checkpoints at generations {', '.join(map(str, checkpoints))}",
                 "1,000 games per checkpoint is the comparison target; workload is not an ETA or certainty guarantee.",
@@ -97,12 +106,24 @@ def training_workload(request: TrainingRequest) -> TrainingWorkload:
         * request.matches_per_genome
         // 2
     )
+    evolution_details = (
+        (
+            f"20 unique legal compositions per generation · direct crossover and mutation",
+            f"{request.evaluator_generations} controller generations per distinct deck matchup",
+            f"Each composition faces up to {request.matches_per_genome} rivals · {request.holdout_seed_pairs} holdout pairs",
+        )
+        if request.kind == TrainingKind.DECK_POOL_V2
+        else (
+            "20 NEAT deck-builder genomes construct candidate decks per generation",
+            f"{request.evaluator_generations} controller generations per generated-deck matchup",
+            f"Each builder faces up to {request.matches_per_genome} rivals · {request.holdout_seed_pairs} holdout pairs",
+        )
+    )
     return TrainingWorkload(
         headline=f"{outer_matchups:,} outer matchups plus nested controller training",
         details=(
             f"{len(request.seeds)} seed run(s) · {request.outer_generations} outer generations",
-            f"{request.evaluator_generations} inner generations per candidate evaluation",
-            f"Each candidate faces up to {request.matches_per_genome} rival decks · {request.holdout_seed_pairs} holdout pairs",
+            *evolution_details,
             "Deck evolution is substantially more expensive than player-controller training.",
         ),
     )
