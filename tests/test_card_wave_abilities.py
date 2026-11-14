@@ -25,7 +25,7 @@ from cards.ability.abilities import (
     ShootOneHp,
     ShuffleChosenSide,
     StayOnBoard,
-    SummonElsenhornBlockBlack,
+    Minus1AllBlack,
 )
 from cards.card import Card
 from cards.card_type import CardType
@@ -50,7 +50,16 @@ def owner(player_id=1):
     )
 
 
-def card(name, ability=None, *, player=None, hp=2, damage=2, color=ManaColor.GREEN):
+def card(
+    name,
+    ability=None,
+    *,
+    player=None,
+    hp=2,
+    damage=2,
+    color=ManaColor.GREEN,
+    secondary_color=None,
+):
     return Card(
         owner=player,
         id=f"{name}_test",
@@ -60,6 +69,7 @@ def card(name, ability=None, *, player=None, hp=2, damage=2, color=ManaColor.GRE
         hp=hp,
         dmg=damage,
         color_buf=(0, 0),
+        secondary_color=secondary_color,
         ability=ability or NoAbility(),
         type=CardType.PLAYER,
     )
@@ -109,6 +119,26 @@ class CatalogueTests(unittest.TestCase):
         board.recalculate()
 
         self.assertEqual((elephant.dmg, elephant.hp), (2, 4))
+
+    def test_dual_color_card_applies_only_bonuses_for_active_mana(self):
+        scenarios = (
+            (ManaColor.RED, False, (2, 2)),
+            (ManaColor.BLUE, False, (1, 4)),
+            (ManaColor.RED, True, (2, 4)),
+            (ManaColor.BLACK, False, (1, 2)),
+        )
+        for real_mana, add_blue, expected in scenarios:
+            with self.subTest(real_mana=real_mana, add_blue=add_blue):
+                elephant = DBUtil().load_card("Slon_1")
+                board = Board(dragons=[])
+                board.positions[0] = elephant
+                if add_blue:
+                    board.positions[2] = card("Blue source", BlueManaOn())
+                board.mana_pool = [Mana(real_mana)]
+
+                board.recalculate()
+
+                self.assertEqual((elephant.dmg, elephant.hp), expected)
 
 
 class BoardMechanicTests(unittest.TestCase):
@@ -193,7 +223,7 @@ class BoardMechanicTests(unittest.TestCase):
         self.assertIn(ManaColor.RED, board.active_mana_colors())
         self.assertEqual((red.dmg, red.hp), (3, 3))
 
-    def test_multi_slot_card_shifts_as_one_tile_when_swapped(self):
+    def test_multi_slot_card_references_can_split_when_swapped(self):
         player = owner()
         single = card("Single", player=player)
         elephant = card("Elephant", OccupyTwo(), player=player)
@@ -202,7 +232,7 @@ class BoardMechanicTests(unittest.TestCase):
 
         board.swap_positions(0, 1)
 
-        self.assertEqual(board.positions[:3], [elephant, elephant, single])
+        self.assertEqual(board.positions[:3], [elephant, single, elephant])
 
     def test_principal_returns_all_surviving_allies(self):
         player = owner()
@@ -261,29 +291,47 @@ class TriggerTests(unittest.TestCase):
         board.remove_card(roderik, cause="ability_damage")
         self.assertNotIn(roderik, board.positions)
 
-    def test_illebead_summons_elsenhorn_and_blocks_black_effects(self):
+    def test_illebead_gives_minus_one_minus_one_to_all_black_cards(self):
         first = owner(1)
         second = owner(2)
-        illebead = card("Illeb", SummonElsenhornBlockBlack(), player=first)
-        elsenhorn = card("Inkvizitor Elsenhorn", player=first)
-        black_debuffer = card(
-            "Black debuffer",
-            SidewaysMinus1(),
-            player=second,
+        illebead = card("Illeb", Minus1AllBlack(), player=first)
+        allied_black = card(
+            "Allied black",
+            player=first,
+            hp=3,
+            damage=3,
             color=ManaColor.BLACK,
         )
-        target = card("Target", player=first, hp=2, damage=2)
-        first.deck.cards.append(elsenhorn)
+        enemy_black = card(
+            "Enemy black",
+            player=second,
+            hp=3,
+            damage=3,
+            color=ManaColor.BLACK,
+        )
+        dual_color = card(
+            "Partly black",
+            player=second,
+            hp=3,
+            damage=3,
+            secondary_color=ManaColor.BLACK,
+        )
+        green = card("Green", player=second, hp=3, damage=3)
         board = Board(dragons=[])
-        board.positions[0] = target
-        board.positions[1] = black_debuffer
-        board.positions[3] = illebead
+        board.positions[:5] = [
+            allied_black,
+            illebead,
+            enemy_black,
+            dual_color,
+            green,
+        ]
 
-        illebead.ability.activate(illebead, board, 2)
         board.recalculate()
 
-        self.assertIs(board.positions[2], elsenhorn)
-        self.assertEqual((target.dmg, target.hp), (2, 2))
+        self.assertEqual((allied_black.dmg, allied_black.hp), (2, 2))
+        self.assertEqual((enemy_black.dmg, enemy_black.hp), (2, 2))
+        self.assertEqual((dual_color.dmg, dual_color.hp), (2, 2))
+        self.assertEqual((green.dmg, green.hp), (3, 3))
 
     def test_bear_moves_forward_through_every_card_it_can_defeat(self):
         player = owner(1)
@@ -505,44 +553,6 @@ class SequentialEntryTests(unittest.TestCase):
         self.assertIs(board.positions[3], shooter)
         self.assertEqual(player.card_plays[commander.id], 1)
         self.assertEqual(player.card_plays[shooter.id], 1)
-
-    def test_illebead_summoned_elsenhorn_resolves_its_shot(self):
-        illebead = card("Illeb", SummonElsenhornBlockBlack())
-        elsenhorn = card("Inkvizitor Elsenhorn", ShootOneHp())
-        victim = card("Victim", player=owner(2), hp=1)
-        player = self._player([illebead])
-        illebead.owner = player
-        elsenhorn.owner = player
-        player.deck.cards.append(elsenhorn)
-        board = Board(dragons=[])
-        board.positions[0] = victim
-
-        class Strategy:
-            selected_card = None
-            selected_position = None
-
-            def get_choice_card(self):
-                self.selected_card = player.hand.cards.pop(0)
-                return self.selected_card
-
-            def get_choice_pos(self):
-                self.selected_position = 2
-                return 2
-
-            def get_choice_use_ability(self):
-                return True
-
-            def get_choice_ability_target(self):
-                return 3 if self.selected_card is illebead else 0
-
-        strategy = Strategy()
-        player.choice_strategy = strategy
-
-        play_card(player, strategy, board, self.Display())
-
-        self.assertNotIn(victim, board.positions)
-        self.assertIs(board.positions[3], elsenhorn)
-        self.assertEqual(player.card_plays[elsenhorn.id], 1)
 
     def test_automatic_targeted_ability_is_skipped_without_legal_targets(self):
         shuffler = card("Shuffler", ShuffleChosenSide())

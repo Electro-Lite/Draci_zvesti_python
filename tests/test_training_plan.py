@@ -1,4 +1,5 @@
 import copy
+import math
 import os
 import random
 import tempfile
@@ -9,10 +10,16 @@ from unittest.mock import ANY, Mock, patch
 
 import neat
 
+
+class ActiveAbilityStub(SimpleNamespace):
+    def activate(self, card, board, args=None):
+        pass
+
 from cards.ability.ability_target import AbilityTarget
 from cards.card import Card
 from cards.card_type import CardType
 from cards.deck import Deck
+from cards.mana import ManaColor
 from cards.power import Power
 from config import Config
 from choice_strategies.choice_strategy import PlayerChoiceStrategy
@@ -21,7 +28,15 @@ from choice_strategies.choice_strategy_ai_neat import (
     PlayerChoiceStrategyNeat,
 )
 from core.board import Board
-from core.game_info import GAME_INFO_INPUT_COUNT, GameInfo
+from core.game_info import (
+    BOARD_POSITION_COUNT,
+    CARD_FEATURE_COUNT,
+    GAME_INFO_INPUT_COUNT,
+    HAND_SLOT_COUNT,
+    SCALAR_FEATURE_COUNT,
+    ZONE_SLOT_COUNT,
+    GameInfo,
+)
 from core.game_loop import GameResult, _shuffle_deck, battle_dragon, run
 from core.player import Player
 from display_strategies.display_strategy_none import DisplayStrategyNone
@@ -110,7 +125,7 @@ class TrainingPlanTests(unittest.TestCase):
             type=CardType.PLAYER,
         )
         network = SimpleNamespace(
-            activate=lambda values: [float(values[-7]), 1.0]
+            activate=lambda values: [float(values[-6]), 1.0]
         )
 
         with patch(
@@ -354,7 +369,7 @@ class TrainingPlanTests(unittest.TestCase):
         self.assertEqual(settings.max_matches_per_genome, 12)
         self.assertEqual(settings.holdout_seed_pairs, 20)
 
-    def test_game_info_has_normalized_expected_shape(self):
+    def test_game_info_has_expected_shape_and_finite_values(self):
         deck1 = DBUtil().load_deck("Starter Blue_1")
         deck2 = DBUtil().load_deck("Starter Blue_1")
         player1 = Player(1, deck1, FirstLegalStrategy)
@@ -367,7 +382,51 @@ class TrainingPlanTests(unittest.TestCase):
 
         values = info.get_game_info()
         self.assertEqual(len(values), GAME_INFO_INPUT_COUNT)
-        self.assertTrue(all(-1.0 <= value <= 1.0 for value in values))
+        self.assertTrue(all(math.isfinite(value) for value in values))
+
+    def test_game_info_includes_real_and_active_mana_without_card_power(self):
+        deck1 = DBUtil().load_deck("Starter Blue_1")
+        deck2 = DBUtil().load_deck("Starter Blue_1")
+        player1 = Player(1, deck1, FirstLegalStrategy)
+        player2 = Player(2, deck2, FirstLegalStrategy)
+        board = Board()
+        board.player_on_turn = player1
+        board.round = 1
+        board.mana_pool[0].color = ManaColor.RED
+        board.active_mana_colors = lambda: {ManaColor.RED, ManaColor.BLUE}
+
+        info = GameInfo(board, player2)
+        values = info.get_game_info()
+
+        self.assertEqual(values[:4], [1 / 3, 1.0, 0.0, 1.0])
+        card = deck1.cards[0]
+        encoded = info._get_card_neat_ids(card, player1)
+        original_power = card.power
+        card.power = Power.LEGENDARY
+        self.assertEqual(info._get_card_neat_ids(card, player1), encoded)
+        card.power = original_power
+
+    def test_game_info_contains_known_deck_and_graveyard_compositions(self):
+        deck1 = DBUtil().load_deck("Starter Blue_1")
+        deck2 = DBUtil().load_deck("Starter Blue_1")
+        player1 = Player(1, deck1, FirstLegalStrategy)
+        player2 = Player(2, deck2, FirstLegalStrategy)
+        player1.graveyard.append(player1.deck.cards.pop())
+        player2.graveyard.append(player2.deck.cards.pop())
+        board = Board()
+        board.player_on_turn = player1
+        board.round = 1
+
+        values = GameInfo(board, player2).get_game_info()
+        own_deck = SCALAR_FEATURE_COUNT + CARD_FEATURE_COUNT * (
+            BOARD_POSITION_COUNT + HAND_SLOT_COUNT
+        )
+        own_graveyard = own_deck + CARD_FEATURE_COUNT * ZONE_SLOT_COUNT
+        opponent_graveyard = own_graveyard + CARD_FEATURE_COUNT * ZONE_SLOT_COUNT
+
+        self.assertEqual(values[own_deck + CARD_FEATURE_COUNT - 1], 1.0)
+        self.assertEqual(values[own_graveyard + CARD_FEATURE_COUNT - 1], 1.0)
+        self.assertEqual(values[opponent_graveyard + CARD_FEATURE_COUNT - 1], -1.0)
 
     def test_neat_strategy_masks_illegal_card_and_position(self):
         outputs = [0.0] * ACTION_OUTPUT_COUNT
@@ -406,8 +465,7 @@ class TrainingPlanTests(unittest.TestCase):
         player = SimpleNamespace()
         player.net = FixedNetwork(outputs)
         selected_card = SimpleNamespace(
-            ability=SimpleNamespace(
-                is_active=True,
+            ability=ActiveAbilityStub(
                 target_owner=AbilityTarget.ENEMY,
                 requires_target=True,
             )
@@ -438,8 +496,7 @@ class TrainingPlanTests(unittest.TestCase):
         player = SimpleNamespace()
         player.net = FixedNetwork(outputs)
         selected_card = SimpleNamespace(
-            ability=SimpleNamespace(
-                is_onPlay=True,
+            ability=ActiveAbilityStub(
                 auto_activate_on_play=True,
                 requires_target=True,
                 legal_target_positions=lambda card, board: [1],

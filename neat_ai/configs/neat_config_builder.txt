@@ -1,4 +1,4 @@
-# Deck builder: 91 inputs = 12 deck slots * 7 features + 7 candidate features
+# Deck builder: 78 inputs = 12 deck slots * 6 features + 6 candidate features
 [NEAT]
 fitness_criterion     = max
 fitness_threshold     = 9999
@@ -53,7 +53,7 @@ node_add_prob           = 0.05
 node_delete_prob        = 0.02
 
 num_hidden              = 5
-num_inputs              = 91
+num_inputs              = 78
 num_outputs             = 2
 
 response_init_mean      = 1.0

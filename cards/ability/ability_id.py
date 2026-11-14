@@ -51,11 +51,10 @@ class AbilityId(Enum):
     PLACE_BLACK_BESIDE                  = 48
     RETURN_DISCARD                      = 49
     ATTACK_FRONT_ON_DRAGON              = 50
-    BLOCK_BLACK_EFFECTS                 = 51
     SHOOT_ONE_HP                        = 52
     RESURRECT_STRONGER                  = 53
     SIDEWAYS_MINUS_RESURRECT            = 54
-    SUMMON_ELSENHORN_BLOCK_BLACK        = 55
+    MINUS_1_1_ALL_BLACK                 = 55
     DRAGON_FANATIC_DRAW_WIN              = 56
 
 #   Dragons

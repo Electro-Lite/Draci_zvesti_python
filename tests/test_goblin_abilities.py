@@ -36,11 +36,9 @@ def make_board():
 
 
 class GoblinAbilityTests(unittest.TestCase):
-    def test_summon_is_an_optional_on_play_ability_not_an_active_ability(self):
+    def test_summon_implements_an_optional_on_play_activation(self):
         ability = SummonOtherGoblins()
 
-        self.assertFalse(ability.is_active)
-        self.assertTrue(ability.is_onPlay)
         self.assertTrue(can_use_on_play(ability))
 
     def test_human_player_is_offered_the_optional_summon_choice(self):

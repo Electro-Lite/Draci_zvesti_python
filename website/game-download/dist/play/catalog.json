@@ -800,8 +800,8 @@
         "hp": 0
       },
       "ability": {
-        "name": "Summon Elsenhorn and suppress black effects",
-        "description": "When this enters play, you may play Inquisitor Elsenhorn from your hand or deck. While this remains, black card effects are suppressed."
+        "name": "-1/-1 to all black cards",
+        "description": "All black cards get -1 attack and -1 health."
       },
       "image": "card-images/detail/Inkvizitor_Illbebad_1-cs.webp?v=8027294a0533",
       "thumbnail": "card-images/thumb/Inkvizitor_Illbebad_1-cs.webp?v=582d3640f071",
@@ -1617,7 +1617,7 @@
       },
       "ability": {
         "name": "Cannot be moved or overtaken",
-        "description": "This card cannot move or be overtaken. A card moving to the front stops immediately behind it."
+        "description": "This ability is not implemented."
       },
       "image": "card-images/detail/Silak_1-cs.webp?v=e0385309bdc3",
       "thumbnail": "card-images/thumb/Silak_1-cs.webp?v=4edc97a3fcfd",

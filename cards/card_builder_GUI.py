@@ -61,6 +61,10 @@ def power_name_from_value(val):
     return Power.STARTER.name
 
 
+def valid_color_pair(primary, secondary):
+    return secondary in (None, '', 'None') or primary != secondary
+
+
 class Tooltip:
     """Simple tooltip for widgets."""
 
@@ -142,9 +146,10 @@ class CardBuilderApp(ttk.Frame):
         self.cmb_type['values'] = [CardType.PLAYER.name, CardType.DRAGON.name]
         self.cmb_type.bind('<<ComboboxSelected>>', lambda e: self.refresh_ui_by_type())
 
-        self.lbl_color = ttk.Label(self.form, text="Color")
+        self.lbl_color = ttk.Label(self.form, text="Primary color")
         self.cmb_color = ttk.Combobox(self.form, textvariable=self.color_var, state='readonly', width=18)
         self.cmb_color['values'] = [c.name for c in [ManaColor.RED, ManaColor.BLACK, ManaColor.BLUE, ManaColor.GREEN]]
+        self.cmb_color.bind('<<ComboboxSelected>>', self.on_primary_color_changed)
 
         self.lbl_secondary_color = ttk.Label(self.form, text="Secondary color")
         self.cmb_secondary_color = ttk.Combobox(
@@ -157,6 +162,10 @@ class CardBuilderApp(ttk.Frame):
             color.name
             for color in (ManaColor.RED, ManaColor.BLACK, ManaColor.BLUE, ManaColor.GREEN)
         ]
+        self.cmb_secondary_color.bind(
+            '<<ComboboxSelected>>',
+            lambda event: self.refresh_secondary_mana_fields(),
+        )
 
         self.lbl_power = ttk.Label(self.form, text="Power")
         self.cmb_power = ttk.Combobox(self.form, textvariable=self.power_var, state='readonly', width=18)
@@ -179,13 +188,13 @@ class CardBuilderApp(ttk.Frame):
         self.ent_dmg = ttk.Entry(self.form, textvariable=self.dmg_var, validate='key', validatecommand=vcmd)
         Tooltip(self.ent_dmg, "Damage (integer)")
 
-        self.lbl_buff_hp = ttk.Label(self.form, text="Buff HP")
+        self.lbl_buff_hp = ttk.Label(self.form, text="Primary mana HP bonus")
         self.ent_buff_hp = ttk.Entry(self.form, textvariable=self.buff_hp_var, validate='key', validatecommand=vcmd)
 
-        self.lbl_buff_dmg = ttk.Label(self.form, text="Buff DMG")
+        self.lbl_buff_dmg = ttk.Label(self.form, text="Primary mana DMG bonus")
         self.ent_buff_dmg = ttk.Entry(self.form, textvariable=self.buff_dmg_var, validate='key', validatecommand=vcmd)
 
-        self.lbl_secondary_buff_hp = ttk.Label(self.form, text="Secondary buff HP")
+        self.lbl_secondary_buff_hp = ttk.Label(self.form, text="Secondary mana HP bonus")
         self.ent_secondary_buff_hp = ttk.Entry(
             self.form,
             textvariable=self.secondary_buff_hp_var,
@@ -193,7 +202,7 @@ class CardBuilderApp(ttk.Frame):
             validatecommand=vcmd,
         )
 
-        self.lbl_secondary_buff_dmg = ttk.Label(self.form, text="Secondary buff DMG")
+        self.lbl_secondary_buff_dmg = ttk.Label(self.form, text="Secondary mana DMG bonus")
         self.ent_secondary_buff_dmg = ttk.Entry(
             self.form,
             textvariable=self.secondary_buff_dmg_var,
@@ -307,7 +316,25 @@ class CardBuilderApp(ttk.Frame):
             self.ent_secondary_buff_hp.grid()
             self.lbl_secondary_buff_dmg.grid()
             self.ent_secondary_buff_dmg.grid()
+        self.refresh_secondary_mana_fields()
         self.show_preview(self.image_var.get())
+
+    def on_primary_color_changed(self, event=None):
+        if self.secondary_color_var.get() == self.color_var.get():
+            self.secondary_color_var.set('None')
+        self.refresh_secondary_mana_fields()
+
+    def refresh_secondary_mana_fields(self):
+        enabled = (
+            self.type_var.get() == CardType.PLAYER.name
+            and self.secondary_color_var.get() != 'None'
+        )
+        if not enabled:
+            self.secondary_buff_hp_var.set('')
+            self.secondary_buff_dmg_var.set('')
+        state = 'normal' if enabled else 'disabled'
+        self.ent_secondary_buff_hp.configure(state=state)
+        self.ent_secondary_buff_dmg.configure(state=state)
 
     def browse_image(self):
         try:
@@ -546,6 +573,7 @@ class CardBuilderApp(ttk.Frame):
             secondary_buff = getattr(c, 'secondary_color_buf', (0, 0))
             self.secondary_buff_dmg_var.set(str(secondary_buff[0] or ''))
             self.secondary_buff_hp_var.set(str(secondary_buff[1] or ''))
+            self.refresh_ui_by_type()
 
             # image
             img = getattr(c, 'image', None)
@@ -567,13 +595,18 @@ class CardBuilderApp(ttk.Frame):
             return False, 'Name is required.'
         if self.ability_var.get() not in self.ability_names:
             return False, 'Selected ability is invalid.'
+        if not valid_color_pair(
+            self.color_var.get(),
+            self.secondary_color_var.get(),
+        ):
+            return False, 'Primary and secondary colors must be different.'
         numeric_fields = [
             (self.hp_var, 'HP'),
             (self.dmg_var, 'DMG'),
-            (self.buff_hp_var, 'Buff HP'),
-            (self.buff_dmg_var, 'Buff DMG'),
-            (self.secondary_buff_hp_var, 'Secondary buff HP'),
-            (self.secondary_buff_dmg_var, 'Secondary buff DMG'),
+            (self.buff_hp_var, 'Primary mana HP bonus'),
+            (self.buff_dmg_var, 'Primary mana DMG bonus'),
+            (self.secondary_buff_hp_var, 'Secondary mana HP bonus'),
+            (self.secondary_buff_dmg_var, 'Secondary mana DMG bonus'),
         ]
         for var, label in numeric_fields:
             if var.get() and not var.get().isdigit():

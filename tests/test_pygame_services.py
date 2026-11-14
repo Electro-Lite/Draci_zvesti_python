@@ -12,6 +12,11 @@ from unittest.mock import ANY, Mock, patch
 
 import pygame as pg
 
+
+class ActiveAbilityStub(SimpleNamespace):
+    def activate(self, card, board, args=None):
+        pass
+
 from cards.ability.ability_target import AbilityTarget
 from cards.power import Power
 from choice_strategies.choice_strategy_human_pygame import (
@@ -1058,14 +1063,14 @@ class PygameServiceTests(unittest.TestCase):
         class FixedAdvisorNetwork:
             def activate(self, values):
                 self.last_input_length = len(values)
-                return [float(values[-7]), 0.75]
+                return [float(values[-6]), 0.75]
 
         advisor = DeckAdvisor.__new__(DeckAdvisor)
         advisor.net = FixedAdvisorNetwork()
         cards = DBUtil().get_all_player_cards()
         advice = advisor.score_cards([], cards)
 
-        self.assertEqual(advisor.net.last_input_length, 91)
+        self.assertEqual(advisor.net.last_input_length, 78)
         eligible_count = len(cards)
         self.assertEqual(len(advice), eligible_count)
         self.assertEqual(
@@ -1130,8 +1135,7 @@ class PygameServiceTests(unittest.TestCase):
         player.choice_strategy = strategy
         enemy_owner = object()
         strategy.selected_card = SimpleNamespace(
-            ability=SimpleNamespace(
-                is_active=True,
+            ability=ActiveAbilityStub(
                 target_owner=AbilityTarget.ENEMY,
                 requires_target=True,
             )
@@ -1161,8 +1165,7 @@ class PygameServiceTests(unittest.TestCase):
         strategy = PygameChoiceStrategy(player)
         player.choice_strategy = strategy
         strategy.selected_card = SimpleNamespace(
-            ability=SimpleNamespace(
-                is_active=True,
+            ability=ActiveAbilityStub(
                 target_owner=AbilityTarget.ENEMY,
                 requires_target=True,
             )
@@ -1181,8 +1184,7 @@ class PygameServiceTests(unittest.TestCase):
         player.choice_strategy = strategy
         enemy = object()
         strategy.selected_card = SimpleNamespace(
-            ability=SimpleNamespace(
-                is_active=True,
+            ability=ActiveAbilityStub(
                 target_owner=AbilityTarget.ENEMY,
                 requires_target=True,
             )

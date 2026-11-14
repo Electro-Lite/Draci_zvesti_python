@@ -51,8 +51,8 @@ def serialize_card(card, local_player) -> dict | None:
         "power": _enum_value(card.power),
         "ability_name": str(getattr(ability, "name", "")),
         "ability_description": str(getattr(ability, "description", "")),
-        "ability_active": bool(getattr(ability, "is_active", False)),
-        "ability_on_play": bool(getattr(ability, "is_onPlay", False)),
+        "ability_active": can_use_on_play(ability),
+        "ability_on_play": can_use_on_play(ability),
         "owner": "local" if getattr(card, "owner", None) is local_player else "opponent",
     }
 

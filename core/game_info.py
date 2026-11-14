@@ -4,10 +4,13 @@ from core.board import Board
 from core.player import Player
 
 
-CARD_FEATURE_COUNT = 8
+CARD_FEATURE_COUNT = 7
 BOARD_POSITION_COUNT = 6
 HAND_SLOT_COUNT = 12
-GAME_INFO_INPUT_COUNT = 158
+ZONE_SLOT_COUNT = 12
+SCALAR_FEATURE_COUNT = 15
+ABILITY_ID_SCALE = 10
+GAME_INFO_INPUT_COUNT = 393
 
 
 class GameInfo:
@@ -30,8 +33,10 @@ class GameInfo:
             if active_mana is not None
             else {board.mana_pool[0].color}
         )
+        real_mana = board.mana_pool[0].color.value if board.mana_pool else 0
 
         info = [
+            self._scale(real_mana, 3),
             1.0 if ManaColor.RED in mana_colors else 0.0,
             1.0 if ManaColor.BLACK in mana_colors else 0.0,
             1.0 if ManaColor.BLUE in mana_colors else 0.0,
@@ -65,7 +70,11 @@ class GameInfo:
 
         for index in range(HAND_SLOT_COUNT):
             card = player.hand.cards[index] if index < len(player.hand.cards) else None
-            info.extend(self._get_card_neat_ids(card))
+            info.extend(self._get_card_neat_ids(card, player))
+
+        info.extend(self._get_zone_neat_ids(player.deck.cards, player))
+        info.extend(self._get_zone_neat_ids(player.graveyard, player))
+        info.extend(self._get_zone_neat_ids(self.opponent.graveyard, self.opponent))
 
         if len(info) != GAME_INFO_INPUT_COUNT:
             raise RuntimeError(
@@ -73,22 +82,33 @@ class GameInfo:
             )
         return info
 
-    def _get_card_neat_ids(self, card):
+    def _get_zone_neat_ids(self, cards, owner):
+        cards = sorted(cards, key=lambda card: str(card.id))
+        return [
+            value
+            for index in range(ZONE_SLOT_COUNT)
+            for value in self._get_card_neat_ids(
+                cards[index] if index < len(cards) else None,
+                owner,
+            )
+        ]
+
+    def _get_card_neat_ids(self, card, owner=None):
         if card is None:
             return [0.0] * CARD_FEATURE_COUNT
 
         features = card.get_neat_ids()
-        owner = 0.0
-        if card.owner is not None:
-            owner = 1.0 if card.owner == self.player_on_turn else -1.0
+        card_owner = owner if owner is not None else card.owner
+        owner_value = 0.0
+        if card_owner is not None:
+            owner_value = 1.0 if card_owner == self.player_on_turn else -1.0
 
         return [
-            self._scale(features[0], 2),   # card power / rarity
-            self._scale(features[1], 4),   # primary mana color
-            self._scale(features[2], 3),   # primary-mana damage bonus
-            self._scale(features[3], 3),   # primary-mana health bonus
-            self._scale(features[4], 9),   # current health
-            self._scale(features[5], 9),   # current damage
-            self._scale(features[6], 32),  # ability identifier
-            owner,                         # own card +1, rival card -1, unowned 0
+            self._scale(features[0], 4),   # primary mana color
+            self._scale(features[1], 3),   # primary-mana damage bonus
+            self._scale(features[2], 3),   # primary-mana health bonus
+            self._scale(features[3], 9),   # current health
+            self._scale(features[4], 9),   # current damage
+            self._scale(features[5], ABILITY_ID_SCALE),  # ability identifier
+            owner_value,                   # own card +1, rival card -1, unowned 0
         ]

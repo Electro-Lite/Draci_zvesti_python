@@ -13,11 +13,13 @@ if TYPE_CHECKING:
 
 
 def can_use_on_play(ability) -> bool:
-    """Return whether placing this card offers an optional ability choice."""
-    return bool(
-        getattr(ability, "is_active", False)
-        or getattr(ability, "is_onPlay", False)
-    )
+    """Return whether this ability implements an on-play activation."""
+    if ability is None:
+        return False
+    try:
+        return type(ability).activate is not Ability.activate
+    except AttributeError:
+        return False
 
 
 def is_goblin(card) -> bool:
@@ -38,56 +40,41 @@ class Ability():
         name,
         description,
         target_owner: AbilityTarget,
-        is_active=False,
-        is_passive=False,
-        is_onDragonReveal=False,
-        is_onDragonMove=False,
-        is_onDeath=False,
-        is_onPlay=False,
         id: AbilityId = 0,
         requires_target=False,
         requires_hand_card=False,
         additional_mana_colors=(),
         blocks_mana_effects=False,
-        blocked_card_colors=(),
         auto_activate_on_play=False,
         survives_round=False,
-        is_onRoundEnd=False,
     ):
         self.name           = name  #TODO change primary key to id!
         self.id             = id    # Currently used only for neat 
         self.description    = description
         self.target_owner   = target_owner # must be of type AbilityTarget
-        self.is_active      = is_active
-        self.is_passive     = is_passive
-        self.is_onDragonReveal      = is_onDragonReveal
-        self.is_onDragonMove        = is_onDragonMove
-        self.is_onDeath             = is_onDeath
-        self.is_onPlay              = is_onPlay
-
         self.requires_target = requires_target
         self.requires_hand_card = requires_hand_card
         self.additional_mana_colors = frozenset(additional_mana_colors)
         self.blocks_mana_effects = blocks_mana_effects
-        self.blocked_card_colors = frozenset(blocked_card_colors)
         self.auto_activate_on_play = auto_activate_on_play
         self.survives_round = survives_round
-        self.is_onRoundEnd = is_onRoundEnd
-        # ability type # vstup,smrt,passive
     def activate(self, card:"Card", board:"Board", args=None):
-        raise NotImplementedError()
+        pass
 
     def apply_passive(self, card:"Card", board:"Board", args=None):
-        raise NotImplementedError()
+        pass
 
     def apply_onDeath(self, card:"Card", board:"Board", args=None):
-        raise NotImplementedError()
+        pass
+
+    def apply_onDragonReveal(self, card:"Card", board:"Board", dragon:"Card"):
+        pass
 
     def apply_onDragonMove(self, card:"Card", board:"Board", dragon:"Card"):
-        raise NotImplementedError()
+        pass
 
     def apply_onRoundEnd(self, card:"Card", board:"Board", args=None):
-        raise NotImplementedError()
+        pass
 
     def can_activate(self, card:"Card", board:"Board") -> bool:
         return True
@@ -119,11 +106,7 @@ class NoAbility(Ability):
             description     = "",
             id              = AbilityId.NOTHING,
             target_owner    = None,
-            is_active       = False,
-            is_passive      = False
         )
-    def activate(self, card, board, args=None):
-        pass
 
 
 class BlackManaOn(Ability):
@@ -136,7 +119,6 @@ class BlackManaOn(Ability):
             ),
             id=AbilityId.BLACK_MANA_ON,
             target_owner=AbilityTarget.ANY,
-            is_passive=True,
             additional_mana_colors=(ManaColor.BLACK,),
         )
 
@@ -156,7 +138,6 @@ class BlueManaOn(Ability):
             ),
             id=AbilityId.BLUE_MANA_ON,
             target_owner=AbilityTarget.ANY,
-            is_passive=True,
             additional_mana_colors=(ManaColor.BLUE,),
         )
 
@@ -174,7 +155,6 @@ class RedManaOn(Ability):
             ),
             id=AbilityId.RED_MANA_ON,
             target_owner=AbilityTarget.ANY,
-            is_passive=True,
             additional_mana_colors=(ManaColor.RED,),
         )
 
@@ -192,7 +172,6 @@ class BlockManaEffects(Ability):
             ),
             id=AbilityId.BLOCK_MANA_EFFECTS,
             target_owner=AbilityTarget.ANY,
-            is_passive=True,
             blocks_mana_effects=True,
         )
 
@@ -212,7 +191,6 @@ class PlaceSecondBeside(Ability):
             ),
             id=AbilityId.PLACE_SECOND_BESIDE,
             target_owner=AbilityTarget.ALLY,
-            is_onPlay=True,
             requires_target=True,
             requires_hand_card=True,
         )
@@ -323,8 +301,6 @@ class FrontPlus1Attack(Ability):
             description     = "Gives +1 attack to all friendly cards in front.",
             id              = AbilityId.PLUS_1_DMG_FRONT,
             target_owner    = AbilityTarget.ALLY,
-            is_active       = False,
-            is_passive      = True
         )
     def apply_passive(self, card, board, args=None):
         original_pos = board.positions.index(card)
@@ -346,7 +322,6 @@ class SidewaysPlus1(Ability):
             description="Gives +1 attack and +1 hp to adjacent friendly cards.",
             id              = AbilityId.PLUS_1_1_SIDEWAYS,
             target_owner=AbilityTarget.ALLY,
-            is_passive=True
         )
     def apply_passive(self, card, board, args=None):
         original_pos = board.positions.index(card)
@@ -374,7 +349,6 @@ class SidewaysMinus1(Ability):
             description="Gives -1 attack and -1 hp to adjacent cards. -2 on black mana",
             id              = AbilityId.MINUS_1_1_SIDEWAYS_2_2_ON_BLACK,
             target_owner=AbilityTarget.ANY,
-            is_passive=True
         )
     def apply_passive(self, card, board, args=None):
         original_pos = board.positions.index(card)
@@ -402,7 +376,6 @@ class GoFirst(Ability):
             description="Moves this card to the first position.",
             id              = AbilityId.GO_FIRST,
             target_owner=AbilityTarget.ANY,
-            is_active=True,
         )
     def activate(self, card, board, args=None):
         board.move_toward_front(card)
@@ -416,7 +389,6 @@ class GoBefore1(Ability):
             description="Moves this card before the previous card.",
             id              = AbilityId.SWAP_BEFORE,
             target_owner=AbilityTarget.ANY,
-            is_active=True,
         )
     def activate(self, card, board, args=None):
         original_pos                            = board.positions.index(card)
@@ -430,8 +402,6 @@ class AttackFront(Ability):
             description     = "Atacks card directly in front of him",
             id              = AbilityId.ATTACK_FRONT,
             target_owner    = AbilityTarget.ANY,
-            is_active       = True,
-            is_passive      = False
         )
     def activate(self, card, board, args=None):
         original_pos = board.positions.index(card)
@@ -448,7 +418,6 @@ class SideWay2DmgOnDeath(Ability):
             description     = "When hp goes bellow 0, direct neighbors take 2 dmg",
             id              = AbilityId.DMG_2_SIDEWAYS_ON_DEATH,
             target_owner    = AbilityTarget.ANY,
-            is_onDeath      = True,
         )
     def apply_onDeath(self, card, board, args=None):
         original_pos = args["position"]
@@ -478,7 +447,6 @@ class DragonFanaticDrawWin(Ability):
             ),
             id=AbilityId.DRAGON_FANATIC_DRAW_WIN,
             target_owner=AbilityTarget.ANY,
-            is_onDeath=True,
         )
 
     def apply_onDeath(self, card, board, args=None):
@@ -505,7 +473,6 @@ class ReturnByDeath(Ability):
             description     = "When this card dies, it returns to owners hand",
             id              = AbilityId.RETURN_BY_DEATH,
             target_owner    = AbilityTarget.ALLY,
-            is_onDeath      = True,
         )
     def apply_onDeath(self, card, board, args=None):
         card.restore()
@@ -518,7 +485,6 @@ class HitDragon2Dmg(Ability):
             description     = "When dragon is revealed, he immediately suffers 2 dmg",
             id              = AbilityId.HIT_DRAGON_2_DMG,
             target_owner    = AbilityTarget.DRAGON,
-            is_onDragonReveal      = True,
         )
     def apply_onDragonReveal(self, card, board, dragon):
         dragon.hp -= 2
@@ -552,7 +518,6 @@ class HitDragonBlueInfrontDmg(Ability):
             ),
             id=AbilityId.HIT_DRAGON_BLUE_INFRONT_DMG,
             target_owner=AbilityTarget.DRAGON,
-            is_onDragonReveal=True,
         )
 
     def apply_onDragonReveal(self, card, board, dragon):
@@ -592,7 +557,6 @@ class HealDragon1(Ability):
             description     = "Heal dragon 1 hp after each round of combat",
             id              = AbilityId.HEAL_DRAGON_1_HP,
             target_owner    = AbilityTarget.DRAGON,
-            is_onDragonMove = True,
         )
 
     def apply_onDragonMove(self, card, board, dragon):
@@ -624,7 +588,6 @@ class WeakenDragon1Dmg(Ability):
             description     = "Decrease dragon damage by 1, or by 2 on blue mana, while this card is alive",
             id              = AbilityId.NERF_DRAGON_DMG,
             target_owner    = AbilityTarget.DRAGON,
-            is_passive      = True,
         )
 
     def apply_passive(self, card, board, args=None):
@@ -641,7 +604,6 @@ class SummonOtherGoblins(Ability):
             description     = "Take all goblins from your deck and hand. Place as many as possible on game board left to right. Remaining goblins are discarded.",
             id              = AbilityId.GOBLIN_FILL,
             target_owner    = AbilityTarget.ALLY,
-            is_onPlay       = True,
         )
 
     def can_activate(self, card, board):
@@ -687,7 +649,6 @@ class BuffFromGoblin(Ability):
             description     = "Get +1/1 for each goblin on board.",
             id              = AbilityId.BOOST_FROM_GOBLIN_1_1,
             target_owner    = AbilityTarget.ANY,
-            is_passive      = True,
         )
 
     def apply_passive(self, card, board, args=None):
@@ -703,13 +664,13 @@ class Plus1_1FromRed(Ability):
             description="Gets +1 attack and +1 hp for every other red card in play.",
             id=AbilityId.PLUS_1_1_FROM_RED,
             target_owner=AbilityTarget.ANY,
-            is_passive=True,
         )
 
     def apply_passive(self, card, board, args=None):
         other_red_cards = sum(
             1
-            for candidate in board.unique_cards()
+            for candidate in board.positions
+            if candidate is not None
             if candidate is not card and candidate.has_color(ManaColor.RED)
         )
         card.dmg += other_red_cards
@@ -725,7 +686,6 @@ class InvertReductions(Ability):
             description="Attack and health reductions increase those stats instead.",
             id=AbilityId.INVERT_REDUCTIONS,
             target_owner=AbilityTarget.ANY,
-            is_passive=True,
         )
         self.inverts_stat_reductions = True
 
@@ -740,7 +700,6 @@ class InvertBoardOnPlay(Ability):
             description="When this enters play, reverse the entire row.",
             id=AbilityId.INVERT_BOARD_ON_PLAY,
             target_owner=AbilityTarget.ANY,
-            is_onPlay=True,
             auto_activate_on_play=True,
         )
 
@@ -758,14 +717,13 @@ class EatHighestHp(Ability):
             ),
             id=AbilityId.EAT_HIGHEST_HP,
             target_owner=AbilityTarget.ANY,
-            is_onPlay=True,
             auto_activate_on_play=True,
         )
 
     def activate(self, card, board, args=None):
         candidates = [
-            candidate for candidate in board.unique_cards()
-            if candidate is not card
+            candidate for candidate in board.positions
+            if candidate is not None and candidate is not card
         ]
         if not candidates:
             return
@@ -785,7 +743,6 @@ class SwapAndAttack(Ability):
             ),
             id=AbilityId.SWAP_AND_ATTACK,
             target_owner=AbilityTarget.ANY,
-            is_onPlay=True,
             requires_target=True,
         )
 
@@ -825,8 +782,6 @@ class SwapAndBuffSideways(SwapAndAttack):
             ),
             id=AbilityId.SWAP_AND_BUFF_SIDEWAYS,
             target_owner=AbilityTarget.ANY,
-            is_onPlay=True,
-            is_passive=True,
             requires_target=True,
         )
 
@@ -856,8 +811,6 @@ class ChooseManaOn(Ability):
             description="Choose red, black, or blue mana when this enters play.",
             id=AbilityId.CHOOSE_MANA_ON,
             target_owner=AbilityTarget.ANY,
-            is_onPlay=True,
-            is_passive=True,
             requires_target=True,
             auto_activate_on_play=True,
         )
@@ -882,7 +835,6 @@ class EatFront(Ability):
             description="When this enters play, eat the character directly in front.",
             id=AbilityId.EAT_FRONT,
             target_owner=AbilityTarget.ANY,
-            is_onPlay=True,
             auto_activate_on_play=True,
         )
 
@@ -913,6 +865,12 @@ class OccupyTwo(Ability):
     def after_staged(self, card, board, position):
         board.positions[position + 1] = card
 
+    def apply_onDeath(self, card, board, args=None):
+        board.positions[:] = [
+            None if occupant is card else occupant
+            for occupant in board.positions
+        ]
+
 
 class Immovable(Ability):
     def __init__(self):
@@ -921,7 +879,6 @@ class Immovable(Ability):
             description="This ability is not implemented.",
             id=AbilityId.IMMUTABLE_POSITION,
             target_owner=AbilityTarget.ANY,
-            is_passive=True,
         )
     def apply_passive(self, card, board, args=None):
         raise NotImplementedError("Immovable ability is not implemented")
@@ -937,7 +894,6 @@ class ShuffleChosenSide(Ability):
             ),
             id=AbilityId.SHUFFLE_SIDE,
             target_owner=AbilityTarget.ANY,
-            is_onPlay=True,
             requires_target=True,
             auto_activate_on_play=True,
         )
@@ -961,26 +917,7 @@ class ShuffleChosenSide(Ability):
             and candidate.owner is owner
         ]
         cards = [board.positions[index] for index in positions]
-        original = list(cards)
-        for _ in range(200):
-            random.shuffle(cards)
-            valid = True
-            for candidate in set(cards):
-                occupied = [
-                    positions[index]
-                    for index, placed in enumerate(cards)
-                    if placed is candidate
-                ]
-                if len(occupied) > 1 and any(
-                    right != left + 1
-                    for left, right in zip(occupied, occupied[1:])
-                ):
-                    valid = False
-                    break
-            if valid:
-                break
-        else:
-            cards = original
+        random.shuffle(cards)
         for position, candidate in zip(positions, cards):
             board.positions[position] = candidate
 
@@ -995,18 +932,21 @@ class ReturnAlliesAtRoundEnd(Ability):
             ),
             id=AbilityId.RETURN_ALLIES_ROUND_END,
             target_owner=AbilityTarget.ALLY,
-            is_onRoundEnd=True,
         )
 
     def apply_onRoundEnd(self, card, board, args=None):
         owner = card.owner
-        for ally in list(board.unique_cards()):
-            if ally.owner is not owner:
+        for ally in list(board.positions):
+            if ally is None or ally.owner is not owner:
                 continue
-            board.remove_from_board(ally)
+            board.positions[:] = [
+                None if occupant is ally else occupant
+                for occupant in board.positions
+            ]
             ally.restore()
             ally.owner = owner
-            owner.hand.cards.append(ally)
+            if ally not in owner.hand.cards:
+                owner.hand.cards.append(ally)
 
 
 class StayOnBoard(Ability):
@@ -1016,7 +956,6 @@ class StayOnBoard(Ability):
             description="If this survives, it remains on the board next round.",
             id=AbilityId.STAY_ON_BOARD,
             target_owner=AbilityTarget.ALLY,
-            is_passive=True,
             survives_round=True,
         )
 
@@ -1031,7 +970,6 @@ class HealEaterDragon(Ability):
             description="A dragon that defeats this card heals to full health.",
             id=AbilityId.HEAL_EATER_DRAGON,
             target_owner=AbilityTarget.DRAGON,
-            is_onDeath=True,
         )
 
     def apply_onDeath(self, card, board, args=None):
@@ -1055,7 +993,6 @@ class PlaceBlackBeside(PlaceSecondBeside):
             ),
             id=AbilityId.PLACE_BLACK_BESIDE,
             target_owner=AbilityTarget.ALLY,
-            is_onPlay=True,
             requires_target=True,
             requires_hand_card=True,
         )
@@ -1080,7 +1017,6 @@ class ReturnDiscardOnDeath(Ability):
             description="When this dies, return one card from your discard pile to hand.",
             id=AbilityId.RETURN_DISCARD,
             target_owner=AbilityTarget.ALLY,
-            is_onDeath=True,
         )
 
     def apply_onDeath(self, card, board, args=None):
@@ -1117,7 +1053,6 @@ class AttackFrontOnDragonReveal(Ability):
             ),
             id=AbilityId.ATTACK_FRONT_ON_DRAGON,
             target_owner=AbilityTarget.DRAGON,
-            is_onDragonReveal=True,
         )
 
     def apply_onDragonReveal(self, card, board, dragon):
@@ -1144,67 +1079,26 @@ class AttackFrontOnDragonReveal(Ability):
             position = current - 1
 
 
-class BlockBlackCardEffects(Ability):
+class Minus1AllBlack(Ability):
     def __init__(self):
         super().__init__(
-            name="Suppress black card effects",
-            description="While this is in play, black-border cards have no effects.",
-            id=AbilityId.BLOCK_BLACK_EFFECTS,
+            name="-1/-1 to all black cards",
+            description="All black cards get -1 attack and -1 health.",
+            id=AbilityId.MINUS_1_1_ALL_BLACK,
             target_owner=AbilityTarget.ANY,
-            is_passive=True,
-            blocked_card_colors=(ManaColor.BLACK,),
         )
 
     def apply_passive(self, card, board, args=None):
-        pass
-
-
-class SummonElsenhornBlockBlack(BlockBlackCardEffects):
-    def __init__(self):
-        Ability.__init__(
-            self,
-            name="Summon Elsenhorn and suppress black effects",
-            description=(
-                "When this enters play, you may play Inquisitor Elsenhorn from "
-                "your hand or deck. While this remains, black card effects are suppressed."
-            ),
-            id=AbilityId.SUMMON_ELSENHORN_BLOCK_BLACK,
-            target_owner=AbilityTarget.ALLY,
-            is_onPlay=True,
-            is_passive=True,
-            requires_target=True,
-            blocked_card_colors=(ManaColor.BLACK,),
-        )
-
-    def _elsenhorn(self, card):
-        owner = card.owner
-        for collection in (owner.hand.cards, owner.deck.cards):
-            for candidate in collection:
-                if "elsenhorn" in str(candidate.name).lower():
-                    return collection, candidate
-        return None, None
-
-    def legal_target_positions(self, card, board):
-        collection, candidate = self._elsenhorn(card)
-        if candidate is None:
-            return []
-        return [
-            position for position, occupant in enumerate(board.positions)
-            if occupant is None
-        ]
-
-    def can_activate(self, card, board):
-        return bool(self.legal_target_positions(card, board))
-
-    def activate(self, card, board, args=None):
-        if args not in self.legal_target_positions(card, board):
-            raise ValueError("Choose an empty position for Inquisitor Elsenhorn")
-        collection, elsenhorn = self._elsenhorn(card)
-        if elsenhorn is None:
-            return
-        collection.remove(elsenhorn)
-        elsenhorn.owner = card.owner
-        board.stage_card(elsenhorn, args, nested=True)
+        for target in list(board.positions):
+            if target is None:
+                continue
+            if target.has_color(ManaColor.BLACK):
+                board.apply_stat_reduction(
+                    target,
+                    damage=1,
+                    health=1,
+                    source=card,
+                )
 
 
 class ShootOneHp(Ability):
@@ -1214,7 +1108,6 @@ class ShootOneHp(Ability):
             description="When this enters play, it may destroy any character with 1 health.",
             id=AbilityId.SHOOT_ONE_HP,
             target_owner=AbilityTarget.ANY,
-            is_onPlay=True,
             requires_target=True,
         )
 
@@ -1243,7 +1136,6 @@ class ResurrectStronger(Ability):
             ),
             id=AbilityId.RESURRECT_STRONGER,
             target_owner=AbilityTarget.ALLY,
-            is_onDeath=True,
         )
 
     def apply_onDeath(self, card, board, args=None):
@@ -1275,8 +1167,6 @@ class SidewaysMinusResurrect(ResurrectStronger):
             ),
             id=AbilityId.SIDEWAYS_MINUS_RESURRECT,
             target_owner=AbilityTarget.ANY,
-            is_passive=True,
-            is_onDeath=True,
         )
 
     def apply_passive(self, card, board, args=None):
@@ -1298,7 +1188,6 @@ class EatFirst(Ability):
             description="Removes the first card from the board.",
             id              = AbilityId.EAT_FIRST,
             target_owner=AbilityTarget.ANY,
-            is_active=True,
         )
     def activate(self, card, board, args=None):
         victim = board.positions[0]
@@ -1313,7 +1202,6 @@ class HitAll1Dmg(Ability):
             description="Removes all cards with 1 or less HP.",
             id              = AbilityId.HIT_ALL_1_DMG,
             target_owner=AbilityTarget.ANY,
-            is_active=True,
         )
     def activate(self, card, board, args=None):
         for i in range(0,6):
@@ -1328,8 +1216,6 @@ class InvertBoard(Ability):
             description="First card becomes last, last becomes first, etc..",
             id              = AbilityId.INVERT_BOARD,
             target_owner    = AbilityTarget.ANY,
-            is_active       = True,
-            is_passive      = False
         )
     def activate(self, card, board, args=None):
         board.positions.reverse()

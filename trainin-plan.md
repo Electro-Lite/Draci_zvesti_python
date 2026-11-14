@@ -115,8 +115,8 @@ missing:
 - opponent passed flag;
 - one-hot active mana instead of ordinal values 1, 2, and 3.
 
-Keeping the existing card-slot representation gives 158 inputs after these
-changes. Normalize numeric values to approximately `[0, 1]` or `[-1, 1]`.
+The expanded card-slot representation gives 393 inputs after these changes.
+Normalize numeric values to approximately `[0, 1]` or `[-1, 1]`.
 
 ### 2. Fitness must reflect player objectives
 
@@ -307,7 +307,7 @@ logical CPUs.
 Use the following as the proposed complete builder configuration:
 
 ```ini
-# Deck builder: 91 inputs = 12 deck slots * 7 features + 7 candidate features
+# Deck builder: 78 inputs = 12 deck slots * 6 features + 6 candidate features
 [NEAT]
 fitness_criterion     = max
 fitness_threshold     = 9999
@@ -356,7 +356,7 @@ node_add_prob           = 0.05
 node_delete_prob        = 0.02
 
 num_hidden              = 5
-num_inputs              = 91
+num_inputs              = 78
 num_outputs             = 2
 
 response_init_mean      = 1.0
@@ -397,7 +397,7 @@ Reasons for the main changes:
 
 ## Player-Evaluator NEAT Configuration
 
-This configuration assumes the 158-input, 28-output masked categorical action
+This configuration assumes the 393-input, 28-output masked categorical action
 representation described above:
 
 ```ini
@@ -449,7 +449,7 @@ node_add_prob           = 0.10
 node_delete_prob        = 0.05
 
 num_hidden              = 1
-num_inputs              = 158
+num_inputs              = 393
 num_outputs             = 28
 
 response_init_mean      = 1.0

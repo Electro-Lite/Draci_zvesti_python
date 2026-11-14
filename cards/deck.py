@@ -64,5 +64,5 @@ class Deck():
             deck_info.extend(card.get_neat_ids())
         unused_deck_space = 12 - len(self.cards) # 12 is max cards in deck TODO move this value to config
         if unused_deck_space > 0:
-            deck_info.extend([0] * 7 * unused_deck_space) # one card is represented by vector with 7 dimensions. TODO maybe better to calculate from card.get_neat_ids()
+            deck_info.extend([0] * 6 * unused_deck_space)
         return deck_info

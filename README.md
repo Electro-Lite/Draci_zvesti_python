@@ -102,7 +102,7 @@ The active menu flow supports:
 - random AI and compatible trained player-controller pickle files,
 - player-deck creation, validation, editing, deletion, and scrolling,
 - a selectable trained deck-builder advisor that ranks legal card additions
-  with the same 91-input network used by `neat_ai.deck_builder.build_deck`,
+  with the same 78-input network used by `neat_ai.deck_builder.build_deck`,
 - specific-deck player training and full deck-builder experiment setup,
 - active job progress plus compact completed-run and result summaries.
 
@@ -485,7 +485,7 @@ Current behavior:
 
 - trains player-controller populations for both decks,
 - uses `neat_ai/configs/neat_config_evaluator.txt`,
-- current config has `pop_size = 15`, `num_inputs = 158`,
+- current config has `pop_size = 15`, `num_inputs = 393`,
   `num_outputs = 28`,
 - uses masked categorical actions instead of modulo-repaired scalar actions,
 - defaults to 50 inner generations and 20 paired holdout seeds,

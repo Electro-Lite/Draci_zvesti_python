@@ -84,8 +84,6 @@ class Card:
         
     def get_neat_ids(self):
         neat_ids  = []
-        # power
-        neat_ids.append( self.power.value)
         # color
         neat_ids.append( self.color.value)
         # color buf
@@ -97,4 +95,4 @@ class Card:
         neat_ids.append( self.dmg)
         # ability
         neat_ids.append( self.ability.id.value)
-        return neat_ids # vector with 7 dimensions
+        return neat_ids # vector with 6 dimensions

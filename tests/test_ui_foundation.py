@@ -8,6 +8,7 @@ from unittest.mock import Mock, patch
 
 import pygame as pg
 
+from cards.card_builder_GUI import valid_color_pair
 from py_game.settings import AppSettings, SettingsStore
 from py_game.menu.lan_menu import LanMenu
 from py_game.menu.basic_play_menu import BasicPlayMenu
@@ -26,6 +27,13 @@ from py_game.ui.widgets import Button, DragController, TextInput
 from py_game.ui.neat_advanced import AdvancedNeatEditor, FIELDS_PER_PAGE
 from py_game.training_service import TrainingKind
 from utils.database_utils import DBUtil
+
+
+class CardBuilderValidationTests(unittest.TestCase):
+    def test_secondary_color_must_differ_from_primary(self):
+        self.assertFalse(valid_color_pair("RED", "RED"))
+        self.assertTrue(valid_color_pair("RED", "BLUE"))
+        self.assertTrue(valid_color_pair("RED", "None"))
 
 
 class LayoutTests(unittest.TestCase):

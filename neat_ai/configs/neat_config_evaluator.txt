@@ -53,7 +53,7 @@ node_add_prob           = 0.10
 node_delete_prob        = 0.05
 
 num_hidden              = 1
-num_inputs              = 158
+num_inputs              = 393
 num_outputs             = 28
 
 response_init_mean      = 1.0

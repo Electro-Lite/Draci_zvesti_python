@@ -1,4 +1,5 @@
 from . import display_strategy as interface
+from cards.ability.abilities import can_use_on_play
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -192,7 +193,7 @@ class DisplayStrategyCLI(interface.DisplayStrategy):
         string_print += "▶ Player_" + player_id + " plays "
         string_print += str(card.name) + " (DMG:" + str(card.dmg) + ", HP:" + str(card.hp) + ")"
         string_print += " at position " + str(position)
-        if getattr(card, "ability", None) and card.ability.is_active:
+        if getattr(card, "ability", None) and can_use_on_play(card.ability):
             string_print += " | Ability used: " + str(use_ability)
             string_print += " | Target: " + str(target)
         print(string_print)

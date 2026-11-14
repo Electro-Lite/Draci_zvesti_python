@@ -11,6 +11,7 @@ from core.enums.battle_phase                import BattlePhase
 from core.enums.card_death_type             import CardDeathType
 # from utils.print_tool                       import *
 from display_strategies.display_strategy    import DisplayStrategy
+from cards.ability.abilities                import Ability, can_use_on_play
 from cards.mana                             import ManaColor
 from core.enums.game_state                  import GameState
 
@@ -204,7 +205,7 @@ def run(
         if (
             player_1.get_card_count()
             + player_2.get_card_count()
-            + len(board.unique_cards())
+            + board.get_card_count()
             <= 0
         ):
             winner = get_winner(player_1, player_2)
@@ -214,13 +215,13 @@ def run(
         board.game_running = run # for pygame, #TODO move to display strategy pygame
 
         # Resolve survivor effects while the post-combat board is still intact.
-        for survivor in list(board.unique_cards()):
+        for survivor in list(board.positions):
+            if survivor is None:
+                continue
             ability = getattr(survivor, "ability", None)
             if (
                 ability
-                and getattr(ability, "is_onRoundEnd", False)
                 and survivor in board.positions
-                and not board.card_effects_blocked(survivor)
             ):
                 ability.apply_onRoundEnd(
                     survivor,
@@ -268,9 +269,6 @@ def _resolve_entered_card(
         display_strategy.display_choice(card, position, False, None)
         return
 
-    effects_blocked = bool(
-        getattr(board, "card_effects_blocked", lambda candidate: False)(card)
-    )
     automatic = bool(getattr(card.ability, "auto_activate_on_play", False))
     can_activate = bool(
         getattr(card.ability, "can_activate", lambda source, game_board: True)(
@@ -280,7 +278,7 @@ def _resolve_entered_card(
     )
     use_ability = (
         False
-        if effects_blocked or not can_activate
+        if not can_activate
         else True
         if automatic
         else choice_strategy.get_choice_use_ability()
@@ -364,10 +362,14 @@ def _apply_dragon_move_abilities(board, dragon, display_strategy, position):
     board.dragon_position = position
     for card in board.positions:
         ability = getattr(card, "ability", None) if card else None
+        if ability is None:
+            continue
+        try:
+            custom_hook = type(ability).apply_onDragonMove
+        except AttributeError:
+            continue
         if (
-            ability
-            and getattr(ability, "is_onDragonMove", False)
-            and not board.card_effects_blocked(card)
+            custom_hook is not Ability.apply_onDragonMove
         ):
             ability.apply_onDragonMove(card, board, dragon)
             display_strategy.display_dragon_vs_card()
@@ -394,10 +396,14 @@ def battle_dragon(board: Board, display_strategy: DisplayStrategy) -> Player:  #
     # Dispatch reveal hooks; each ability owns its effect and presentation event.
     for slot, card in enumerate(board.positions):
         ability = getattr(card, "ability", None) if card else None
+        if ability is None:
+            continue
+        try:
+            custom_hook = type(ability).apply_onDragonReveal
+        except AttributeError:
+            continue
         if (
-            ability
-            and getattr(ability, "is_onDragonReveal", False)
-            and not board.card_effects_blocked(card)
+            custom_hook is not Ability.apply_onDragonReveal
         ):
             ability.apply_onDragonReveal(card, board, dragon)
             display_strategy.display_dragon()
@@ -408,8 +414,7 @@ def battle_dragon(board: Board, display_strategy: DisplayStrategy) -> Player:  #
     ### activate dragon ability ###
     if (
         dragon.hp > 0
-        and dragon.ability.is_active
-        and not board.card_effects_blocked(dragon)
+        and can_use_on_play(dragon.ability)
     ):
         dragon.ability.activate(dragon, board)
         board.battle_event = {
