@@ -7,6 +7,8 @@ from .                                      import game_info as gi
 from .                                      import player as p
 from config                                 import Config
 from core.board                             import Board
+from core.enums.battle_phase                import BattlePhase
+from core.enums.card_death_type             import CardDeathType
 # from utils.print_tool                       import *
 from display_strategies.display_strategy    import DisplayStrategy
 from cards.mana                             import ManaColor
@@ -17,7 +19,7 @@ GameInfo    = gi.GameInfo
 
 
 def _remove_card(board, card, *, cause=None, source=None):
-    """Resolve contextual deaths while remaining compatible with simple boards."""
+    """Resolve deaths in compatible way."""
     try:
         board.remove_card(card, cause=cause, source=source)
     except TypeError as exc:
@@ -49,8 +51,7 @@ def _shuffle_deck(deck, seed: Optional[int], namespace: str) -> None:
     if seed is None:
         random.shuffle(deck.cards)
         return
-    # Canonicalizing first gives identical compositions the same draw order,
-    # even when their generated database IDs or construction order differ.
+    # presort to make seed based shuffle reproducible
     deck.cards.sort(key=lambda card: str(card.id))
     composition = ",".join(str(card.id) for card in deck.cards)
     random.Random(_derived_seed(seed, f"{namespace}:{composition}")).shuffle(deck.cards)
@@ -72,9 +73,6 @@ def run(
 
     ### Init Game ###
     current_round = 0
-    """run game for players of given type, random if not set"""
-    ### Init Game ###
-    current_round = 0
     run           = True
 
     # Give each player their own perspective of the game
@@ -83,15 +81,12 @@ def run(
 
     display_strategy = display_strategy_class(player_1, player_2, board)
 
-    # Assign unique info objects
+    # Assign info
     player_1.choice_strategy.info = info_p1  # Info is only needed by neat.
     player_2.choice_strategy.info = info_p2
 
-    player_1.choice_strategy.display    = display_strategy_class  # Info is only needed by pygame.
+    player_1.choice_strategy.display    = display_strategy_class
     player_2.choice_strategy.display    = display_strategy_class
-
-    # player_1.deck=decks_lib.get_base_blue_deck()    # Will be handled by db later
-    # player_2.deck=decks_lib.get_base_blue_deck()
 
     _shuffle_deck(player_1.deck, seed, "deck")
     _shuffle_deck(player_2.deck, seed, "deck")
@@ -104,13 +99,13 @@ def run(
 
     if starting_player_id is None:
         player_on_turn = random_player(player_1, player_2)
+        starting_player_id = player_on_turn.id
     elif starting_player_id == player_1.id:
         player_on_turn = player_1
     elif starting_player_id == player_2.id:
         player_on_turn = player_2
     else:
         raise ValueError(f"Unknown starting player id: {starting_player_id}")
-    first_player_id = player_on_turn.id
     winner = None
     ### Game loop ###
     while run:  ### ROUNDS
@@ -246,7 +241,7 @@ def run(
         player_2_score=player_2.score,
         winner_id=winner.id if winner is not None else None,
         rounds=current_round,
-        starting_player_id=first_player_id,
+        starting_player_id=starting_player_id,
         seed=seed,
         player_1_card_plays=dict(player_1.card_plays),
         player_2_card_plays=dict(player_2.card_plays),
@@ -331,7 +326,7 @@ def _prepare_nested_choice(choice_strategy, card, position):
 
 
 def play_card(player, choice_strategy, board, display_strategy):
-    """Stage a card and resolve the complete chain of cards entering play."""
+    """Stage a card and resolve chain of cards entering play."""
     card = choice_strategy.get_choice_card()
     position = choice_strategy.get_choice_pos()
     card.owner = player
@@ -385,12 +380,10 @@ def battle_dragon(board: Board, display_strategy: DisplayStrategy) -> Player:  #
     board.dragon = dragon
     board.dragon_base_dmg = dragon.dmg
     board.dragon_position = None
-    board.dragon_fanatic_tiebreak_owner = None
-    board.dragon_fanatic_tiebreak_card = None
-    board.dragon_fanatic_tiebreak_slot = None
+    board.round_win_claim = None
     display_strategy.dragon = dragon
     board.battle_event = {
-        "phase": "reveal",
+        "phase": BattlePhase.REVEAL,
         "card": None,
         "slot": None,
         "message": f"{dragon_name} enters the battle",
@@ -420,7 +413,7 @@ def battle_dragon(board: Board, display_strategy: DisplayStrategy) -> Player:  #
     ):
         dragon.ability.activate(dragon, board)
         board.battle_event = {
-            "phase": "dragon_ability",
+            "phase": BattlePhase.DRAGON_ABILITY,
             "card": None,
             "slot": None,
             "message": str(getattr(dragon.ability, "name", "Dragon ability")),
@@ -441,7 +434,7 @@ def battle_dragon(board: Board, display_strategy: DisplayStrategy) -> Player:  #
         # Neither fighter can make progress. End battle.
         if card.dmg <= 0 and dragon.dmg <= 0:
             board.battle_event = {
-                "phase": "stalemate",
+                "phase": BattlePhase.STALEMATE,
                 "card": card,
                 "slot": x,
                 "message": "Neither fighter can deal damage; the dragon survives",
@@ -450,7 +443,7 @@ def battle_dragon(board: Board, display_strategy: DisplayStrategy) -> Player:  #
             break
         while card.hp > 0 and dragon.hp > 0:
             board.battle_event = {
-                "phase": "versus",
+                "phase": BattlePhase.VERSUS,
                 "card": card,
                 "slot": x,
                 "message": f"{card_name} challenges {dragon_name}",
@@ -459,7 +452,7 @@ def battle_dragon(board: Board, display_strategy: DisplayStrategy) -> Player:  #
             dragon.hp -= card.dmg
             card.hp   -= dragon.dmg
             board.battle_event = {
-                "phase": "impact",
+                "phase": BattlePhase.IMPACT,
                 "card": card,
                 "slot": x,
                 "card_damage": dragon.dmg,
@@ -475,7 +468,7 @@ def battle_dragon(board: Board, display_strategy: DisplayStrategy) -> Player:  #
             winning_card = card
             winning_slot = x
             break
-        _remove_card(board, card, cause="dragon_combat", source=dragon)
+        _remove_card(board, card, cause=CardDeathType.DRAGON_COMBAT, source=dragon)
         if dragon.hp <= 0:
             dragon.slain_by = card.owner
             winning_card = card
@@ -483,42 +476,38 @@ def battle_dragon(board: Board, display_strategy: DisplayStrategy) -> Player:  #
             break
         board.recalculate(False)
         board.battle_event = {
-            "phase": "card_defeated",
+            "phase": BattlePhase.CARD_DEFEATED,
             "card": card,
             "slot": x,
             "message": f"{card_name} was defeated; board effects recalculate",
         }
         display_strategy.display_dragon_vs_card()
         _apply_dragon_move_abilities(board, dragon, display_strategy, x)
-    fanatic_winner = getattr(board, "dragon_fanatic_tiebreak_owner", None)
-    fanatic_wins_draw = dragon.slain_by is None and fanatic_winner is not None
-    round_winner = dragon.slain_by or fanatic_winner
-    if fanatic_wins_draw:
-        winning_card = getattr(board, "dragon_fanatic_tiebreak_card", None)
-        winning_slot = getattr(board, "dragon_fanatic_tiebreak_slot", None)
-    board.battle_event = {
-        "phase": (
-            "dragon_defeated"
-            if dragon.slain_by is not None
-            else "fanatic_tiebreak"
-            if fanatic_wins_draw
-            else "dragon_survived"
-        ),
-        "card": winning_card,
-        "slot": winning_slot,
-        "point_for": round_winner,
-        "message": (
-            f"{dragon_name} was defeated — Player {getattr(dragon.slain_by, 'id', '?')} earns the point"
-            if dragon.slain_by is not None
-            else (
-                "The dragon survived — Player "
-                f"{getattr(fanatic_winner, 'id', '?')} wins the draw because "
-                "their Dragon Fanatic was defeated first"
-            )
-            if fanatic_wins_draw
-            else f"{dragon_name} survived the round"
-        ),
-    }
+    ability_claim = board.round_win_claim if dragon.slain_by is None else None
+    round_winner = dragon.slain_by or (
+        ability_claim.winner if ability_claim is not None else None
+    )
+    if dragon.slain_by is not None:
+        board.battle_event = {
+            "phase": BattlePhase.DRAGON_DEFEATED,
+            "card": winning_card,
+            "slot": winning_slot,
+            "point_for": round_winner,
+            "message": (
+                f"{dragon_name} was defeated — Player "
+                f"{getattr(round_winner, 'id', '?')} earns the point"
+            ),
+        }
+    elif ability_claim is not None:
+        board.battle_event = ability_claim.battle_event()
+    else:
+        board.battle_event = {
+            "phase": BattlePhase.DRAGON_SURVIVED,
+            "card": None,
+            "slot": None,
+            "point_for": None,
+            "message": f"{dragon_name} survived the round",
+        }
     display_strategy.display_battle_result()
     # else put dragon to bottom#
     # TODO restore dragon is tmp solution, convert dragon to card of type Dragon !!!
@@ -528,9 +517,7 @@ def battle_dragon(board: Board, display_strategy: DisplayStrategy) -> Player:  #
     board.dragon = None
     board.dragon_base_dmg = None
     board.dragon_position = None
-    board.dragon_fanatic_tiebreak_owner = None
-    board.dragon_fanatic_tiebreak_card = None
-    board.dragon_fanatic_tiebreak_slot = None
+    board.round_win_claim = None
     board.battle_event = None
     return round_winner
 

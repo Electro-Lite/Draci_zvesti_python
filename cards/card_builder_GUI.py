@@ -118,12 +118,15 @@ class CardBuilderApp(ttk.Frame):
         self.name_var = tk.StringVar()
         self.type_var = tk.StringVar(value=CardType.PLAYER.name)
         self.color_var = tk.StringVar(value=ManaColor.RED.name)
+        self.secondary_color_var = tk.StringVar(value='None')
         self.power_var = tk.StringVar(value=Power.STARTER.name)
         self.ability_var = tk.StringVar()
         self.hp_var = tk.StringVar()
         self.dmg_var = tk.StringVar()
         self.buff_hp_var = tk.StringVar()
         self.buff_dmg_var = tk.StringVar()
+        self.secondary_buff_hp_var = tk.StringVar()
+        self.secondary_buff_dmg_var = tk.StringVar()
         self.image_var = tk.StringVar()
         self.loaded_card_id = None
         self.status_var = tk.StringVar(value="Ready")
@@ -142,6 +145,18 @@ class CardBuilderApp(ttk.Frame):
         self.lbl_color = ttk.Label(self.form, text="Color")
         self.cmb_color = ttk.Combobox(self.form, textvariable=self.color_var, state='readonly', width=18)
         self.cmb_color['values'] = [c.name for c in [ManaColor.RED, ManaColor.BLACK, ManaColor.BLUE, ManaColor.GREEN]]
+
+        self.lbl_secondary_color = ttk.Label(self.form, text="Secondary color")
+        self.cmb_secondary_color = ttk.Combobox(
+            self.form,
+            textvariable=self.secondary_color_var,
+            state='readonly',
+            width=18,
+        )
+        self.cmb_secondary_color['values'] = ['None'] + [
+            color.name
+            for color in (ManaColor.RED, ManaColor.BLACK, ManaColor.BLUE, ManaColor.GREEN)
+        ]
 
         self.lbl_power = ttk.Label(self.form, text="Power")
         self.cmb_power = ttk.Combobox(self.form, textvariable=self.power_var, state='readonly', width=18)
@@ -169,6 +184,22 @@ class CardBuilderApp(ttk.Frame):
 
         self.lbl_buff_dmg = ttk.Label(self.form, text="Buff DMG")
         self.ent_buff_dmg = ttk.Entry(self.form, textvariable=self.buff_dmg_var, validate='key', validatecommand=vcmd)
+
+        self.lbl_secondary_buff_hp = ttk.Label(self.form, text="Secondary buff HP")
+        self.ent_secondary_buff_hp = ttk.Entry(
+            self.form,
+            textvariable=self.secondary_buff_hp_var,
+            validate='key',
+            validatecommand=vcmd,
+        )
+
+        self.lbl_secondary_buff_dmg = ttk.Label(self.form, text="Secondary buff DMG")
+        self.ent_secondary_buff_dmg = ttk.Entry(
+            self.form,
+            textvariable=self.secondary_buff_dmg_var,
+            validate='key',
+            validatecommand=vcmd,
+        )
 
         self.lbl_image = ttk.Label(self.form, text="Image")
         self.btn_browse = ttk.Button(self.form, text="Browse…", command=self.browse_image)
@@ -206,6 +237,9 @@ class CardBuilderApp(ttk.Frame):
         self.lbl_color.grid(row=r, column=0, sticky='e', **pad_opts)
         self.cmb_color.grid(row=r, column=1, sticky='w', **pad_opts)
         r += 1
+        self.lbl_secondary_color.grid(row=r, column=0, sticky='e', **pad_opts)
+        self.cmb_secondary_color.grid(row=r, column=1, sticky='w', **pad_opts)
+        r += 1
         self.lbl_power.grid(row=r, column=0, sticky='e', **pad_opts)
         self.cmb_power.grid(row=r, column=1, sticky='w', **pad_opts)
         r += 1
@@ -223,6 +257,12 @@ class CardBuilderApp(ttk.Frame):
         r += 1
         self.lbl_buff_dmg.grid(row=r, column=0, sticky='e', **pad_opts)
         self.ent_buff_dmg.grid(row=r, column=1, sticky='w', **pad_opts)
+        r += 1
+        self.lbl_secondary_buff_hp.grid(row=r, column=0, sticky='e', **pad_opts)
+        self.ent_secondary_buff_hp.grid(row=r, column=1, sticky='w', **pad_opts)
+        r += 1
+        self.lbl_secondary_buff_dmg.grid(row=r, column=0, sticky='e', **pad_opts)
+        self.ent_secondary_buff_dmg.grid(row=r, column=1, sticky='w', **pad_opts)
         r += 1
         self.lbl_image.grid(row=r, column=0, sticky='e', **pad_opts)
         self.btn_browse.grid(row=r, column=1, sticky='w', padx=4, pady=(6, 0))
@@ -245,16 +285,28 @@ class CardBuilderApp(ttk.Frame):
     def refresh_ui_by_type(self):
         t = self.type_var.get()
         if t == CardType.DRAGON.name:
+            self.lbl_secondary_color.grid_remove()
+            self.cmb_secondary_color.grid_remove()
             self.lbl_buff_hp.grid_remove()
             self.ent_buff_hp.grid_remove()
             self.lbl_buff_dmg.grid_remove()
             self.ent_buff_dmg.grid_remove()
+            self.lbl_secondary_buff_hp.grid_remove()
+            self.ent_secondary_buff_hp.grid_remove()
+            self.lbl_secondary_buff_dmg.grid_remove()
+            self.ent_secondary_buff_dmg.grid_remove()
             self.clear_preview()
         else:
+            self.lbl_secondary_color.grid()
+            self.cmb_secondary_color.grid()
             self.lbl_buff_hp.grid()
             self.ent_buff_hp.grid()
             self.lbl_buff_dmg.grid()
             self.ent_buff_dmg.grid()
+            self.lbl_secondary_buff_hp.grid()
+            self.ent_secondary_buff_hp.grid()
+            self.lbl_secondary_buff_dmg.grid()
+            self.ent_secondary_buff_dmg.grid()
         self.show_preview(self.image_var.get())
 
     def browse_image(self):
@@ -463,6 +515,10 @@ class CardBuilderApp(ttk.Frame):
             self.power_var.set(c.power.name or Power.STARTER.name)
             self.type_var.set(c.type.name   or CardType.PLAYER.name)
             self.color_var.set(c.color      or ManaColor.BLUE.name)
+            secondary_color = getattr(c, 'secondary_color', None)
+            self.secondary_color_var.set(
+                secondary_color.name if secondary_color is not None else 'None'
+            )
 
             # ability: DB stores string; try to make instance and set name
             ability_val = getattr(c, 'ability', None)
@@ -487,6 +543,9 @@ class CardBuilderApp(ttk.Frame):
             self.dmg_var.set(       str(getattr(c, 'dmg', '')           or ''))
             self.buff_dmg_var.set(  str(getattr(c, 'color_buf', '')[0]  or ''))
             self.buff_hp_var.set(   str(getattr(c, 'color_buf', '')[1]  or ''))
+            secondary_buff = getattr(c, 'secondary_color_buf', (0, 0))
+            self.secondary_buff_dmg_var.set(str(secondary_buff[0] or ''))
+            self.secondary_buff_hp_var.set(str(secondary_buff[1] or ''))
 
             # image
             img = getattr(c, 'image', None)
@@ -508,7 +567,15 @@ class CardBuilderApp(ttk.Frame):
             return False, 'Name is required.'
         if self.ability_var.get() not in self.ability_names:
             return False, 'Selected ability is invalid.'
-        for var, label in [(self.hp_var, 'HP'), (self.dmg_var, 'DMG'), (self.buff_hp_var, 'Buff HP'), (self.buff_dmg_var, 'Buff DMG')]:
+        numeric_fields = [
+            (self.hp_var, 'HP'),
+            (self.dmg_var, 'DMG'),
+            (self.buff_hp_var, 'Buff HP'),
+            (self.buff_dmg_var, 'Buff DMG'),
+            (self.secondary_buff_hp_var, 'Secondary buff HP'),
+            (self.secondary_buff_dmg_var, 'Secondary buff DMG'),
+        ]
+        for var, label in numeric_fields:
             if var.get() and not var.get().isdigit():
                 return False, f'{label} must be an integer.'
         return True, ''
@@ -531,7 +598,16 @@ class CardBuilderApp(ttk.Frame):
                 ability     = ability_inst,
                 hp          = int(self.hp_var.get()) if self.hp_var.get() else 0,
                 dmg         = int(self.dmg_var.get()) if self.dmg_var.get() else 0,
-                color_buf   = [int(self.buff_hp_var.get()) if self.buff_hp_var.get() else 0, int(self.buff_dmg_var.get()) if self.buff_dmg_var.get() else 0],
+                color_buf   = [int(self.buff_dmg_var.get()) if self.buff_dmg_var.get() else 0, int(self.buff_hp_var.get()) if self.buff_hp_var.get() else 0],
+                secondary_color=(
+                    None
+                    if self.secondary_color_var.get() == 'None'
+                    else self.secondary_color_var.get()
+                ),
+                secondary_color_buf=[
+                    int(self.secondary_buff_dmg_var.get()) if self.secondary_buff_dmg_var.get() else 0,
+                    int(self.secondary_buff_hp_var.get()) if self.secondary_buff_hp_var.get() else 0,
+                ],
                 image       = self.image_var.get() if self.image_var.get() else None,
             )
 
@@ -555,12 +631,15 @@ class CardBuilderApp(ttk.Frame):
         self.name_var.set('')
         self.type_var.set(CardType.PLAYER.name)
         self.color_var.set(ManaColor.RED.name)
+        self.secondary_color_var.set('None')
         self.power_var.set(Power.STARTER.name)
         self.ability_var.set(self.ability_names[0])
         self.hp_var.set('')
         self.dmg_var.set('')
         self.buff_hp_var.set('')
         self.buff_dmg_var.set('')
+        self.secondary_buff_hp_var.set('')
+        self.secondary_buff_dmg_var.set('')
         self.image_var.set('')
         self.loaded_card_id = None
         self.refresh_ui_by_type()

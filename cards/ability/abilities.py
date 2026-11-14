@@ -1,6 +1,8 @@
 from cards.ability.ability_target   import AbilityTarget
 from cards.ability.ability_id       import AbilityId
 from cards.mana                     import ManaColor
+from core.enums.battle_phase         import BattlePhase
+from core.enums.card_death_type      import CardDeathType
 import random
 from typing                         import TYPE_CHECKING
 
@@ -481,13 +483,20 @@ class DragonFanaticDrawWin(Ability):
 
     def apply_onDeath(self, card, board, args=None):
         args = args or {}
-        if args.get("cause") != "dragon_combat":
+        if args.get("cause") != CardDeathType.DRAGON_COMBAT:
             return
-        if getattr(board, "dragon_fanatic_tiebreak_owner", None) is not None:
-            return
-        board.dragon_fanatic_tiebreak_owner = card.owner
-        board.dragon_fanatic_tiebreak_card = card
-        board.dragon_fanatic_tiebreak_slot = args.get("position")
+        board.claim_round_win(
+            winner=card.owner,
+            card=card,
+            slot=args.get("position"),
+            phase=BattlePhase.FANATIC_TIEBREAK,
+            message=(
+                "The dragon survived — Player "
+                f"{getattr(card.owner, 'id', '?')} wins the draw because "
+                "their Dragon Fanatic was defeated first"
+            ),
+        )
+
 
 class ReturnByDeath(Ability):
     def __init__(self):
@@ -519,7 +528,7 @@ class HitDragon2Dmg(Ability):
         if defeated:
             dragon.slain_by = card.owner
         board.battle_event = {
-            "phase": "dragon_defeated" if defeated else "dragon_reveal_ability",
+            "phase": BattlePhase.DRAGON_DEFEATED if defeated else BattlePhase.DRAGON_REVEAL_ABILITY,
             "card": card,
             "slot": -1,
             "dragon_damage": 2,
@@ -564,7 +573,7 @@ class HitDragonBlueInfrontDmg(Ability):
             dragon.slain_by = card.owner
         dragon_name = str(getattr(dragon, "name", "Dragon"))
         board.battle_event = {
-            "phase": "dragon_defeated" if defeated else "dragon_reveal_ability",
+            "phase": BattlePhase.DRAGON_DEFEATED if defeated else BattlePhase.DRAGON_REVEAL_ABILITY,
             "card": card,
             "slot": -1,
             "source_slot": source_position,
@@ -593,7 +602,7 @@ class HealDragon1(Ability):
         dragon.hp = min(max_hp, previous_hp + 1)
         healing = max(0, dragon.hp - previous_hp)
         board.battle_event = {
-            "phase": "dragon_move_ability",
+            "phase": BattlePhase.DRAGON_MOVE_ABILITY,
             "card": card,
             # Keep the dragon marker at its actual position. The source card
             # may be elsewhere on the board.
@@ -736,7 +745,7 @@ class InvertBoardOnPlay(Ability):
         )
 
     def activate(self, card, board, args=None):
-        board.reverse_movable_positions()
+        board.reverse_positions()
 
 
 class EatHighestHp(Ability):
@@ -763,7 +772,7 @@ class EatHighestHp(Ability):
         highest = max(candidate.hp for candidate in candidates)
         for victim in [candidate for candidate in candidates if candidate.hp == highest]:
             if victim in board.positions:
-                board.remove_card(victim, cause="eaten", source=card)
+                board.remove_card(victim, cause=CardDeathType.EATEN, source=card)
 
 
 class SwapAndAttack(Ability):
@@ -796,13 +805,13 @@ class SwapAndAttack(Ability):
         target = args
         current = board.positions.index(card)
         if target not in self.legal_target_positions(card, board):
-            raise ValueError("Swap target must be an adjacent movable character")
+            raise ValueError("Swap target must be an adjacent character")
         board.swap_positions(current, target)
         front = board.positions.index(card) - 1
         if front >= 0:
             victim = board.positions[front]
             if victim is not None and victim is not card and victim.hp <= card.dmg:
-                board.remove_card(victim, cause="ability_damage", source=card)
+                board.remove_card(victim, cause=CardDeathType.ABILITY_DAMAGE, source=card)
 
 
 class SwapAndBuffSideways(SwapAndAttack):
@@ -825,7 +834,7 @@ class SwapAndBuffSideways(SwapAndAttack):
         target = args
         current = board.positions.index(card)
         if target not in self.legal_target_positions(card, board):
-            raise ValueError("Swap target must be an adjacent movable character")
+            raise ValueError("Swap target must be an adjacent character")
         board.swap_positions(current, target)
 
     def apply_passive(self, card, board, args=None):
@@ -882,7 +891,7 @@ class EatFront(Ability):
         if position > 0:
             victim = board.positions[position - 1]
             if victim is not None and victim is not card:
-                board.remove_card(victim, cause="eaten", source=card)
+                board.remove_card(victim, cause=CardDeathType.EATEN, source=card)
 
 
 class OccupyTwo(Ability):
@@ -909,18 +918,13 @@ class Immovable(Ability):
     def __init__(self):
         super().__init__(
             name="Cannot be moved or overtaken",
-            description=(
-                "This card cannot move or be overtaken. A card moving to the "
-                "front stops immediately behind it."
-            ),
+            description="This ability is not implemented.",
             id=AbilityId.IMMUTABLE_POSITION,
             target_owner=AbilityTarget.ANY,
             is_passive=True,
         )
-        self.immovable = True
-
     def apply_passive(self, card, board, args=None):
-        pass
+        raise NotImplementedError("Immovable ability is not implemented")
 
 
 class ShuffleChosenSide(Ability):
@@ -955,7 +959,6 @@ class ShuffleChosenSide(Ability):
             index for index, candidate in enumerate(board.positions)
             if candidate is not None
             and candidate.owner is owner
-            and not getattr(candidate.ability, "immovable", False)
         ]
         cards = [board.positions[index] for index in positions]
         original = list(cards)
@@ -1034,7 +1037,7 @@ class HealEaterDragon(Ability):
     def apply_onDeath(self, card, board, args=None):
         args = args or {}
         dragon = args.get("source")
-        if args.get("cause") != "dragon_combat" or dragon is None:
+        if args.get("cause") != CardDeathType.DRAGON_COMBAT or dragon is None:
             return
         initial = getattr(dragon, "init_args", ())
         if len(initial) > 5:
@@ -1131,7 +1134,7 @@ class AttackFrontOnDragonReveal(Ability):
                 continue
             if victim is card or card.dmg < victim.hp:
                 break
-            board.remove_card(victim, cause="ability_damage", source=card)
+            board.remove_card(victim, cause=CardDeathType.ABILITY_DAMAGE, source=card)
             if card not in board.positions:
                 break
             current = board.positions.index(card)
@@ -1227,7 +1230,7 @@ class ShootOneHp(Ability):
     def activate(self, card, board, args=None):
         if args not in self.legal_target_positions(card, board):
             raise ValueError("Target must be another character with exactly 1 health")
-        board.remove_card(board.positions[args], cause="ability_damage", source=card)
+        board.remove_card(board.positions[args], cause=CardDeathType.ABILITY_DAMAGE, source=card)
 
 
 class ResurrectStronger(Ability):
@@ -1245,7 +1248,7 @@ class ResurrectStronger(Ability):
 
     def apply_onDeath(self, card, board, args=None):
         args = args or {}
-        if args.get("cause") == "dragon_combat" or getattr(card, "_resurrected_once", False):
+        if args.get("cause") == CardDeathType.DRAGON_COMBAT or getattr(card, "_resurrected_once", False):
             return
         position = args.get("position")
         if position is None or board.positions[position] is not None:
@@ -1300,7 +1303,7 @@ class EatFirst(Ability):
     def activate(self, card, board, args=None):
         victim = board.positions[0]
         if victim is not None:
-            board.remove_card(victim, cause="dragon_combat", source=card)
+            board.remove_card(victim, cause=CardDeathType.DRAGON_COMBAT, source=card)
 
 # Red dragon
 class HitAll1Dmg(Ability):

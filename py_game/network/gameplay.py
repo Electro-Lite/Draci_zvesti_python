@@ -7,6 +7,8 @@ from uuid import uuid4
 
 from cards.ability.ability_target import AbilityTarget
 from cards.ability.abilities import can_use_on_play
+from choice_strategies.choice_type import ChoiceType
+from core.enums.battle_phase import BattlePhase
 from choice_strategies.choice_strategy import PlayerChoiceStrategy
 from display_strategies.display_strategy_none import DisplayStrategyNone
 from py_game.battle_presentation import (
@@ -15,6 +17,7 @@ from py_game.battle_presentation import (
 )
 
 from .protocol import MessageType
+from .enums import MatchStatus
 
 
 def _enum_value(value):
@@ -54,7 +57,9 @@ def serialize_card(card, local_player) -> dict | None:
     }
 
 
-def serialize_game_state(board, local_player, opponent, *, status: str = "playing") -> dict:
+def serialize_game_state(
+    board, local_player, opponent, *, status: MatchStatus = MatchStatus.PLAYING
+) -> dict:
     """Return a guest-safe public state with no opponent hand or deck order."""
     mana = None
     if getattr(board, "mana_pool", None):
@@ -75,6 +80,7 @@ def serialize_game_state(board, local_player, opponent, *, status: str = "playin
             if key not in {"card", "point_for"}
         }
         battle["card"] = serialize_card(raw_battle.get("card"), local_player)
+        battle["phase"] = BattlePhase(raw_battle["phase"]).value
         point_for = raw_battle.get("point_for")
         battle["point_for"] = (
             "local"
@@ -84,7 +90,7 @@ def serialize_game_state(board, local_player, opponent, *, status: str = "playin
             else None
         )
     return {
-        "status": status,
+        "status": MatchStatus(status).value,
         "round": int(getattr(board, "round", 0)),
         "game_state": _enum_value(getattr(board, "game_state", None)),
         "mana": mana,
@@ -166,10 +172,12 @@ class HostMatchChannel:
                 match_id=self.match_id,
             )
 
-    def request_action(self, choice_type: str, extra: dict | None = None, timeout=120.0):
+    def request_action(
+        self, choice_type: ChoiceType, extra: dict | None = None, timeout=120.0
+    ):
         request_id = uuid4().hex
         payload = {
-            "choice_type": choice_type,
+            "choice_type": ChoiceType(choice_type).value,
             "state": self.snapshot_provider(),
         }
         payload.update(extra or {})
@@ -241,7 +249,7 @@ class RemoteChoiceStrategy(PlayerChoiceStrategy):
             return False
 
         return self._request_valid(
-            "play_or_pass",
+            ChoiceType.PLAY_OR_PASS,
             choose,
             {"legal_indices": legal},
         )
@@ -264,7 +272,7 @@ class RemoteChoiceStrategy(PlayerChoiceStrategy):
             return hand.pop(value)
 
         self.selected_card = self._request_valid(
-            "card",
+            ChoiceType.CARD,
             select,
             {"legal_indices": legal},
         )
@@ -279,7 +287,7 @@ class RemoteChoiceStrategy(PlayerChoiceStrategy):
             return value
 
         self.selected_position = self._request_valid(
-            "position",
+            ChoiceType.POSITION,
             select,
             {"legal_indices": legal},
         )
@@ -299,7 +307,7 @@ class RemoteChoiceStrategy(PlayerChoiceStrategy):
         ):
             return False
         return self._request_valid(
-            "use_ability",
+            ChoiceType.USE_ABILITY,
             lambda value: value if isinstance(value, bool) else _raise("Ability choice must be boolean"),
         )
 
@@ -357,7 +365,7 @@ class RemoteChoiceStrategy(PlayerChoiceStrategy):
         extra = {"legal_indices": legal}
         if option_labels:
             extra["option_labels"] = list(option_labels)
-        return self._request_valid("target", select, extra)
+        return self._request_valid(ChoiceType.TARGET, select, extra)
 
     def get_choice_ability_card(self):
         if self.selected_card is None:
@@ -376,7 +384,7 @@ class RemoteChoiceStrategy(PlayerChoiceStrategy):
             return hand[value]
 
         return self._request_valid(
-            "ability_card",
+            ChoiceType.ABILITY_CARD,
             select,
             {"legal_indices": legal},
         )
@@ -393,7 +401,7 @@ class RemoteChoiceStrategy(PlayerChoiceStrategy):
             return candidates[value]
 
         return self._request_valid(
-            f"{zone}_card",
+            ChoiceType(f"{zone}_card"),
             select,
             {
                 "legal_indices": legal,

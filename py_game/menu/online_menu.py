@@ -8,6 +8,7 @@ from config import Config
 from py_game.menu.base_menu import Menu
 from py_game.network.decks import reconstruct_remote_deck, serialize_deck_selection
 from py_game.network.lobby import HostLobbyController
+from py_game.network.enums import LobbyRole, LobbyStatus
 from py_game.network.protocol import MessageType
 from py_game.network.session import ConnectionState, OnlineClient, hello_payload
 from utils.database_utils import DBUtil
@@ -27,7 +28,7 @@ class OnlineMenu(Menu):
         self.message_color = self.game.palette.muted
         self.session = OnlineClient()
         self.connected = False
-        self.role: str | None = None
+        self.role: LobbyRole | None = None
         self.online_lobby: dict | None = None
         self.lobbies: list[dict] = []
         self.browser_page = 0
@@ -188,9 +189,9 @@ class OnlineMenu(Menu):
             self.server_status = payload
         elif message_type == MessageType.ONLINE_LOBBY:
             self.online_lobby = payload
-            self.role = payload.get("role")
+            self.role = LobbyRole(payload["role"])
             self.selected = 0
-            if self.role == "host":
+            if self.role == LobbyRole.HOST:
                 self.mode = "host_lobby"
                 if self.lobby is None:
                     self.lobby = HostLobbyController(
@@ -207,7 +208,7 @@ class OnlineMenu(Menu):
                 if not payload.get("guest_name") and self.lobby.state.guest:
                     self.lobby.state.guest = None
                     self.lobby.guest_deck = None
-                    self.lobby.state.status = "waiting_for_player"
+                    self.lobby.state.status = LobbyStatus.WAITING_FOR_PLAYER
                 self.message = "Lobby created; waiting for another player"
             else:
                 self.mode = "guest_lobby"
@@ -230,7 +231,7 @@ class OnlineMenu(Menu):
         if message_type == MessageType.ERROR:
             self._set_error(str(payload.get("message", "Online request failed")))
             return
-        if self.role == "host" and self.lobby:
+        if self.role == LobbyRole.HOST and self.lobby:
             if message_type == MessageType.START_MATCH:
                 return
             try:
@@ -248,7 +249,7 @@ class OnlineMenu(Menu):
                     request_id=message.request_id,
                 )
             return
-        if self.role == "guest":
+        if self.role == LobbyRole.GUEST:
             if message_type in (MessageType.HELLO_ACCEPTED, MessageType.LOBBY_STATE):
                 self.remote_lobby = payload
                 self.guest_ready = bool((payload.get("guest") or {}).get("ready"))
@@ -296,7 +297,7 @@ class OnlineMenu(Menu):
                     request_id=uuid4().hex,
                 )
             elif event.kind == "message" and event.message:
-                if event.message.type == MessageType.START_MATCH.value and self.role == "guest":
+                if event.message.type == MessageType.START_MATCH.value and self.role == LobbyRole.GUEST:
                     for pending in relay_events[index + 1 :]:
                         self.session._relay_events.put(pending)
                     self._handle_relay_message(event.message)
@@ -351,7 +352,7 @@ class OnlineMenu(Menu):
             return
         self.deck_index = (self.deck_index + direction) % len(self.deck_ids)
         deck_id = self.deck_ids[self.deck_index]
-        if self.role == "host":
+        if self.role == LobbyRole.HOST:
             try:
                 self.lobby.select_host_deck(deck_id)
                 self._send(MessageType.LOBBY_STATE, self.lobby.state.public_payload())

@@ -128,7 +128,7 @@ class DeathAbilityTests(unittest.TestCase):
 
         board.remove_card(fanatic, cause="ability_damage")
 
-        self.assertIsNone(board.dragon_fanatic_tiebreak_owner)
+        self.assertIsNone(board.round_win_claim)
 
     def test_normal_dragon_kill_overrides_earlier_fanatic_tiebreak(self):
         fanatic_owner = SimpleNamespace(graveyard=[], id=1)

@@ -33,6 +33,8 @@ from .protocol import (
     SequenceGuard,
     encode_message,
 )
+from .enums import ClientKind, LobbyRole, LobbyStatus
+from .session import ConnectionState
 
 
 PASSWORD_ITERATIONS = 120_000
@@ -134,10 +136,10 @@ class OnlineLobby:
             "server_authoritative": self.server_authoritative,
         }
 
-    def state(self, role: str) -> dict[str, Any]:
+    def state(self, role: LobbyRole) -> dict[str, Any]:
         return {
             **self.listing(),
-            "role": role,
+            "role": LobbyRole(role).value,
             "guest_name": self.guest_name,
         }
 
@@ -155,7 +157,9 @@ class OnlineLobby:
                 "deck_name": getattr(self.guest_deck, "name", None),
                 "ready": self.guest_ready,
             } if self.guest_id else None),
-            "status": "ready" if self.can_start else "configuring",
+            "status": (
+                LobbyStatus.READY if self.can_start else LobbyStatus.CONFIGURING
+            ).value,
             "server_authoritative": self.server_authoritative,
         }
 
@@ -248,19 +252,19 @@ class LobbyDirectory:
         lobby.guest_name = player_name
         return lobby
 
-    def leave(self, client_id: str) -> tuple[OnlineLobby | None, str | None]:
+    def leave(self, client_id: str) -> tuple[OnlineLobby | None, LobbyRole | None]:
         lobby = self.lobby_for(client_id)
         if lobby is None:
             return None, None
         if lobby.host_id == client_id:
             del self.lobbies[lobby.lobby_id]
-            return lobby, "host"
+            return lobby, LobbyRole.HOST
         lobby.guest_id = None
         lobby.guest_name = None
         lobby.active_match = False
         lobby.guest_deck = None
         lobby.guest_ready = False
-        return lobby, "guest"
+        return lobby, LobbyRole.GUEST
 
     def open_lobbies(self) -> list[dict[str, Any]]:
         return [
@@ -279,7 +283,7 @@ class RelayConnection:
         self.entry_path = getattr(getattr(websocket, "request", None), "path", "/game")
         self.client_id = secrets.token_hex(12)
         self.player_name = ""
-        self.client_kind = "native"
+        self.client_kind = ClientKind.NATIVE
         self.resume_token: str | None = None
         self.decoder = FrameDecoder()
         self.incoming_sequence = SequenceGuard()
@@ -391,9 +395,9 @@ class OnlineRelayServer:
         host = self.clients.get(lobby.host_id)
         guest = self.clients.get(lobby.guest_id or "")
         if host:
-            await self._try_send(host, MessageType.ONLINE_LOBBY, lobby.state("host"))
+            await self._try_send(host, MessageType.ONLINE_LOBBY, lobby.state(LobbyRole.HOST))
         if guest:
-            await self._try_send(guest, MessageType.ONLINE_LOBBY, lobby.state("guest"))
+            await self._try_send(guest, MessageType.ONLINE_LOBBY, lobby.state(LobbyRole.GUEST))
 
     async def _send_authoritative_state(
         self,
@@ -440,7 +444,7 @@ class OnlineRelayServer:
         self,
         match,
         client_id: str,
-        status: str,
+        status: ConnectionState,
     ) -> None:
         peer_id = match.peer_id(client_id)
         peer = self.clients.get(peer_id or "")
@@ -449,8 +453,8 @@ class OnlineRelayServer:
                 peer,
                 MessageType.PEER_CONNECTION_STATUS,
                 {
-                    "status": status,
-                    "reconnectable": status == "disconnected",
+                    "status": status.value,
+                    "reconnectable": status == ConnectionState.DISCONNECTED,
                     "grace_seconds": self.disconnect_grace_seconds,
                 },
                 match_id=match.match_id,
@@ -468,7 +472,7 @@ class OnlineRelayServer:
             match = self._match_for_client(client_id)
             if match:
                 self.disconnect_notified.add(client_id)
-                await self._notify_peer_connection(match, client_id, "disconnected")
+                await self._notify_peer_connection(match, client_id, ConnectionState.DISCONNECTED)
                 return
             await self._leave_lobby(client, "The other player disconnected")
             self._forget_session(client_id)
@@ -496,7 +500,7 @@ class OnlineRelayServer:
         self.clients.pop(client.client_id, None)
         client.client_id = client_id
         client.player_name = player_name
-        client.client_kind = "web"
+        client.client_kind = ClientKind.WEB
         client.resume_token = token
         self.clients[client_id] = client
         task = self.disconnect_tasks.pop(client_id, None)
@@ -522,7 +526,7 @@ class OnlineRelayServer:
             {"lobbies": self.directory.open_lobbies()},
         )
         if lobby:
-            role = "host" if lobby.host_id == client_id else "guest"
+            role = LobbyRole.HOST if lobby.host_id == client_id else LobbyRole.GUEST
             await client.send(
                 MessageType.ONLINE_LOBBY,
                 {**lobby.state(role), "resumed": True},
@@ -532,7 +536,7 @@ class OnlineRelayServer:
         if match:
             await match.resume_client(client_id)
             if peer_was_notified:
-                await self._notify_peer_connection(match, client_id, "connected")
+                await self._notify_peer_connection(match, client_id, ConnectionState.CONNECTED)
         return True
 
     async def _start_authoritative_match(self, lobby: OnlineLobby) -> None:
@@ -571,9 +575,9 @@ class OnlineRelayServer:
     ) -> bool:
         message_type = MessageType(message.type)
         payload = message.payload or {}
-        role = "host" if lobby.host_id == client.client_id else "guest"
+        role = LobbyRole.HOST if lobby.host_id == client.client_id else LobbyRole.GUEST
         if message_type == MessageType.HELLO:
-            if role != "guest":
+            if role != LobbyRole.GUEST:
                 raise ValueError("Only the joining player completes the lobby handshake")
             await self._send_authoritative_state(
                 lobby,
@@ -588,7 +592,7 @@ class OnlineRelayServer:
                 payload.get("deck"),
                 load_authoritative_card,
             )
-            if role == "host":
+            if role == LobbyRole.HOST:
                 lobby.host_deck = deck
                 lobby.host_ready = False
             else:
@@ -600,17 +604,17 @@ class OnlineRelayServer:
             ready = payload.get("ready")
             if not isinstance(ready, bool):
                 raise ValueError("Ready state must be a boolean")
-            selected = lobby.host_deck if role == "host" else lobby.guest_deck
+            selected = lobby.host_deck if role == LobbyRole.HOST else lobby.guest_deck
             if ready and selected is None:
                 raise ValueError("Select a valid deck before becoming ready")
-            if role == "host":
+            if role == LobbyRole.HOST:
                 lobby.host_ready = ready
             else:
                 lobby.guest_ready = ready
             await self._send_authoritative_state(lobby)
             return True
         if message_type == MessageType.START_MATCH:
-            if role != "host":
+            if role != LobbyRole.HOST:
                 raise ValueError("Only the lobby host can start a match")
             await self._start_authoritative_match(lobby)
             return True
@@ -649,7 +653,7 @@ class OnlineRelayServer:
         lobby, role = self.directory.leave(client.client_id)
         if lobby is None:
             return
-        if role == "host" and lobby.guest_id:
+        if role == LobbyRole.HOST and lobby.guest_id:
             guest = self.clients.get(lobby.guest_id)
             if guest:
                 await self._try_send(
@@ -658,7 +662,7 @@ class OnlineRelayServer:
                     {"reason": reason},
                 )
                 await self._try_send(guest, MessageType.DISCONNECT, {"reason": reason})
-        elif role == "guest":
+        elif role == LobbyRole.GUEST:
             host = self.clients.get(lobby.host_id)
             if host:
                 await self._try_send(host, MessageType.DISCONNECT, {"reason": reason})
@@ -718,15 +722,16 @@ class OnlineRelayServer:
                 raise ValueError("Application version mismatch")
             if not 1 <= len(name) <= 24:
                 raise ValueError("Player name must contain 1-24 characters")
-            client_kind = str(payload.get("client_kind", "native"))
-            if client_kind not in {"native", "web"}:
-                raise ValueError("Unsupported online client kind")
-            if client_kind == "web" and not self._is_browser_entry_path(
+            try:
+                client_kind = ClientKind(payload.get("client_kind", ClientKind.NATIVE))
+            except ValueError as error:
+                raise ValueError("Unsupported online client kind") from error
+            if client_kind == ClientKind.WEB and not self._is_browser_entry_path(
                 client.entry_path
             ):
                 raise ValueError("Browser clients must use the protected browser endpoint")
             resume_token = str(payload.get("resume_token", ""))
-            if client_kind == "web" and resume_token and await self._resume_browser_connection(
+            if client_kind == ClientKind.WEB and resume_token and await self._resume_browser_connection(
                 client,
                 resume_token,
                 name,
@@ -735,7 +740,7 @@ class OnlineRelayServer:
                 return
             client.player_name = name
             client.client_kind = client_kind
-            if client_kind == "web":
+            if client_kind == ClientKind.WEB:
                 client.resume_token = secrets.token_urlsafe(32)
                 self.resume_tokens[client.resume_token] = client.client_id
                 self.client_tokens[client.client_id] = client.resume_token
@@ -777,7 +782,7 @@ class OnlineRelayServer:
                 client.player_name,
                 payload.get("name", ""),
                 payload.get("password", ""),
-                server_authoritative=client.client_kind == "web",
+                server_authoritative=client.client_kind == ClientKind.WEB,
             )
             await self._send_lobby_state(lobby)
             await self._broadcast_directory()
@@ -858,7 +863,7 @@ class OnlineRelayServer:
                 match = self._match_for_client(client.client_id)
                 lobby = self.directory.lobby_for(client.client_id)
                 resumable = bool(
-                    client.client_kind == "web"
+                    client.client_kind == ClientKind.WEB
                     and client.resume_token
                     and (match or lobby)
                 )

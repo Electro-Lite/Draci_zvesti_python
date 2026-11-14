@@ -5,12 +5,18 @@ from types import SimpleNamespace
 
 from cards.ability.ability_target import AbilityTarget
 from core.game_loop import battle_dragon, play_card
-from py_game.game import Game
+from py_game.game import Game, battle_phase_requires_confirmation
 from py_game.battle_presentation import local_battle_display_strategy
 from py_game.network.gameplay import serialize_game_state
 
 
 class GameplayFlowTests(unittest.TestCase):
+    def test_fanatic_tiebreak_is_a_confirmable_final_battle_phase(self):
+        self.assertTrue(battle_phase_requires_confirmation("fanatic_tiebreak"))
+        self.assertTrue(battle_phase_requires_confirmation("dragon_defeated"))
+        self.assertTrue(battle_phase_requires_confirmation("dragon_survived"))
+        self.assertFalse(battle_phase_requires_confirmation("impact"))
+
     def _play_fixture(self, *, requires_target):
         player = SimpleNamespace()
         player.recorded = []

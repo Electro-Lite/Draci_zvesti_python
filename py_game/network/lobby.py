@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Callable
 
 from .protocol import APPLICATION_VERSION, MessageType, ProtocolMessage
+from .enums import LobbyStatus
 
 
 @dataclass
@@ -18,14 +19,14 @@ class LobbyPlayer:
 class LobbyState:
     host: LobbyPlayer
     guest: LobbyPlayer | None = None
-    status: str = "waiting_for_player"
+    status: LobbyStatus = LobbyStatus.WAITING_FOR_PLAYER
     error: str = ""
 
     def public_payload(self) -> dict:
         return {
             "host": vars(self.host).copy(),
             "guest": vars(self.guest).copy() if self.guest else None,
-            "status": self.status,
+            "status": self.status.value,
             "error": self.error,
         }
 
@@ -77,7 +78,7 @@ class HostLobbyController:
                 raise ValueError("Guest name must contain 1-24 characters")
             self.state.guest = LobbyPlayer(name=name)
             self.guest_deck = None
-            self.state.status = "configuring"
+            self.state.status = LobbyStatus.CONFIGURING
             return MessageType.HELLO_ACCEPTED, self.state.public_payload()
         if self.state.guest is None:
             raise ValueError("Guest must complete the handshake first")
@@ -114,11 +115,11 @@ class HostLobbyController:
         elif message_type == MessageType.DISCONNECT:
             self.state.guest = None
             self.guest_deck = None
-            self.state.status = "waiting_for_player"
+            self.state.status = LobbyStatus.WAITING_FOR_PLAYER
         else:
             raise ValueError(f"Message {message_type.value} is not valid in the lobby")
         self._update_status()
         return MessageType.LOBBY_STATE, self.state.public_payload()
 
     def _update_status(self) -> None:
-        self.state.status = "ready" if self.state.can_start else "configuring"
+        self.state.status = LobbyStatus.READY if self.state.can_start else LobbyStatus.CONFIGURING

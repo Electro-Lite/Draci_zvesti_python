@@ -10,11 +10,13 @@ from dataclasses import asdict
 from uuid import uuid4
 
 from choice_strategies.choice_strategy import PlayerChoiceStrategy
+from choice_strategies.choice_type import ChoiceType
 from core.board import Board
 from core.game_loop import run as run_game
 from core.player import Player
 from display_strategies.display_strategy_none import DisplayStrategyNone
 from py_game.network.gameplay import RemoteChoiceStrategy, serialize_game_state
+from py_game.network.enums import MatchStatus
 from py_game.network.protocol import MessageType
 
 
@@ -50,7 +52,7 @@ class ServerMatchChannel:
             if client is None or self.client is client:
                 self.client = None
 
-    def snapshot(self, status="playing"):
+    def snapshot(self, status=MatchStatus.PLAYING):
         return serialize_game_state(
             self.match.board,
             self.local_player,
@@ -81,12 +83,12 @@ class ServerMatchChannel:
             self.detach(client)
             return False
 
-    def send_snapshot(self, status="playing"):
+    def send_snapshot(self, status=MatchStatus.PLAYING):
         self.send(MessageType.STATE_SNAPSHOT, self.snapshot(status))
 
     def request_action(self, choice_type, extra=None, timeout=120.0):
         request_id = uuid4().hex
-        payload = {"choice_type": choice_type, "state": self.snapshot()}
+        payload = {"choice_type": ChoiceType(choice_type).value, "state": self.snapshot()}
         payload.update(extra or {})
         with self._pending_lock:
             self._pending_request_id = request_id
@@ -188,7 +190,7 @@ def authoritative_display_strategy(channels, cancelled, battle_frame_seconds=1.9
         def _battle_result(self):
             self._publish()
             channels[0].request_action(
-                "continue",
+                ChoiceType.CONTINUE,
                 {"legal_indices": [True]},
                 timeout=300.0,
             )
@@ -295,7 +297,7 @@ class AuthoritativeMatch:
             pass
 
     async def _finish(self, result, error):
-        status = "interrupted" if error else "finished"
+        status = MatchStatus.INTERRUPTED if error else MatchStatus.FINISHED
         for channel in self.channels:
             payload = {
                 "state": channel.snapshot(status),

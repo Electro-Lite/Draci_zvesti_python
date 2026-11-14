@@ -7,6 +7,7 @@ import pygame as pg
 
 from py_game.menu.base_menu import Menu
 from py_game.network.lobby import HostLobbyController
+from py_game.network.enums import LobbyStatus
 from py_game.network.decks import reconstruct_remote_deck, serialize_deck_selection
 from py_game.network.protocol import MessageType
 from py_game.network.session import (
@@ -232,7 +233,7 @@ class LanMenu(Menu):
                     self._set_error(f"Protocol error: {event.detail}")
                 elif event.kind == "disconnected" and self.lobby:
                     self.lobby.state.guest = None
-                    self.lobby.state.status = "waiting_for_player"
+                    self.lobby.state.status = LobbyStatus.WAITING_FOR_PLAYER
                     self.message = "Guest disconnected; lobby remains open"
                     self.message_color = self.game.palette.muted
         if self.client:

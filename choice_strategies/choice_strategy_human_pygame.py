@@ -1,25 +1,13 @@
-from enum import Enum
 from time import sleep
 
 from cards.ability.ability_target import AbilityTarget
 from cards.ability.abilities import can_use_on_play
 from cards.card import Card
 from choice_strategies.choice_strategy import PlayerChoiceStrategy
+from choice_strategies.choice_type import ChoiceType
 
 
 PASS_SELECTION = object()
-
-
-class ChoiceType(Enum):
-    NONE = 0
-    CARD = 1
-    POSITION = 2
-    PASS = 3
-    USE_ABILITY = 4
-    TARGET = 5
-    PLAY_OR_PASS = 6
-    ABILITY_CARD = 7
-    GRAVEYARD_CARD = 8
 
 
 class PygameChoiceStrategy(PlayerChoiceStrategy):

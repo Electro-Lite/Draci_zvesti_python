@@ -18,6 +18,7 @@ class GameInfo:
 
     @staticmethod
     def _scale(value, maximum):
+        """Scale values to [0,1] range to help NEAT interpret"""
         return float(value) / float(maximum) if maximum else 0.0
 
     def get_game_info(self):
@@ -82,12 +83,12 @@ class GameInfo:
             owner = 1.0 if card.owner == self.player_on_turn else -1.0
 
         return [
-            self._scale(features[0], 2),
-            self._scale(features[1], 4),
-            self._scale(features[2], 3),
-            self._scale(features[3], 3),
-            self._scale(features[4], 9),
-            self._scale(features[5], 9),
-            self._scale(features[6], 32),
-            owner,
+            self._scale(features[0], 2),   # card power / rarity
+            self._scale(features[1], 4),   # primary mana color
+            self._scale(features[2], 3),   # primary-mana damage bonus
+            self._scale(features[3], 3),   # primary-mana health bonus
+            self._scale(features[4], 9),   # current health
+            self._scale(features[5], 9),   # current damage
+            self._scale(features[6], 32),  # ability identifier
+            owner,                         # own card +1, rival card -1, unowned 0
         ]

@@ -169,18 +169,13 @@ class BoardMechanicTests(unittest.TestCase):
         self.assertNotIn(elephant, board.positions)
         self.assertEqual(player.graveyard, [elephant])
 
-    def test_immovable_card_splits_board_reversal(self):
+    def test_immovable_ability_is_explicitly_unsupported(self):
         player = owner()
-        a = card("A", player=player)
         locked = card("Locked", Immovable(), player=player)
-        b = card("B", player=player)
-        c = card("C", player=player)
         board = Board(dragons=[])
-        board.positions[:4] = [a, locked, b, c]
 
-        board.reverse_movable_positions()
-
-        self.assertEqual(board.positions, [a, locked, None, None, c, b])
+        with self.assertRaisesRegex(NotImplementedError, "Immovable ability"):
+            board.stage_card(locked, 1)
 
     def test_erzika_adds_the_selected_mana_color(self):
         player = owner()

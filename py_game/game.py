@@ -22,6 +22,9 @@ from py_game.network.gameplay import (
     serialize_game_state,
 )
 from py_game.network.protocol import MessageType
+from py_game.network.enums import MatchStatus, LobbyRole
+from py_game.network.session import ConnectionState
+from core.enums.battle_phase import BattlePhase, FINAL_BATTLE_PHASES
 
 from core.game_loop         import run as run_game
 from choice_strategies.choice_strategy_human_pygame import (
@@ -33,6 +36,11 @@ from py_game.match_setup import ControllerKind, ControllerSpec, create_player
 from utils.database_utils import DBUtil
 from core.board import Board
 from core.player import Player
+
+
+def battle_phase_requires_confirmation(phase) -> bool:
+    return phase in FINAL_BATTLE_PHASES
+
 
 class Game():
     BATTLE_FRAME_SECONDS = 0.65 * 3
@@ -945,7 +953,7 @@ class Game():
             if active_battle_slot:
                 battle_border = (
                     self.palette.danger
-                    if battle_event.get("phase") in ("impact", "card_defeated", "stalemate")
+                    if battle_event.get("phase") in (BattlePhase.IMPACT, BattlePhase.CARD_DEFEATED, BattlePhase.STALEMATE)
                     else self.palette.accent
                 )
                 pygame.draw.rect(
@@ -1078,9 +1086,8 @@ class Game():
                 self.palette.muted,
             )
 
-        if state.get("game_state") == "BATTLE" and battle_event.get("phase") in (
-            "dragon_defeated",
-            "dragon_survived",
+        if state.get("game_state") == "BATTLE" and battle_phase_requires_confirmation(
+            battle_event.get("phase")
         ):
             pygame.draw.rect(self.display, self.palette.panel, footer)
             self.draw_text(
@@ -1096,7 +1103,7 @@ class Game():
         if self.drag.dragging and self.drag.position is not None:
             pygame.draw.circle(self.display, self.palette.accent, self.drag.position, max(8, metrics.gap), 3)
 
-        if state.get("winner") is not None or state.get("status") == "finished":
+        if state.get("winner") is not None or state.get("status") == MatchStatus.FINISHED:
             overlay = pygame.Surface((self.DISPLAY_W, self.DISPLAY_H), pygame.SRCALPHA)
             overlay.fill((5, 8, 12, 210))
             self.display.blit(overlay, (0, 0))
@@ -1168,22 +1175,23 @@ class Game():
         pygame.draw.rect(self.display, self.palette.accent, panel, 2, border_radius=18)
 
         event = state.get("battle") or {}
-        phase = str(event.get("phase", "reveal"))
+        phase = event.get("phase", BattlePhase.REVEAL)
         titles = {
-            "reveal": "DRAGON AWAKENS",
-            "dragon_ability": "DRAGON POWER",
-            "versus": "CHALLENGER ENTERS",
-            "impact": "CLASH",
-            "stalemate": "DRAGON ADVANCES",
-            "card_defeated": "CARD ELIMINATED",
-            "dragon_defeated": "DRAGON DEFEATED",
-            "dragon_survived": "DRAGON SURVIVES",
+            BattlePhase.REVEAL: "DRAGON AWAKENS",
+            BattlePhase.DRAGON_ABILITY: "DRAGON POWER",
+            BattlePhase.VERSUS: "CHALLENGER ENTERS",
+            BattlePhase.IMPACT: "CLASH",
+            BattlePhase.STALEMATE: "DRAGON ADVANCES",
+            BattlePhase.CARD_DEFEATED: "CARD ELIMINATED",
+            BattlePhase.DRAGON_DEFEATED: "DRAGON DEFEATED",
+            BattlePhase.DRAGON_SURVIVED: "DRAGON SURVIVES",
+            BattlePhase.FANATIC_TIEBREAK: "DRAGON FANATIC WINS",
         }
         title_color = (
             self.palette.success
-            if phase == "dragon_defeated"
+            if phase in (BattlePhase.DRAGON_DEFEATED, BattlePhase.FANATIC_TIEBREAK)
             else self.palette.danger
-            if phase in ("impact", "card_defeated", "dragon_survived")
+            if phase in (BattlePhase.IMPACT, BattlePhase.CARD_DEFEATED, BattlePhase.DRAGON_SURVIVED)
             else self.palette.accent
         )
         dragon = state.get("dragon") or {}
@@ -1244,7 +1252,10 @@ class Game():
             title_color,
         )
         point_for = event.get("point_for")
-        if phase == "dragon_defeated" and point_for in ("local", "opponent"):
+        if phase in (BattlePhase.DRAGON_DEFEATED, BattlePhase.FANATIC_TIEBREAK) and point_for in (
+            "local",
+            "opponent",
+        ):
             award_text = "POINT FOR YOU" if point_for == "local" else "POINT FOR RIVAL"
             award_color = self.palette.success if point_for == "local" else self.palette.danger
             award = pygame.Rect(
@@ -1292,17 +1303,8 @@ class Game():
         )
         if not player or not isinstance(player.choice_strategy, PygameChoiceStrategy):
             return None
-        mapping = {
-            ChoiceType.PASS: "pass",
-            ChoiceType.CARD: "card",
-            ChoiceType.POSITION: "position",
-            ChoiceType.USE_ABILITY: "use_ability",
-            ChoiceType.TARGET: "target",
-            ChoiceType.PLAY_OR_PASS: "play_or_pass",
-            ChoiceType.ABILITY_CARD: "ability_card",
-            ChoiceType.GRAVEYARD_CARD: "graveyard_card",
-        }
-        return mapping.get(player.choice_strategy.waiting_for)
+        choice = player.choice_strategy.waiting_for
+        return choice.value if choice != ChoiceType.NONE else None
 
     def draw_responsive_game(self):
         pending_choice_player = getattr(self.board, "pending_choice_player", None)
@@ -1703,8 +1705,9 @@ class Game():
             self.check_events()
             if (
                 self.START_KEY
-                and (self.board.battle_event or {}).get("phase")
-                in ("dragon_defeated", "dragon_survived")
+                and battle_phase_requires_confirmation(
+                    (self.board.battle_event or {}).get("phase")
+                )
             ):
                 self.battle_continue_event.set()
             current_turn = self.board.player_on_turn
@@ -1843,8 +1846,9 @@ class Game():
             self.check_events()
             if (
                 self.START_KEY
-                and (self.board.battle_event or {}).get("phase")
-                in ("dragon_defeated", "dragon_survived")
+                and battle_phase_requires_confirmation(
+                    (self.board.battle_event or {}).get("phase")
+                )
             ):
                 self.battle_continue_event.set()
             channel.pump()
@@ -1863,7 +1867,7 @@ class Game():
                                     self.board,
                                     logic_p2,
                                     logic_p1,
-                                    status="interrupted",
+                                    status=MatchStatus.INTERRUPTED,
                                 ),
                                 "aborted": True,
                                 "reason": self.logic_error,
@@ -1877,7 +1881,7 @@ class Game():
             self._handle_local_mouse_choice()
             self.handle_choice()
             if self.game_result is not None and not result_sent:
-                snapshot = serialize_game_state(self.board, logic_p2, logic_p1, status="finished")
+                snapshot = serialize_game_state(self.board, logic_p2, logic_p1, status=MatchStatus.FINISHED)
                 try:
                     host.peer.send(
                         MessageType.MATCH_RESULT,
@@ -1896,7 +1900,7 @@ class Game():
                                 self.board,
                                 logic_p2,
                                 logic_p1,
-                                status="interrupted",
+                                status=MatchStatus.INTERRUPTED,
                             ),
                             "aborted": True,
                             "reason": self.logic_error,
@@ -2040,7 +2044,7 @@ class Game():
             self.clock.tick(60)
 
         self.playing = False
-        if client.peer and client.peer.state.value == "connected":
+        if client.peer and client.peer.state == ConnectionState.CONNECTED:
             try:
                 client.peer.send(MessageType.RETURN_TO_LOBBY, {}, match_id=match_id)
             except ConnectionError:

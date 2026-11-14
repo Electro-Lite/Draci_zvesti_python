@@ -1,10 +1,35 @@
+from dataclasses import dataclass
+
 from cards.card             import Card
 from cards.mana             import get_mana_pool_shuffled, Mana
 from cards.ability.abilities import can_use_on_play, is_commander
+from core.enums.card_death_type import CardDeathType
+from core.enums.battle_phase import BattlePhase
 from core.enums.game_state  import GameState
 
 # from os import  system
 # clear = lambda: system('cls')
+
+
+@dataclass(frozen=True)
+class RoundWinClaim:
+    """An ability-provided fallback winner when combat has no normal winner."""
+
+    winner: object
+    card: Card
+    slot: int | None
+    phase: BattlePhase
+    message: str
+
+    def battle_event(self):
+        return {
+            "phase": self.phase,
+            "card": self.card,
+            "slot": self.slot,
+            "point_for": self.winner,
+            "message": self.message,
+        }
+
 
 class Board:
     def __init__(self, dragons=None):
@@ -24,9 +49,7 @@ class Board:
         self.dragon     = None # for pygame
         self.dragon_base_dmg = None
         self.dragon_position = None # current slot during a dragon battle
-        self.dragon_fanatic_tiebreak_owner = None
-        self.dragon_fanatic_tiebreak_card = None
-        self.dragon_fanatic_tiebreak_slot = None
+        self.round_win_claim = None
         self.round      = 0    # for pygame
         self.battle_event = None
         self._recalculating = False
@@ -34,6 +57,18 @@ class Board:
         self.pending_entry_cards = []
         self.pending_choice_player = None
         self.pending_zone_cards = []
+
+    def claim_round_win(self, *, winner, card, slot, phase: BattlePhase, message):
+        """Record the first ability claim without overriding an earlier claim."""
+        if self.round_win_claim is None:
+            self.round_win_claim = RoundWinClaim(
+                winner=winner,
+                card=card,
+                slot=slot,
+                phase=phase,
+                message=message,
+            )
+
     def cycle_mana(self):
         """Rotate the mana pool left by one"""
         if not self.mana_pool:
@@ -149,19 +184,10 @@ class Board:
             if occupant is card:
                 self.positions[position] = None
 
-    @staticmethod
-    def _is_immovable(card):
-        return bool(card and getattr(card.ability, "immovable", False))
-
     def can_swap_positions(self, first, second):
         if not (0 <= first < len(self.positions) and 0 <= second < len(self.positions)):
             return False
-        if (
-            self._is_immovable(self.positions[first])
-            or self._is_immovable(self.positions[second])
-        ):
-            return False
-        first_card = self.positions[first]
+        first_card  = self.positions[first]
         second_card = self.positions[second]
         first_slots = (
             [first]
@@ -187,7 +213,7 @@ class Board:
 
     def swap_positions(self, first, second):
         if not self.can_swap_positions(first, second):
-            raise ValueError("An immovable character cannot move or be overtaken")
+            raise ValueError("These board positions cannot be swapped")
         first_card = self.positions[first]
         second_card = self.positions[second]
         first_slots = (
@@ -220,30 +246,12 @@ class Board:
             self.positions[second], self.positions[first]
         )
 
-    def reverse_movable_positions(self):
-        """Reverse each row segment without moving/overtaking locked cards."""
-        segment_start = 0
-        for position in range(len(self.positions) + 1):
-            boundary = (
-                position == len(self.positions)
-                or self._is_immovable(self.positions[position])
-            )
-            if not boundary:
-                continue
-            self.positions[segment_start:position] = reversed(
-                self.positions[segment_start:position]
-            )
-            segment_start = position + 1
+    def reverse_positions(self):
+        self.positions.reverse()
 
     def move_toward_front(self, card):
         current = self.positions.index(card)
-        locked_before = [
-            index for index in range(current)
-            if self._is_immovable(self.positions[index])
-        ]
-        destination = max(locked_before) + 1 if locked_before else 0
-        self.positions.pop(current)
-        self.positions.insert(destination, card)
+        self.positions.insert(0, self.positions.pop(current))
 
     def apply_stat_reduction(self, target, *, damage=0, health=0, source=None):
         inverted = getattr(target.ability, "inverts_stat_reductions", False)
@@ -251,7 +259,7 @@ class Board:
         target.dmg = max(0, target.dmg + direction * int(damage))
         target.hp += direction * int(health)
         if target.hp < 1 and target in self.positions:
-            self.remove_card(target, cause="ability_damage", source=source)
+            self.remove_card(target, cause=CardDeathType.ABILITY_DAMAGE, source=source)
     def clear_round(self,player_1,player_2):
         handled = set()
         for x in range(0,6):
@@ -350,7 +358,9 @@ class Board:
         if card in self.positions:
             self.resolve_staged_card(card, use_ability, target_pos)
 
-    def remove_card(self,card:Card, *, cause=None, source=None):
+    def remove_card(self,card:Card, *, cause: CardDeathType | None = None, source=None):
+        if cause is not None:
+            cause = CardDeathType(cause)
         card_pos = self.positions.index(card)
         self.remove_from_board(card)
         if card not in card.owner.graveyard:
