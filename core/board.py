@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from cards.card             import Card
 from cards.mana             import get_mana_pool_shuffled, Mana
-from cards.ability.abilities import can_use_on_play, is_commander
+from cards.ability.abilities import can_use_on_play
 from core.enums.card_death_type import CardDeathType
 from core.enums.battle_phase import BattlePhase
 from core.enums.game_state  import GameState
@@ -187,17 +187,15 @@ class Board:
             self.positions[position] = None
     def stage_card(self, card: Card, pos: int, *, nested=False):
         """Put a selected card on the board before optional choices resolve."""
-        if not self.can_stage_card(card, card.owner):
-            raise ValueError("A player may have only one commander on the board")
+        if not card.ability.can_enter(card, self, card.owner):
+            raise ValueError("This card cannot enter the board")
         if pos not in self.legal_placement_positions(card, card.owner):
             raise ValueError("This position is not legal for the selected card")
         if self.positions[pos] is None:
             self.positions[pos] = card
         elif not card.ability.place_on_occupied_position(card, self, pos):
             raise ValueError("This position is already occupied!")
-        after_staged = getattr(card.ability, "after_staged", None)
-        if after_staged is not None:
-            after_staged(card, self, pos)
+        card.ability.after_staged(card, self, pos)
         if nested:
             if not hasattr(self, "pending_entry_cards"):
                 self.pending_entry_cards = []
@@ -206,35 +204,11 @@ class Board:
 
     def legal_placement_positions(self, card: Card, owner=None) -> list[int]:
         """Return board slots where the selected card may initially be placed."""
-        custom_placement = getattr(
-            card.ability,
-            "legal_placement_positions",
-            None,
-        )
-        custom = (
-            custom_placement(card, self, owner)
-            if custom_placement is not None
-            else None
-        )
-        if custom is not None:
-            return list(custom)
-        return [
-            index
-            for index, occupant in enumerate(self.positions)
-            if occupant is None
-        ]
+        return list(card.ability.legal_placement_positions(card, self, owner))
 
     def can_stage_card(self, card: Card, owner=None) -> bool:
         """Return whether card-specific board limits permit normal placement."""
-        card_owner = owner if owner is not None else getattr(card, "owner", None)
-        return not (
-            is_commander(card)
-            and any(
-                is_commander(occupant) and occupant.owner is card_owner
-                for occupant in self.positions
-                if occupant is not None
-            )
-        )
+        return card.ability.can_enter(card, self, owner)
 
     def resolve_staged_card(
         self,

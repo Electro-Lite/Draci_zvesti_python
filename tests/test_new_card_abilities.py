@@ -109,7 +109,7 @@ class PlaceSecondBesideTests(unittest.TestCase):
         board = make_board()
         board.stage_card(first, 0)
 
-        with self.assertRaisesRegex(ValueError, "only one commander"):
+        with self.assertRaisesRegex(ValueError, "cannot enter"):
             board.stage_card(second, 1)
 
 

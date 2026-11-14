@@ -1,6 +1,4 @@
 from enum import Enum
-import core.player_type as player_type
-PlayerType = player_type.PlayerType
 
 
 class InfoType(Enum):
@@ -16,7 +14,6 @@ class Config():
     ### game config ###
     max_rounds = 10
     turn_count_limit = 50
-    default_player_type = PlayerType.RND
 
     ### online lobby server ###
     # Cloudflare terminates TLS and proxies this secure WebSocket endpoint to

@@ -28,12 +28,6 @@ def is_goblin(card) -> bool:
     return getattr(ability, "id", None) == AbilityId.GOBLIN_FILL
 
 
-def is_commander(card) -> bool:
-    """Commander cards share the PLACE_SECOND_BESIDE ability."""
-    ability = getattr(card, "ability", None)
-    return getattr(ability, "id", None) == AbilityId.PLACE_SECOND_BESIDE
-
-
 class Ability():
     def __init__(
         self,
@@ -79,6 +73,14 @@ class Ability():
     def can_activate(self, card:"Card", board:"Board") -> bool:
         return True
 
+    def can_enter(
+        self,
+        card:"Card",
+        board:"Board",
+        owner:"Player" = None,
+    ) -> bool:
+        return True
+
     def legal_hand_card_indices(self, card:"Card", board:"Board") -> list[int]:
         return []
 
@@ -92,12 +94,18 @@ class Ability():
         board:"Board",
         owner:"Player" = None,
     ):
-        """Return custom initial placement slots, or None for empty slots."""
-        return None
+        return [
+            index
+            for index, occupant in enumerate(board.positions)
+            if occupant is None
+        ]
 
     def place_on_occupied_position(self, card:"Card", board:"Board", position:int):
         """Handle a legal occupied placement slot and return whether handled."""
         return False
+
+    def after_staged(self, card:"Card", board:"Board", position:int):
+        pass
 
 class NoAbility(Ability):
     def __init__(self):
@@ -193,6 +201,15 @@ class PlaceSecondBeside(Ability):
             target_owner=AbilityTarget.ALLY,
             requires_target=True,
             requires_hand_card=True,
+        )
+
+    def can_enter(self, card, board, owner=None):
+        owner = owner if owner is not None else card.owner
+        return not any(
+            occupant is not None
+            and occupant.owner is owner
+            and occupant.ability.id == self.id
+            for occupant in board.positions
         )
 
     def legal_hand_card_indices(self, card, board):

@@ -32,9 +32,9 @@ class Player:
         self.score      = 0
         self.passed     = False
         self.card_plays = {}
-        self.active_ability_uses = {}
+        self.active_ability_uses = {} # for NEAT player
 
-    def record_card_play(self, card, used_active_ability: bool) -> None:
+    def record_card_play(self, card, used_active_ability: bool) -> None: # for NEAT player
         card_id = str(card.id)
         self.card_plays[card_id] = self.card_plays.get(card_id, 0) + 1
         if can_use_on_play(card.ability) and used_active_ability:

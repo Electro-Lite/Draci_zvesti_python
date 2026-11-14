@@ -4,6 +4,7 @@ class PlayerChoiceStrategy:
     def __init__(self, _player):
         self.this_player = _player
         self.info = None
+        self.selected_card = None
 
     def get_choice_pos(self, game_board) -> int:
         raise NotImplementedError
@@ -30,29 +31,25 @@ class PlayerChoiceStrategy:
 
     def legal_play_card_indices(self):
         hand = self.this_player.hand.cards
-        board = getattr(getattr(self, "info", None), "game_board", None)
-        can_stage = getattr(board, "can_stage_card", None) if board is not None else None
-        if can_stage is None:
+        board = self.info.game_board if self.info else None
+        if board is None or not hasattr(board, "can_stage_card"):
             return list(range(len(hand)))
         return [
             index
             for index, card in enumerate(hand)
-            if can_stage(card, self.this_player)
+            if board.can_stage_card(card, self.this_player)
             and bool(board.legal_placement_positions(card, self.this_player))
         ]
 
     def legal_placement_positions(self, card=None):
-        board = getattr(getattr(self, "info", None), "game_board", None)
-        selected = card or getattr(self, "selected_card", None) or getattr(
-            self, "_selected_card", None
-        )
+        board = self.info.game_board if self.info else None
         if board is None:
             return []
-        placement = getattr(board, "legal_placement_positions", None)
-        if selected is None or placement is None:
+        selected = card or self.selected_card
+        if selected is None or not hasattr(board, "legal_placement_positions"):
             return [
                 index
-                for index, occupant in enumerate(getattr(board, "positions", ()))
+                for index, occupant in enumerate(board.positions)
                 if occupant is None
             ]
-        return placement(selected, self.this_player)
+        return board.legal_placement_positions(selected, self.this_player)
