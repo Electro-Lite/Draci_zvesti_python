@@ -10,5 +10,4 @@ class ChoiceType(StrEnum):
     TARGET = "target"
     PLAY_OR_PASS = "play_or_pass"
     ABILITY_CARD = "ability_card"
-    GRAVEYARD_CARD = "graveyard_card"
     CONTINUE = "continue"

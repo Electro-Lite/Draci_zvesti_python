@@ -1022,40 +1022,6 @@
       "type": "PLAYER"
     },
     {
-      "id": "Karetni_mistr_1",
-      "name": "Karetní mistr",
-      "power": 1,
-      "color": "BLACK",
-      "hp": 2,
-      "dmg": 1,
-      "manaBonus": {
-        "dmg": 1,
-        "hp": 0
-      },
-      "secondaryColor": "GREEN",
-      "secondaryManaBonus": {
-        "dmg": 0,
-        "hp": 0
-      },
-      "ability": {
-        "name": "Return a discarded card",
-        "description": "When this dies, return one card from your discard pile to hand."
-      },
-      "image": "card-images/detail/Karetni_mistr_1-cs.webp?v=194bc6acfeb3",
-      "thumbnail": "card-images/thumb/Karetni_mistr_1-cs.webp?v=f082a1d7cce1",
-      "localizedImages": {
-        "cs": {
-          "image": "card-images/detail/Karetni_mistr_1-cs.webp?v=194bc6acfeb3",
-          "thumbnail": "card-images/thumb/Karetni_mistr_1-cs.webp?v=f082a1d7cce1"
-        },
-        "en": {
-          "image": "card-images/detail/Karetni_mistr_1-en.webp?v=36d0fd09e834",
-          "thumbnail": "card-images/thumb/Karetni_mistr_1-en.webp?v=cf08511fb4ed"
-        }
-      },
-      "type": "PLAYER"
-    },
-    {
       "id": "Katapult_1",
       "name": "Katapult",
       "power": 1,

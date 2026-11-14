@@ -49,7 +49,6 @@ class AbilityId(Enum):
     STAY_ON_BOARD                       = 46
     HEAL_EATER_DRAGON                   = 47
     PLACE_BLACK_BESIDE                  = 48
-    RETURN_DISCARD                      = 49
     ATTACK_FRONT_ON_DRAGON              = 50
     SHOOT_ONE_HP                        = 52
     RESURRECT_STRONGER                  = 53

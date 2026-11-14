@@ -24,11 +24,6 @@ class PlayerChoiceStrategy:
     def get_choice_ability_card(self):
         raise NotImplementedError
 
-    def get_choice_zone_card(self, cards, *, zone, board, source_card=None):
-        """Choose one card from a non-hand zone during triggered resolution."""
-        candidates = list(cards)
-        return candidates[0] if candidates else None
-
     def legal_play_card_indices(self):
         hand = self.this_player.hand.cards
         board = self.info.game_board if self.info else None

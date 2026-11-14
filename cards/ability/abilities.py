@@ -1027,39 +1027,6 @@ class PlaceBlackBeside(PlaceSecondBeside):
         ]
 
 
-class ReturnDiscardOnDeath(Ability):
-    def __init__(self):
-        super().__init__(
-            name="Return a discarded card",
-            description="When this dies, return one card from your discard pile to hand.",
-            id=AbilityId.RETURN_DISCARD,
-            target_owner=AbilityTarget.ALLY,
-        )
-
-    def apply_onDeath(self, card, board, args=None):
-        owner = card.owner
-        candidates = list(owner.graveyard)
-        if not candidates:
-            return
-        strategy = getattr(owner, "choice_strategy", None)
-        returned = (
-            strategy.get_choice_zone_card(
-                candidates,
-                zone="graveyard",
-                board=board,
-                source_card=card,
-            )
-            if strategy is not None
-            else candidates[-1]
-        )
-        if returned not in owner.graveyard:
-            raise ValueError("Selected card is no longer in the graveyard")
-        owner.graveyard.remove(returned)
-        returned.restore()
-        returned.owner = owner
-        owner.hand.cards.append(returned)
-
-
 class AttackFrontOnDragonReveal(Ability):
     def __init__(self):
         super().__init__(

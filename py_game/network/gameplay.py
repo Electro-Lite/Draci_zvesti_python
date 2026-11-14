@@ -389,27 +389,6 @@ class RemoteChoiceStrategy(PlayerChoiceStrategy):
             {"legal_indices": legal},
         )
 
-    def get_choice_zone_card(self, cards, *, zone, board, source_card=None):
-        candidates = list(cards)
-        if not candidates:
-            return None
-        legal = list(range(len(candidates)))
-
-        def select(value):
-            if not isinstance(value, int) or isinstance(value, bool) or value not in legal:
-                raise ValueError(f"Card index is outside the current {zone}")
-            return candidates[value]
-
-        return self._request_valid(
-            ChoiceType(f"{zone}_card"),
-            select,
-            {
-                "legal_indices": legal,
-                "cards": [serialize_card(card, self.this_player) for card in candidates],
-            },
-        )
-
-
 def _raise(message):
     raise ValueError(message)
 

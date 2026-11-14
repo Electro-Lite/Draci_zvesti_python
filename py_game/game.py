@@ -18,7 +18,6 @@ from py_game.network.gameplay import (
     HostMatchChannel,
     RemoteChoiceStrategy,
     network_display_strategy,
-    serialize_card,
     serialize_game_state,
 )
 from py_game.network.protocol import MessageType
@@ -352,10 +351,7 @@ class Game():
                 self.selected_position = empty_positions[0] if len(empty_positions)>0 else None
 
     def handle_choice(self):
-        player = (
-            getattr(self.board, "pending_choice_player", None)
-            or self.board.player_on_turn
-        )
+        player = self.board.player_on_turn
         if player is None or not isinstance(
             player.choice_strategy,
             PygameChoiceStrategy,
@@ -371,22 +367,13 @@ class Game():
             ChoiceType.CARD,
             ChoiceType.PLAY_OR_PASS,
             ChoiceType.ABILITY_CARD,
-            ChoiceType.GRAVEYARD_CARD,
         ):
             legal_cards = (
-                list(range(len(strategy.zone_choice_cards)))
-                if choice_type == ChoiceType.GRAVEYARD_CARD
-                else
                 strategy.legal_ability_card_indices()
                 if choice_type == ChoiceType.ABILITY_CARD
                 else strategy.legal_play_card_indices()
             )
-            cards = (
-                strategy.zone_choice_cards
-                if choice_type == ChoiceType.GRAVEYARD_CARD
-                else player.hand.cards
-            )
-            self.navigate_hand(player, legal_cards, cards)
+            self.navigate_hand(player, legal_cards, player.hand.cards)
             self.selected_position = None
             if choice_type == ChoiceType.PLAY_OR_PASS and self.PASS_KEY:
                 strategy.set_choice(ChoiceType.PLAY_OR_PASS, PASS_SELECTION)
@@ -682,7 +669,6 @@ class Game():
             "use_ability": self.tr("choice_use_ability"),
             "target": self.tr("choice_target"),
             "ability_card": self.tr("choice_ability_card"),
-            "graveyard_card": self.tr("choice_graveyard_card"),
         }.get(choice_type, self.tr("match_waiting"))
 
     def _draw_card_tooltip(self, card_view, anchor):
@@ -1015,7 +1001,7 @@ class Game():
                     rect,
                     selected=selected,
                     legal=(
-                        choice_type in ("card", "play_or_pass", "ability_card", "graveyard_card")
+                        choice_type in ("card", "play_or_pass", "ability_card")
                         and index in set(getattr(self, "current_legal_card_indices", range(len(hand))))
                     ),
                 )
@@ -1038,8 +1024,6 @@ class Game():
             action_labels = [("confirm_card", self.tr("action_play_selected"))]
         elif choice_type == "ability_card":
             action_labels = [("confirm_card", self.tr("action_place_beside"))]
-        elif choice_type == "graveyard_card":
-            action_labels = [("confirm_card", self.tr("action_return_to_hand"))]
         elif choice_type == "use_ability":
             action_labels = [("skip_ability", self.tr("action_skip")), ("use_ability", self.tr("action_use_ability"))]
         if action_labels:
@@ -1297,29 +1281,19 @@ class Game():
             )
 
     def _local_choice_type(self):
-        player = getattr(self, "board", None) and (
-            getattr(self.board, "pending_choice_player", None)
-            or self.board.player_on_turn
-        )
+        player = getattr(self, "board", None) and self.board.player_on_turn
         if not player or not isinstance(player.choice_strategy, PygameChoiceStrategy):
             return None
         choice = player.choice_strategy.waiting_for
         return choice.value if choice != ChoiceType.NONE else None
 
     def draw_responsive_game(self):
-        pending_choice_player = getattr(self.board, "pending_choice_player", None)
-        pending_zone_cards = getattr(self.board, "pending_zone_cards", [])
-        choice_player = pending_choice_player or self.board.player_on_turn
-        view_player = choice_player if pending_choice_player else self.p1
-        view_opponent = self.p2 if view_player is self.p1 else self.p1
+        choice_player = self.board.player_on_turn
+        view_player = self.p1
+        view_opponent = self.p2
         state = serialize_game_state(self.board, view_player, view_opponent)
         choice_type = self._local_choice_type()
         strategy = getattr(choice_player, "choice_strategy", None)
-        if choice_type == "graveyard_card":
-            state["local"]["hand"] = [
-                serialize_card(card, view_player)
-                for card in pending_zone_cards
-            ]
         selected_for_ability = getattr(strategy, "selected_card", None)
         self.current_option_labels = tuple(
             getattr(getattr(selected_for_ability, "ability", None), "option_labels", ())
@@ -1334,20 +1308,13 @@ class Game():
         self.current_legal_card_indices = (
             strategy.legal_ability_card_indices()
             if choice_type == "ability_card" and isinstance(strategy, PygameChoiceStrategy)
-            else list(range(len(pending_zone_cards)))
-            if choice_type == "graveyard_card"
             else strategy.legal_play_card_indices()
             if choice_type in ("card", "play_or_pass") and self.board.player_on_turn
             else []
         )
         if self.selected_card is not None:
             try:
-                selected_cards = (
-                    pending_zone_cards
-                    if choice_type == "graveyard_card"
-                    else view_player.hand.cards
-                )
-                self.selected_card_index = selected_cards.index(self.selected_card)
+                self.selected_card_index = view_player.hand.cards.index(self.selected_card)
             except ValueError:
                 self.selected_card_index = None
         else:
@@ -1516,10 +1483,7 @@ class Game():
         # closes it during rendering without also playing the card underneath.
         if getattr(self, "inspected_card_view", None) is not None and self.mouse_clicked:
             return
-        player = getattr(self, "board", None) and (
-            getattr(self.board, "pending_choice_player", None)
-            or self.board.player_on_turn
-        )
+        player = getattr(self, "board", None) and self.board.player_on_turn
         if not player or not isinstance(player.choice_strategy, PygameChoiceStrategy):
             return
         strategy = player.choice_strategy
@@ -1547,13 +1511,9 @@ class Game():
             if (
                 event.type == pygame.MOUSEBUTTONDOWN
                 and event.button == 1
-                and choice_type in ("card", "play_or_pass", "ability_card", "graveyard_card")
+                and choice_type in ("card", "play_or_pass", "ability_card")
             ):
-                choice_cards = (
-                    strategy.zone_choice_cards
-                    if choice_type == "graveyard_card"
-                    else player.hand.cards
-                )
+                choice_cards = player.hand.cards
                 for index, rect in enumerate(self.hand_card_rects):
                     if (
                         rect.collidepoint(event.pos)
@@ -1562,7 +1522,7 @@ class Game():
                     ):
                         self.selected_card = choice_cards[index]
                         self.selected_card_index = index
-                        if choice_type in ("ability_card", "graveyard_card"):
+                        if choice_type == "ability_card":
                             self.interaction_message = ""
                             break
                         self.drag.begin(
@@ -1612,15 +1572,13 @@ class Game():
                 strategy.set_choice(ChoiceType.PASS, False)
             elif self.action_rects.get("pass", pygame.Rect(0, 0, 0, 0)).collidepoint(self.mouse_position):
                 strategy.set_choice(ChoiceType.PASS, True)
-        elif choice_type in ("card", "play_or_pass", "ability_card", "graveyard_card"):
+        elif choice_type in ("card", "play_or_pass", "ability_card"):
             if self.action_rects.get("confirm_card", pygame.Rect(0, 0, 0, 0)).collidepoint(self.mouse_position) and self.selected_card is not None:
                 strategy.set_choice(
                     ChoiceType.PLAY_OR_PASS
                     if choice_type == "play_or_pass"
                     else ChoiceType.ABILITY_CARD
                     if choice_type == "ability_card"
-                    else ChoiceType.GRAVEYARD_CARD
-                    if choice_type == "graveyard_card"
                     else ChoiceType.CARD,
                     self.selected_card,
                 )
@@ -1965,7 +1923,7 @@ class Game():
                         self.current_legal_card_indices = (
                             list(self.current_legal_indices)
                             if (message.payload or {}).get("choice_type")
-                            in ("card", "play_or_pass", "ability_card", "graveyard_card")
+                            in ("card", "play_or_pass", "ability_card")
                             else []
                         )
                         if (
@@ -2000,14 +1958,8 @@ class Game():
                 (request.payload or {}).get("option_labels", ()) if request else ()
             )
             if state is not None:
-                display_state = state
-                if choice_type == "graveyard_card" and request:
-                    display_state = copy.deepcopy(state)
-                    display_state.setdefault("local", {})["hand"] = list(
-                        (request.payload or {}).get("cards", ())
-                    )
                 self.draw_match_state(
-                    display_state,
+                    state,
                     choice_type,
                     notice="Waiting for the host" if not request else "",
                     return_destination="lobby",
@@ -2085,12 +2037,12 @@ class Game():
             if (
                 event.type == pygame.MOUSEBUTTONDOWN
                 and event.button == 1
-                and choice_type in ("card", "play_or_pass", "ability_card", "graveyard_card")
+                and choice_type in ("card", "play_or_pass", "ability_card")
             ):
                 for index, rect in enumerate(self.hand_card_rects):
                     if rect.collidepoint(event.pos) and index in legal:
                         self.selected_card_index = index
-                        if choice_type in ("ability_card", "graveyard_card"):
+                        if choice_type == "ability_card":
                             self.interaction_message = ""
                             break
                         self.drag.begin(
@@ -2118,7 +2070,7 @@ class Game():
                     self.interaction_message = "Drop on a highlighted empty board slot"
 
         if self.LEFT_KEY or self.RIGHT_KEY:
-            if choice_type in ("card", "play_or_pass", "ability_card", "graveyard_card") and legal:
+            if choice_type in ("card", "play_or_pass", "ability_card") and legal:
                 ordered = sorted(legal)
                 current = self.selected_card_index if self.selected_card_index in legal else ordered[0]
                 offset = -1 if self.LEFT_KEY else 1
@@ -2137,7 +2089,7 @@ class Game():
                 if self.action_rects.get("pass", pygame.Rect(0, 0, 0, 0)).collidepoint(self.mouse_position):
                     self._send_client_action(client, request, True)
                     return True
-            elif choice_type in ("card", "play_or_pass", "ability_card", "graveyard_card"):
+            elif choice_type in ("card", "play_or_pass", "ability_card"):
                 for index, rect in enumerate(self.hand_card_rects):
                     if rect.collidepoint(self.mouse_position) and index in legal:
                         self.selected_card_index = index
@@ -2170,7 +2122,7 @@ class Game():
             if choice_type == "pass":
                 self._send_client_action(client, request, False)
                 return True
-            if choice_type in ("card", "play_or_pass", "ability_card", "graveyard_card") and self.selected_card_index in legal:
+            if choice_type in ("card", "play_or_pass", "ability_card") and self.selected_card_index in legal:
                 self._send_client_action(client, request, self.selected_card_index)
                 return True
             if choice_type in ("position", "target") and self.selected_position in legal:

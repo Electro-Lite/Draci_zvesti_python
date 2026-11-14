@@ -1,6 +1,4 @@
 import unittest
-import threading
-import time
 from types import SimpleNamespace
 
 from cards.ability.abilities import (
@@ -17,7 +15,6 @@ from cards.ability.abilities import (
     PlaceSecondBeside,
     PlaceBlackBeside,
     ResurrectStronger,
-    ReturnDiscardOnDeath,
     ReturnAlliesAtRoundEnd,
     SideWay2DmgOnDeath,
     SidewaysMinus1,
@@ -33,11 +30,6 @@ from cards.mana import Mana, ManaColor
 from cards.power import Power
 from core.board import Board
 from core.game_loop import play_card
-from choice_strategies.choice_strategy_human_pygame import (
-    ChoiceType,
-    PygameChoiceStrategy,
-)
-from py_game.network.gameplay import RemoteChoiceStrategy
 from utils.database_utils import DBUtil
 
 
@@ -97,7 +89,6 @@ class CatalogueTests(unittest.TestCase):
             "Cikanka_cervena_1",
             "Don_Juan_1",
             "Goblini_saman_1",
-            "Karetni_mistr_1",
             "Medved_1",
             "Inkvizitor_Elsenhorn_1",
             "Roderik_von_Gumpoldov_1",
@@ -417,30 +408,6 @@ class TriggerTests(unittest.TestCase):
         )
         self.assertIs(board.positions[1], black)
 
-    def test_card_master_offers_every_graveyard_card_including_itself(self):
-        player = owner()
-        old = card("Old", player=player)
-        recent = card("Recent", player=player)
-        master = card("Master", ReturnDiscardOnDeath(), player=player)
-        player.graveyard[:] = [old, recent]
-        offered = []
-
-        class Strategy:
-            def get_choice_zone_card(self, cards, **kwargs):
-                offered.extend(cards)
-                return old
-
-        player.choice_strategy = Strategy()
-        board = Board(dragons=[])
-        board.positions[0] = master
-
-        board.remove_card(master, cause="ability_damage")
-
-        self.assertCountEqual(offered, [old, recent, master])
-        self.assertIn(old, player.hand.cards)
-        self.assertIn(recent, player.graveyard)
-        self.assertIn(master, player.graveyard)
-
     def test_elsenhorn_can_destroy_any_one_health_character(self):
         player = owner()
         elsenhorn = card("Elsenhorn", ShootOneHp(), player=player)
@@ -582,74 +549,6 @@ class SequentialEntryTests(unittest.TestCase):
 
         self.assertIs(board.positions[2], shuffler)
         self.assertNotIn(shuffler.id, player.active_ability_uses)
-
-
-class ZoneChoiceTests(unittest.TestCase):
-    def test_pygame_graveyard_choice_exposes_candidates_and_returns_selection(self):
-        player = owner(1)
-        strategy = PygameChoiceStrategy(player)
-        player.choice_strategy = strategy
-        first = card("First", player=player)
-        second = card("Second", player=player)
-        board = Board(dragons=[])
-        result = []
-
-        thread = threading.Thread(
-            target=lambda: result.append(
-                strategy.get_choice_zone_card(
-                    [first, second],
-                    zone="graveyard",
-                    board=board,
-                )
-            )
-        )
-        thread.start()
-        deadline = time.monotonic() + 1
-        while strategy.waiting_for != ChoiceType.GRAVEYARD_CARD:
-            if time.monotonic() > deadline:
-                self.fail("Pygame strategy did not request a graveyard choice")
-            time.sleep(0.001)
-
-        self.assertIs(board.pending_choice_player, player)
-        self.assertEqual(board.pending_zone_cards, [first, second])
-        self.assertTrue(strategy.set_choice(ChoiceType.GRAVEYARD_CARD, second))
-        thread.join(timeout=1)
-
-        self.assertEqual(result, [second])
-        self.assertIsNone(board.pending_choice_player)
-        self.assertEqual(board.pending_zone_cards, [])
-
-    def test_remote_graveyard_choice_sends_visible_candidates_and_validates_index(self):
-        player = owner(1)
-        strategy = RemoteChoiceStrategy(player)
-        first = card("First", player=player)
-        second = card("Second", player=player)
-
-        class Channel:
-            def request_action(self, choice_type, extra=None):
-                self.choice_type = choice_type
-                self.extra = extra
-                return 1
-
-            def reject(self, request_id, reason):
-                raise AssertionError(reason)
-
-        channel = Channel()
-        strategy.channel = channel
-
-        selected = strategy.get_choice_zone_card(
-            [first, second],
-            zone="graveyard",
-            board=Board(dragons=[]),
-        )
-
-        self.assertIs(selected, second)
-        self.assertEqual(channel.choice_type, "graveyard_card")
-        self.assertEqual(channel.extra["legal_indices"], [0, 1])
-        self.assertEqual(
-            [item["name"] for item in channel.extra["cards"]],
-            ["First", "Second"],
-        )
 
 
 if __name__ == "__main__":

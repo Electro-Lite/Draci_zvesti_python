@@ -55,8 +55,6 @@ class Board:
         self._recalculating = False
         self._recalculate_requested = False
         self.pending_entry_cards = []
-        self.pending_choice_player = None
-        self.pending_zone_cards = []
 
     def claim_round_win(self, *, winner, card, slot, phase: BattlePhase, message):
         """Record the first ability claim without overriding an earlier claim."""

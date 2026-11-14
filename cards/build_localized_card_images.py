@@ -53,7 +53,6 @@ ENGLISH_NAMES = {
     "GobliniSaman": "Goblin Shaman",
     "HloupeLojzek": "Foolish Lojzek",
     "Skritek": "Inno's Goblin",
-    "KaretniMistr": "Card Master",
     "Katapult": "Catapult",
     "MagOhne": "Fire Mage",
     "Medved": "Bear",

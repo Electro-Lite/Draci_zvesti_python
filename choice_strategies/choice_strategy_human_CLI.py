@@ -213,23 +213,3 @@ class ChoiceStrategyPygame(PlayerChoiceStrategy):
             validate,
             lambda: cards[legal[0]],
         )
-
-    def get_choice_zone_card(self, cards, *, zone, board, source_card=None):
-        candidates = list(cards)
-        if not candidates:
-            return None
-        print(f"\nChoose a card from your {zone}:")
-        for index, candidate in enumerate(candidates):
-            print(f"  [{index}] {candidate.name}")
-
-        def validate(user_in):
-            index = int(user_in)
-            if not 0 <= index < len(candidates):
-                raise ValueError("That card is not available")
-            return candidates[index]
-
-        return self._retry_input(
-            "▶ Choose card: ",
-            validate,
-            lambda: candidates[0],
-        )
