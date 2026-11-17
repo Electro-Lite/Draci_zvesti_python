@@ -1,70 +1,60 @@
-from utils.database_utils   import DBUtil
-from cards.deck             import Deck
-from cards.card             import Card
-from cards.power            import Power
-from cards.card_type        import CardType
-from core.config            import MAX_DECK_SIZE, MIN_DECK_SIZE
+from collections import Counter
+
+from cards.card_type import CardType
+from cards.deck import Deck
+from cards.deck_rules import card_copy_limit
+from cards.power import Power
+from core.config import MAX_DECK_SIZE, MIN_DECK_SIZE
 from neat import nn
+from utils.database_utils import DBUtil
 
-
-SCORE_EPSILON = 1e-12
-
-
-def _copy_count(deck: Deck, card: Card) -> int:
-    return sum(1 for deck_card in deck.cards if getattr(deck_card, "id", None) == card.id)
-
-
-def _copy_limit(card: Card) -> int:
-    return 1 if card.power == Power.LEGENDARY else 4
-
-
-def _can_add_card(deck: Deck, card: Card) -> bool:
-    return len(deck.cards) < MAX_DECK_SIZE and _copy_count(deck, card) < _copy_limit(card)
 
 def build_deck(
     net: nn.FeedForwardNetwork,
     max_power=Power.NORMAL,
     banned_card_ids=(),
 ) -> Deck:
-    deck    = Deck()
+    deck = Deck()
     banned = {str(card_id) for card_id in banned_card_ids}
-    cards   = sorted(
-        [
-            card
-            for card in DBUtil().get_all_cards()
-            if card.power <= max_power
-            and card.type == CardType.PLAYER
-            and str(card.id) not in banned
-        ],
-        key=lambda card: card.id
-    )
+    cards = [ # list of allowed cards
+        card
+        for card in DBUtil().get_all_cards()
+        if card.power <= max_power
+        and card.type == CardType.PLAYER
+        and str(card.id) not in banned
+    ]
+    cards.sort(key=lambda card: str(card.id))
 
     for _ in range(MAX_DECK_SIZE):
-        #init
-        deck_info       = deck.get_neat_cards_ids()
-        legal_cards     = [card for card in cards if _can_add_card(deck, card)]
-        if not legal_cards:
+        counts = Counter(str(card.id) for card in deck.cards)
+        cards = [ card for card in cards if counts[str(card.id)] < card_copy_limit(card) ] # occurence limit
+        if not cards:
             break
 
-        best_card_score = None
-        best_choices    = []
-        for card in legal_cards:
-            outputs = net.activate( deck_info + card.get_neat_ids() )
-            score = outputs[0]
-            if best_card_score is None or score > best_card_score + SCORE_EPSILON:
-                best_card_score = score
-                best_choices = [(card, outputs)]
-            elif abs(score - best_card_score) <= SCORE_EPSILON:
-                best_choices.append((card, outputs))
+        deck_info = deck.get_neat_cards_ids()
+        evaluations = [
+            (card, net.activate(deck_info + card.get_neat_ids()))
+            for card in cards
+        ]
+        best_card, outputs = evaluations[0]
+        best_score = outputs[0]
+        best_card_count = counts[str(best_card.id)]
 
-        # Equal scores should mean "no preference", not "pick the first DB row".
-        best_choices.sort(key=lambda choice: (_copy_count(deck, choice[0]), choice[0].id))
-        best_card, best_outputs = best_choices[0]
+        for card, card_outputs in evaluations[1:]:
+            card_score = card_outputs[0]
+            card_count = counts[str(card.id)]
 
-        if len(deck.cards) >= MIN_DECK_SIZE and best_outputs[1] < 0.5:
+            if card_score > best_score or (
+                card_score == best_score and card_count < best_card_count
+            ):
+                best_card = card
+                outputs = card_outputs
+                best_score = card_score
+                best_card_count = card_count
+
+        if len(deck.cards) >= MIN_DECK_SIZE and outputs[1] < 0.5:
             break
 
         deck.add_card(best_card)
-
 
     return deck

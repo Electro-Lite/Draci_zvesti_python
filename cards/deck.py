@@ -1,5 +1,5 @@
 from cards.card import Card
-from cards.power import Power
+from cards.deck_rules import card_copy_limit
 from core.config import MAX_DECK_SIZE, MIN_DECK_SIZE
 class Deck():
     
@@ -49,7 +49,7 @@ class Deck():
         for card_id, count in card_counts.items():
             card = representatives[card_id]
             name = getattr(card, "name", card_id)
-            limit = 1 if getattr(card, "power", None) == Power.LEGENDARY else 4
+            limit = card_copy_limit(card)
             if count > limit:
                 if limit == 1:
                     raise ValueError(f"Legendary card '{name}' may appear only once.")

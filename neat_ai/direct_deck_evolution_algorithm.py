@@ -15,13 +15,9 @@ from typing import Iterable, Mapping, Sequence
 
 from cards.card_type import CardType
 from cards.deck import Deck
+from cards.deck_rules import card_copy_limit
 from cards.power import Power
 from core.config import MAX_DECK_SIZE, MIN_DECK_SIZE
-
-
-def card_copy_limit(card) -> int:
-    """Return the game copy limit used by deck construction."""
-    return 1 if card.power == Power.LEGENDARY else 4
 
 
 def available_cards(
@@ -59,35 +55,15 @@ class DeckGenome:
         """deck signature, used for finding duplicates"""
         return hashlib.md5(",".join(self.cards).encode("utf-8")).hexdigest()
 
-    def validate(
-        self,
-        card_pool: Mapping[str, object],
-    ) -> None:
-        """TODO valide can be removed - it is duplicate code. Instead we can to toDeck(card_pool).validate(), It will not pose much resource drain as only inner generations are really relevant for time complexity, I mean this change preserves O(n)"""
-        #Size
-        if not MIN_DECK_SIZE <= len(self.cards) <= MAX_DECK_SIZE:
-            raise ValueError(
-                f"Deck genome must contain {MIN_DECK_SIZE}-{MAX_DECK_SIZE} cards"
-            )
-        counts = Counter(self.cards)
-        # duplicates
-        for card_id, count in counts.items():
-            card = card_pool.get(card_id)
-            if card is None:
-                raise ValueError(f"Deck genome contains unknown card {card_id}")
-            limit = card_copy_limit(card)
-            if count > limit:
-                raise ValueError(
-                    f"Deck genome contains {count} copies of {card_id}; limit is {limit}"
-                )
-
     def to_deck(self, card_pool: Mapping[str, object], name: str = "") -> Deck:
-        """Converts card_pool to Deck instance"""
-        self.validate(card_pool)
+        """Convert this genome to a validated Deck instance."""
         deck = Deck()
         deck.name = name
         for card_id in self.cards:
-            deck.add_card(card_pool[card_id])
+            card = card_pool.get(card_id)
+            if card is None:
+                raise ValueError(f"Deck genome contains unknown card {card_id}")
+            deck.add_card(card)
         deck.validate()
         return deck
 
@@ -145,7 +121,7 @@ def random_genome(
             raise ValueError("Card pool cannot produce a legal deck composition")
         cards.append(rng.choice(legal))
     genome = DeckGenome(tuple(cards))
-    genome.validate(card_pool)
+    genome.to_deck(card_pool)
     return genome
 
 
@@ -184,7 +160,7 @@ def mutate_genome(
             continue
 
     child = DeckGenome(tuple(cards))
-    child.validate(card_pool)
+    child.to_deck(card_pool)
     return child
 
 
@@ -211,7 +187,7 @@ def crossover_genomes(
         raise RuntimeError("Valid parents could not produce a complete child")
 
     child = DeckGenome(tuple(cards))
-    child.validate(card_pool)
+    child.to_deck(card_pool)
     return child
 
 

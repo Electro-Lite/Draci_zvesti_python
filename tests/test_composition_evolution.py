@@ -2,8 +2,8 @@ import random
 import tempfile
 import unittest
 from pathlib import Path
-from types import SimpleNamespace
 
+from cards.card import Card
 from cards.card_type import CardType
 from cards.power import Power
 from core.config import MAX_DECK_SIZE, MIN_DECK_SIZE
@@ -26,7 +26,7 @@ from neat_ai.deck_pool_evolution_v2 import (
 
 
 def card(card_id, power=Power.NORMAL):
-    return SimpleNamespace(
+    return Card(
         id=card_id,
         name=card_id,
         power=power,
@@ -71,10 +71,10 @@ class CompositionEvolutionTests(unittest.TestCase):
                 + ["normal-3"] * (MAX_DECK_SIZE - 8)
             )
         )
-        legal.validate(self.pool)
+        legal.to_deck(self.pool)
 
-        with self.assertRaisesRegex(ValueError, "limit is 1"):
-            DeckGenome(tuple(["legendary"] * 2 + ["normal-1"] * 4 + ["normal-2"] * (MIN_DECK_SIZE - 6))).validate(
+        with self.assertRaisesRegex(ValueError, "may appear only once"):
+            DeckGenome(tuple(["legendary"] * 2 + ["normal-1"] * 4 + ["normal-2"] * (MIN_DECK_SIZE - 6))).to_deck(
                 self.pool
             )
 
@@ -93,7 +93,7 @@ class CompositionEvolutionTests(unittest.TestCase):
         self.assertIn(population[-1], following)  # strongest elite
         self.assertIn(population[-2], following)
         for genome in following:
-            genome.validate(self.pool)
+            genome.to_deck(self.pool)
 
     def test_mutation_changes_composition_without_breaking_legality(self):
         genome = DeckGenome(
@@ -107,7 +107,7 @@ class CompositionEvolutionTests(unittest.TestCase):
         )
 
         self.assertNotEqual(mutated, genome)
-        mutated.validate(self.pool)
+        mutated.to_deck(self.pool)
 
     def test_crossover_uses_only_parent_cards_and_preserves_shared_cards(self):
         offset = MAX_DECK_SIZE - MIN_DECK_SIZE
@@ -129,7 +129,7 @@ class CompositionEvolutionTests(unittest.TestCase):
             self.settings,
         )
 
-        child.validate(self.pool)
+        child.to_deck(self.pool)
         self.assertEqual(len(child.cards), MIN_DECK_SIZE)
         self.assertLessEqual(set(child.cards), set(first.cards) | set(second.cards))
         shared = set(first.cards) & set(second.cards)

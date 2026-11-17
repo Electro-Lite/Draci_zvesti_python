@@ -247,7 +247,7 @@ def _evaluate_generation(
     if len(set(population)) != len(population):
         raise RuntimeError("Deck Pool Evolution v2 population contains duplicate compositions")
     for genome in population:
-        genome.validate(card_pool)
+        genome.to_deck(card_pool)
     metadata["observed_populations"].append({
         "generation": generation,
         "population": len(population),
