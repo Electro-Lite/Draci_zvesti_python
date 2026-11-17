@@ -43,6 +43,8 @@ def available_cards(
     cards.sort(key=lambda item: str(item.id))  # Sort by card ID.
     return {str(card.id): card for card in cards}
 
+
+
 @dataclass(frozen=True, order=True)
 class DeckGenome:
     """Deck genome = deck composition"""
@@ -54,17 +56,21 @@ class DeckGenome:
 
     @property
     def signature(self) -> str:
+        """deck signature, used for finding duplicates"""
         return hashlib.md5(",".join(self.cards).encode("utf-8")).hexdigest()
 
     def validate(
         self,
         card_pool: Mapping[str, object],
     ) -> None:
+        """TODO valide can be removed - it is duplicate code. Instead we can to toDeck(card_pool).validate(), It will not pose much resource drain as only inner generations are really relevant for time complexity, I mean this change preserves O(n)"""
+        #Size
         if not MIN_DECK_SIZE <= len(self.cards) <= MAX_DECK_SIZE:
             raise ValueError(
                 f"Deck genome must contain {MIN_DECK_SIZE}-{MAX_DECK_SIZE} cards"
             )
         counts = Counter(self.cards)
+        # duplicates
         for card_id, count in counts.items():
             card = card_pool.get(card_id)
             if card is None:
@@ -76,6 +82,7 @@ class DeckGenome:
                 )
 
     def to_deck(self, card_pool: Mapping[str, object], name: str = "") -> Deck:
+        """Converts card_pool to Deck instance"""
         self.validate(card_pool)
         deck = Deck()
         deck.name = name
@@ -126,7 +133,7 @@ def _legal_additions(
 
 
 def random_genome(
-    card_pool: Mapping[str, object],
+    card_pool: Mapping[str, object], # Prefiltered
     rng: random.Random,
     settings: CompositionEvolutionSettings,
 ) -> DeckGenome:
@@ -148,20 +155,21 @@ def mutate_genome(
     rng: random.Random,
     settings: CompositionEvolutionSettings,
 ) -> DeckGenome:
-    """Apply one local composition edit, with an occasional second edit."""
+    """Apply deck composition edit, with 20% chance of second edit."""
     cards = list(genome.cards)
     edits = 2 if rng.random() < 0.20 else 1
     for _ in range(edits):
-        operations = ["replace"] * 7
+        operations = ["replace"] * 7 # higher likelyhood
         if len(cards) < MAX_DECK_SIZE:
             operations.append("add")
         if len(cards) > MIN_DECK_SIZE:
             operations.append("remove")
+
         operation = rng.choice(operations)
         if operation == "remove":
             cards.pop(rng.randrange(len(cards)))
             continue
-        if operation == "replace":
+        elif operation == "replace":
             removed = cards.pop(rng.randrange(len(cards)))
             legal = [card for card in _legal_additions(cards, card_pool) if card != removed]
             if not legal:
@@ -169,9 +177,11 @@ def mutate_genome(
             else:
                 cards.append(rng.choice(legal))
             continue
-        legal = _legal_additions(cards, card_pool)
-        if legal:
-            cards.append(rng.choice(legal))
+        elif operation == "add":
+            legal = _legal_additions(cards, card_pool)
+            if legal:
+                cards.append(rng.choice(legal))
+            continue
 
     child = DeckGenome(tuple(cards))
     child.validate(card_pool)
@@ -190,24 +200,16 @@ def crossover_genomes(
         max(MIN_DECK_SIZE, min(len(first.cards), len(second.cards))),
         min(MAX_DECK_SIZE, max(len(first.cards), len(second.cards))),
     )
-    first_counts = Counter(first.cards)
+    first_counts = Counter(first.cards) # Counter creates a Iterable of Item:Occurence_count
     second_counts = Counter(second.cards)
-    shared = first_counts & second_counts
+    shared = first_counts & second_counts # & performs intersect, fancy stuff
     cards = list(shared.elements())
-    inherited = list((first_counts - shared).elements()) + list(
-        (second_counts - shared).elements()
-    )
-    rng.shuffle(inherited)
-    for card_id in inherited:
-        if len(cards) >= target_size:
-            break
-        if card_id in _legal_additions(cards, card_pool):
-            cards.append(card_id)
-    while len(cards) < target_size:
-        legal = _legal_additions(cards, card_pool)
-        if not legal:
-            raise ValueError("Card pool cannot complete crossover offspring")
-        cards.append(rng.choice(legal))
+    remaining = list(((first_counts | second_counts) - shared).elements()) # | performs join
+    rng.shuffle(remaining)  # remaining contains non shared cards
+    cards.extend(remaining[: target_size - len(cards)]) # fill in the new deck up to target size with remaining cards
+    if len(cards) != target_size:
+        raise RuntimeError("Valid parents could not produce a complete child")
+
     child = DeckGenome(tuple(cards))
     child.validate(card_pool)
     return child
@@ -237,8 +239,18 @@ def _tournament(
     rng: random.Random,
     settings: CompositionEvolutionSettings,
 ) -> DeckGenome:
+    # Randomly select the genomes that will compete in this tournament.
     contestants = rng.sample(list(population), settings.tournament_size)
-    return max(contestants, key=lambda item: item.fitness).genome
+
+    # Start by treating the first contestant as the current winner.
+    winner = contestants[0]
+
+    # Replace the current winner whenever a fitter contestant is found.
+    for contestant in contestants[1:]:
+        if contestant.fitness > winner.fitness:
+            winner = contestant
+
+    return winner.genome
 
 
 def next_population(
@@ -251,24 +263,27 @@ def next_population(
     if len(evaluated) != settings.population_size:
         raise ValueError("Evaluated population has the wrong size")
     ranked = sorted(evaluated, key=lambda item: item.fitness, reverse=True)
-    population = [item.genome for item in ranked[: settings.elite_count]]
+    population = [item.genome for item in ranked[: settings.elite_count]] # keep only elite_count best genomes
     seen = set(population)
     attempts = 0
-    while len(population) < settings.population_size:
+    while len(population) < settings.population_size: # fill
         attempts += 1
+        # new random
         if rng.random() < settings.random_injection_rate:
-            child = random_genome(card_pool, rng, settings)
+            new_genome = random_genome(card_pool, rng, settings)
         else:
             first = _tournament(ranked, rng, settings)
-            child = first
+            new_genome = first
+        # new child
             if rng.random() < settings.crossover_rate:
                 second = _tournament(ranked, rng, settings)
-                child = crossover_genomes(first, second, card_pool, rng, settings)
+                new_genome = crossover_genomes(first, second, card_pool, rng, settings)
+        # new mutated
             if rng.random() < settings.mutation_rate:
-                child = mutate_genome(child, card_pool, rng, settings)
-        if child not in seen:
-            seen.add(child)
-            population.append(child)
+                new_genome = mutate_genome(new_genome, card_pool, rng, settings)
+        if new_genome not in seen:
+            seen.add(new_genome)
+            population.append(new_genome)
         if attempts >= settings.uniqueness_attempts:
             raise RuntimeError("Could not breed a unique deck population")
     return population

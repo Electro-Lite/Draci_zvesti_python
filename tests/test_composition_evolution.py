@@ -12,6 +12,7 @@ from neat_ai.direct_deck_evolution_algorithm import (
     DeckGenome,
     EvaluatedDeckGenome,
     available_cards,
+    crossover_genomes,
     initial_population,
     mutate_genome,
     next_population,
@@ -107,6 +108,32 @@ class CompositionEvolutionTests(unittest.TestCase):
 
         self.assertNotEqual(mutated, genome)
         mutated.validate(self.pool)
+
+    def test_crossover_uses_only_parent_cards_and_preserves_shared_cards(self):
+        offset = MAX_DECK_SIZE - MIN_DECK_SIZE
+        first = DeckGenome(
+            tuple(f"normal-{index}" for index in range(MIN_DECK_SIZE))
+        )
+        second = DeckGenome(
+            tuple(
+                f"normal-{index}"
+                for index in range(offset, offset + MIN_DECK_SIZE)
+            )
+        )
+
+        child = crossover_genomes(
+            first,
+            second,
+            self.pool,
+            random.Random(7),
+            self.settings,
+        )
+
+        child.validate(self.pool)
+        self.assertEqual(len(child.cards), MIN_DECK_SIZE)
+        self.assertLessEqual(set(child.cards), set(first.cards) | set(second.cards))
+        shared = set(first.cards) & set(second.cards)
+        self.assertLessEqual(shared, set(child.cards))
 
     def test_checkpoint_restores_population_and_random_stream(self):
         rng = random.Random(104729)
