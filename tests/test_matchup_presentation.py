@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
+from core.config import MIN_DECK_SIZE
 from py_game.matchup_presentation import load_matchup_presentation
 from py_game.ui.layout import LayoutMetrics
 from py_game.ui.matchup_dashboard import matchup_dashboard_layout
@@ -153,10 +154,10 @@ class MatchupPresentationTests(unittest.TestCase):
             "opponent_deck_name": "Snapshot B",
             "deck_1_cards": [
                 {"id": "old", "name": "Saved card", "color": "Blue"}
-            ] * 10,
+            ] * MIN_DECK_SIZE,
             "deck_2_cards": [
                 {"id": "rival", "name": "Saved rival", "color": "Red"}
-            ] * 10,
+            ] * MIN_DECK_SIZE,
         }
         with tempfile.TemporaryDirectory() as root:
             detail = load_matchup_presentation(
@@ -165,7 +166,7 @@ class MatchupPresentationTests(unittest.TestCase):
 
         self.assertEqual(detail.deck_a.name, "Snapshot A")
         self.assertEqual(detail.deck_a.cards[0].card_id, "old")
-        self.assertEqual(detail.deck_a.cards[0].copies, 10)
+        self.assertEqual(detail.deck_a.cards[0].copies, MIN_DECK_SIZE)
         self.assertEqual(detail.deck_b.cards[0].card_id, "rival")
 
 

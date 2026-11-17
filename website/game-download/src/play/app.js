@@ -18,9 +18,9 @@ const TRANSLATIONS = {
     createLobby: "Create lobby", lobbyName: "Lobby name", password: "Password", optional: "(optional)",
     leaveMatch: "Leave match", waitingState: "Waiting for match state…", close: "Close",
     unnamedDeck: "Unnamed deck", readyOnline: "Ready for online play", invalid: "invalid",
-    selectDeck: "Select a deck", deckSize: "Deck must contain 10–12 cards", unknownCard: "Unknown card: {id}",
+    selectDeck: "Select a deck", deckSize: "Deck must contain {min}–{max} cards", unknownCard: "Unknown card: {id}",
     maxCopies: "{name} allows at most {count} {copies}", copy: "copy", copies: "copies",
-    deckFull: "Deck already has 12 cards", attack: "attack", health: "health",
+    deckFull: "Deck already has {max} cards", attack: "attack", health: "health",
     enterName: "Enter a player name", reconnecting: "Reconnecting", online: "Online",
     reconnected: "Reconnected", connectingArena: "Connecting to the arena…",
     connectionInterrupted: "Connection interrupted. Reconnecting…", sessionRestored: "Session restored.",
@@ -53,9 +53,9 @@ const TRANSLATIONS = {
     createLobby: "Vytvořit lobby", lobbyName: "Název lobby", password: "Heslo", optional: "(nepovinné)",
     leaveMatch: "Opustit hru", waitingState: "Čekání na stav hry…", close: "Zavřít",
     unnamedDeck: "Balíček bez názvu", readyOnline: "Připraveno pro online hru", invalid: "neplatný",
-    selectDeck: "Vyberte balíček", deckSize: "Balíček musí obsahovat 10–12 karet", unknownCard: "Neznámá karta: {id}",
+    selectDeck: "Vyberte balíček", deckSize: "Balíček musí obsahovat {min}–{max} karet", unknownCard: "Neznámá karta: {id}",
     maxCopies: "Karta {name} smí být v balíčku nejvýše {count}×", copy: "kopie", copies: "kopie",
-    deckFull: "Balíček již obsahuje 12 karet", attack: "útok", health: "životy",
+    deckFull: "Balíček již obsahuje {max} karet", attack: "útok", health: "životy",
     enterName: "Zadejte jméno hráče", reconnecting: "Obnovování spojení", online: "Online",
     reconnected: "Znovu připojeno", connectingArena: "Připojování k aréně…",
     connectionInterrupted: "Spojení bylo přerušeno. Obnovuji…", sessionRestored: "Relace obnovena.",
@@ -81,6 +81,7 @@ const TRANSLATIONS = {
 
 const state = {
   catalog: [], cards: new Map(), decks: [], activeDeckId: null,
+  rules: null,
   language: localStorage.getItem(LANGUAGE_KEY) === "cs" ? "cs" : "en",
   socket: null, sequence: 0, connected: false, role: null,
   lobbies: [], onlineLobby: null, lobbyState: null, serverStatus: null,
@@ -138,7 +139,9 @@ function preloadCardThumbnails(cards) {
 
 function deckError(deck) {
   if (!deck) return t("selectDeck");
-  if (deck.cardIds.length < 10 || deck.cardIds.length > 12) return t("deckSize");
+  if (deck.cardIds.length < state.rules.minDeckSize || deck.cardIds.length > state.rules.maxDeckSize) {
+    return t("deckSize", { min: state.rules.minDeckSize, max: state.rules.maxDeckSize });
+  }
   const counts = new Map();
   for (const id of deck.cardIds) {
     const card = cardById(id); if (!card || card.type !== "PLAYER") return t("unknownCard", { id });
@@ -177,7 +180,7 @@ function renderDecks() {
   }
   const deck = activeDeck();
   $("#deck-name").value = deck?.name || ""; $("#deck-name").disabled = !deck;
-  $("#deck-count").textContent = `${deck?.cardIds.length || 0}/12`;
+  $("#deck-count").textContent = `${deck?.cardIds.length || 0}/${state.rules.maxDeckSize}`;
   const error = deckError(deck); const status = $("#deck-validation");
   status.textContent = error || t("readyOnline"); status.className = `status-line ${error ? "bad" : "good"}`;
   const container = $("#deck-cards"); container.replaceChildren();
@@ -205,7 +208,9 @@ function renderCatalog() {
     tile.innerHTML = thumbnail ? `<img src="${encodeURI(thumbnail)}" alt="${safeText(card.name)}" loading="lazy" decoding="async">` : `<span class="missing-art">${safeText(card.name)}</span>`;
     tile.onclick = () => {
       const deck = activeDeck(); if (!deck) return;
-      if (deck.cardIds.length >= 12) return toast(t("deckFull"));
+      if (deck.cardIds.length >= state.rules.maxDeckSize) {
+        return toast(t("deckFull", { max: state.rules.maxDeckSize }));
+      }
       const count = deck.cardIds.filter((id) => id === card.id).length; const limit = card.power === 2 ? 1 : 4;
       if (count >= limit) return toast(t("maxCopies", { name: card.name, count: limit, copies: t(limit === 1 ? "copy" : "copies") }));
       deck.cardIds.push(card.id); saveDecks();
@@ -412,7 +417,7 @@ function bind() {
   $("#deck-name").onchange = (event) => { const deck = activeDeck(); if (deck) { deck.name = event.target.value.trim() || t("unnamedDeck"); saveDecks(); } };
   $("#card-search").oninput = renderCatalog; $("#color-filter").onchange = renderCatalog;
   $("#export-decks").onclick = () => { const blob = new Blob([JSON.stringify({ schemaVersion: 1, decks: state.decks }, null, 2)], { type: "application/json" }); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = "draci-zvesti-decks.json"; link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 1000); };
-  $("#import-decks").onchange = async (event) => { try { const parsed = JSON.parse(await event.target.files[0].text()); if (!Array.isArray(parsed.decks)) throw new Error("Invalid deck file"); state.decks = parsed.decks.map((deck) => ({ id: uid(), name: String(deck.name ?? "").slice(0, 80) || t("importedDeck"), cardIds: Array.isArray(deck.cardIds) ? deck.cardIds.filter((id) => state.cards.has(id)).slice(0, 12) : [] })); state.activeDeckId = state.decks[0]?.id || null; saveDecks(); toast(t("decksImported")); } catch (error) { toast(error.message); } event.target.value = ""; };
+  $("#import-decks").onchange = async (event) => { try { const parsed = JSON.parse(await event.target.files[0].text()); if (!Array.isArray(parsed.decks)) throw new Error("Invalid deck file"); state.decks = parsed.decks.map((deck) => ({ id: uid(), name: String(deck.name ?? "").slice(0, 80) || t("importedDeck"), cardIds: Array.isArray(deck.cardIds) ? deck.cardIds.filter((id) => state.cards.has(id)).slice(0, state.rules.maxDeckSize) : [] })); state.activeDeckId = state.decks[0]?.id || null; saveDecks(); toast(t("decksImported")); } catch (error) { toast(error.message); } event.target.value = ""; };
   $("#online-deck").onchange = () => { const deck = state.decks.find((item) => item.id === $("#online-deck").value); if (deck) state.activeDeckId = deck.id; };
   $("#connect-online").onclick = connect; $("#refresh-lobbies").onclick = () => state.connected && send("list_lobbies");
   $("#create-lobby").onclick = () => { try { deckDescriptor(selectedOnlineDeck()); send("create_online_lobby", { name: $("#lobby-name").value.trim(), password: $("#lobby-password").value }, { requestId: crypto.randomUUID() }); } catch (error) { toast(error.message); } };
@@ -424,7 +429,9 @@ function bind() {
 
 async function init() {
   const response = await fetch("catalog.json", { cache: "no-store" }); if (!response.ok) throw new Error("Card catalogue is unavailable");
-  const data = await response.json(); state.catalog = data.cards; state.cards = new Map(data.cards.map((card) => [card.id, card])); preloadCardThumbnails(data.cards); document.body.dataset.view = "decks";
+  const data = await response.json();
+  if (!Number.isInteger(data.rules?.minDeckSize) || !Number.isInteger(data.rules?.maxDeckSize)) throw new Error("Card catalogue has no deck-size rules");
+  state.rules = data.rules; state.catalog = data.cards; state.cards = new Map(data.cards.map((card) => [card.id, card])); preloadCardThumbnails(data.cards); document.body.dataset.view = "decks";
   $("#player-name").value = localStorage.getItem(NAME_KEY) || "Browser player"; loadDecks(data.presets || []); bind(); applyLanguage();
 }
 

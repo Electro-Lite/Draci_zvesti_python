@@ -6,6 +6,7 @@ import pygame as pg
 
 from cards.deck import Deck
 from cards.power import Power
+from core.config import MAX_DECK_SIZE, MIN_DECK_SIZE
 from py_game.deck_editor import DeckBuilderMenu
 from py_game.menu.deck_menu import DeckMenu
 from py_game.ui.deck_management import CardDetailOverlay, deck_validation
@@ -18,14 +19,16 @@ def card(card_id, power=Power.NORMAL):
 class DeckManagementTests(TestCase):
     def test_validation_groups_copies_by_stable_card_id(self):
         deck = Deck()
-        deck.cards = [card("same") for _ in range(5)] + [card(f"other-{i}") for i in range(5)]
+        deck.cards = [card("same") for _ in range(5)] + [
+            card(f"other-{i}") for i in range(MIN_DECK_SIZE - 5)
+        ]
 
         with self.assertRaisesRegex(ValueError, "at most 4"):
             deck.validate()
 
     def test_validation_uses_authoritative_legendary_power(self):
         cards = [card("legend", Power.LEGENDARY), card("legend", Power.LEGENDARY)]
-        cards.extend(card(f"normal-{index}") for index in range(8))
+        cards.extend(card(f"normal-{index}") for index in range(MIN_DECK_SIZE - 2))
 
         valid, message = deck_validation(cards)
 
@@ -36,13 +39,15 @@ class DeckManagementTests(TestCase):
         menu = DeckBuilderMenu.__new__(DeckBuilderMenu)
         capped = card("capped")
         menu.all_cards = [capped, card("other")]
-        menu.deck_cards = [capped] * 4 + [card(f"fill-{index}") for index in range(8)]
+        menu.deck_cards = [capped] * 4 + [
+            card(f"fill-{index}") for index in range(MAX_DECK_SIZE - 4)
+        ]
 
         self.assertEqual(menu._available_cards(), menu.all_cards)
 
     def test_new_save_uses_fresh_identity(self):
         menu = DeckBuilderMenu.__new__(DeckBuilderMenu)
-        menu.deck_cards = [card(f"card-{index}") for index in range(10)]
+        menu.deck_cards = [card(f"card-{index}") for index in range(MIN_DECK_SIZE)]
         menu.deck_name = "Independent copy"
         menu.deck_description = "kept"
         menu.deck_power = 0
@@ -64,7 +69,7 @@ class DeckManagementTests(TestCase):
 
     def test_save_failure_preserves_unsaved_edits_for_retry(self):
         menu = DeckBuilderMenu.__new__(DeckBuilderMenu)
-        menu.deck_cards = [card(f"card-{index}") for index in range(10)]
+        menu.deck_cards = [card(f"card-{index}") for index in range(MIN_DECK_SIZE)]
         menu.deck_name = "Retry me"
         menu.deck_description = "still here"
         menu.deck_power = 0
@@ -88,7 +93,7 @@ class DeckManagementTests(TestCase):
         menu = DeckBuilderMenu.__new__(DeckBuilderMenu)
         menu.deck_name = "Source copy"
         menu.deck_description = "description"
-        menu.deck_cards = [card(f"card-{index}") for index in range(10)]
+        menu.deck_cards = [card(f"card-{index}") for index in range(MIN_DECK_SIZE)]
         menu._original = menu._snapshot()
         menu.unsaved_copy = True
         menu.dirty = False

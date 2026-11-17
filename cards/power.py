@@ -1,7 +1,7 @@
 from enum import Enum
 
 class Power(Enum):
-    """Card/Deck rarity"""
+    """Card and deck power tier."""
     STARTER     = 0
     NORMAL      = 1
     LEGENDARY   = 2

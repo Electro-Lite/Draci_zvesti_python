@@ -22,6 +22,7 @@ from neat_ai.config_profiles import config_path
 
 from choice_strategies.choice_strategy_ai_neat import PlayerChoiceStrategyNeat
 from core.game_loop import run as run_game
+from core.config import MIN_DECK_SIZE
 from core.player import Player
 from display_strategies.display_strategy_none import DisplayStrategyNone
 from neat_ai.deck_builder import build_deck
@@ -426,7 +427,7 @@ def train_counter_decks(subject_deck, settings: CounterDeckTrainerSettings | Non
             deck.id = f"counter-g{outer_generation}-{builder_id}"
             deck.name = f"Counter G{outer_generation} #{builder_id}"
             genome.fitness = -1_000_000.0
-            if len(deck.cards) >= 10:
+            if len(deck.cards) >= MIN_DECK_SIZE:
                 decks_by_id[builder_id] = deck
                 valid_genomes[builder_id] = genome
         if not decks_by_id:

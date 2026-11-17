@@ -1,5 +1,6 @@
 from cards.card import Card
 from cards.power import Power
+from core.config import MAX_DECK_SIZE, MIN_DECK_SIZE
 class Deck():
     
     def __init__(self):
@@ -29,14 +30,14 @@ class Deck():
     def validate(self, validate_min_cards = True):
         """
         Validates the deck according to the rules:
-        - Deck must have 10-12 cards.
+        - Deck size must stay within the configured limits.
         - Max 4 duplicates for normal cards.
         - Max 1 duplicate for legendary cards.
         """
-        if len(self.cards) > 12:
-            raise ValueError("Deck may contain at most 12 cards.")
-        if validate_min_cards and len(self.cards) < 10:
-            raise ValueError("Deck must contain at least 10 cards.")
+        if len(self.cards) > MAX_DECK_SIZE:
+            raise ValueError(f"Deck may contain at most {MAX_DECK_SIZE} cards.")
+        if validate_min_cards and len(self.cards) < MIN_DECK_SIZE:
+            raise ValueError(f"Deck must contain at least {MIN_DECK_SIZE} cards.")
 
         card_counts = {}
         representatives = {}
@@ -62,7 +63,7 @@ class Deck():
         deck_info = []
         for card in self.cards:
             deck_info.extend(card.get_neat_ids())
-        unused_deck_space = 12 - len(self.cards) # 12 is max cards in deck TODO move this value to config
+        unused_deck_space = MAX_DECK_SIZE - len(self.cards)
         if unused_deck_space > 0:
             deck_info.extend([0] * 6 * unused_deck_space)
         return deck_info

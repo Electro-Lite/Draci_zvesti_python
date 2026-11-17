@@ -8,6 +8,7 @@ import secrets
 from dataclasses import dataclass, field
 
 from neat_ai.training_plan import matchup_checkpoints
+from core.config import MIN_DECK_SIZE
 from py_game.training_service import TrainingKind, TrainingRequest
 from py_game.ui.layout import LayoutMetrics, RectSpec
 from py_game.ui.training_setup import presets_for, training_workload
@@ -442,9 +443,9 @@ class TrainingCockpitState:
                 and getattr(card.power, "value", card.power)
                 <= request.max_card_power
             )
-            if capacity < 10:
+            if capacity < MIN_DECK_SIZE:
                 errors["banned_card_ids"] = (
-                    "Card level and bans leave fewer than 10 legal deck slots"
+                    f"Card level and bans leave fewer than {MIN_DECK_SIZE} legal deck slots"
                 )
                 return CockpitValidation(errors, None)
         return CockpitValidation(errors, request)

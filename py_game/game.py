@@ -24,6 +24,7 @@ from py_game.network.protocol import MessageType
 from py_game.network.enums import MatchStatus, LobbyRole
 from py_game.network.session import ConnectionState
 from core.enums.battle_phase import BattlePhase, FINAL_BATTLE_PHASES
+from core.config import MAX_DECK_SIZE
 
 from core.game_loop         import run as run_game
 from choice_strategies.choice_strategy_human_pygame import (
@@ -876,7 +877,10 @@ class Game():
             opponent_zone,
             accent=self.palette.danger,
         )
-        opponent_cards = min(12, int(state.get("opponent", {}).get("hand_count", 0)))
+        opponent_cards = min(
+            MAX_DECK_SIZE,
+            int(state.get("opponent", {}).get("hand_count", 0)),
+        )
         opponent_card_area = pygame.Rect(
             opponent_hand_area.x,
             opponent_hand_area.y,

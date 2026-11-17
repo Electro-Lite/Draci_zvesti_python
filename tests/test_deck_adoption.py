@@ -6,6 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from cards.card import Card
+from core.config import MIN_DECK_SIZE
 from neat_ai.player_artifacts import export_player_artifact, load_player_artifact
 from py_game.deck_adoption import (
     AdoptableDeck,
@@ -37,7 +38,7 @@ class _AdoptionDatabase:
         return self.cards.get(card_id)
 
 
-def _cards(count=10):
+def _cards(count=MIN_DECK_SIZE):
     return tuple(Card(id=f"card-{index}", name=f"Card {index}") for index in range(count))
 
 

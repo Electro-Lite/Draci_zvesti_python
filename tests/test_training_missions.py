@@ -3,6 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from core.config import MIN_DECK_SIZE
 from neat_ai.player_trainer import (
     CounterDeckTrainerSettings,
     build_summary,
@@ -28,7 +29,7 @@ class _Card:
 class _Deck:
     id = "subject"
     name = "Subject deck"
-    cards = tuple(_Card(f"card-{index}") for index in range(10))
+    cards = tuple(_Card(f"card-{index}") for index in range(MIN_DECK_SIZE))
 
 
 class TrainingMissionTests(unittest.TestCase):
@@ -123,7 +124,7 @@ class TrainingMissionTests(unittest.TestCase):
         self.assertEqual(result["evaluation"]["ai_wins"], 9)
         self.assertEqual(result["skill_evaluations"], [checkpoint])
         self.assertEqual(result["best_fitness"], 4.0)
-        self.assertEqual(len(result["deck_1_cards"]), 10)
+        self.assertEqual(len(result["deck_1_cards"]), MIN_DECK_SIZE)
         self.assertEqual(result["deck_1_cards"][0]["id"], "card-0")
 
     def test_counter_job_insights_expose_top_counter(self):

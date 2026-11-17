@@ -19,6 +19,7 @@ class ActiveAbilityStub(SimpleNamespace):
 
 from cards.ability.ability_target import AbilityTarget
 from cards.power import Power
+from core.config import MIN_DECK_SIZE
 from choice_strategies.choice_strategy_human_pygame import (
     PASS_SELECTION,
     ChoiceType,
@@ -858,7 +859,7 @@ class PygameServiceTests(unittest.TestCase):
             deck=SimpleNamespace(
                 deck_id="top-id",
                 name="Top candidate",
-                cards=(SimpleNamespace(card_id="top-card", copies=10),),
+                cards=(SimpleNamespace(card_id="top-card", copies=MIN_DECK_SIZE),),
             ),
         )
         selected = SimpleNamespace(
@@ -866,7 +867,7 @@ class PygameServiceTests(unittest.TestCase):
             deck=SimpleNamespace(
                 deck_id="selected-id",
                 name="Selected candidate",
-                cards=(SimpleNamespace(card_id="selected-card", copies=10),),
+                cards=(SimpleNamespace(card_id="selected-card", copies=MIN_DECK_SIZE),),
             ),
         )
         detail = SimpleNamespace(
@@ -883,16 +884,18 @@ class PygameServiceTests(unittest.TestCase):
 
         source = menu._begin_adoption.call_args.args[0]
         self.assertEqual(source.source_id, "selected-id")
-        self.assertEqual(source.card_ids, ("selected-card",) * 10)
+        self.assertEqual(source.card_ids, ("selected-card",) * MIN_DECK_SIZE)
 
     def test_evolution_adoption_uses_browser_selection_not_default_deck(self):
         top = SimpleNamespace(
-            deck_id="top-id", name="Top deck", card_ids=("top-card",) * 10
+            deck_id="top-id",
+            name="Top deck",
+            card_ids=("top-card",) * MIN_DECK_SIZE,
         )
         selected = SimpleNamespace(
             deck_id="selected-id",
             name="Selected deck",
-            card_ids=("selected-card",) * 10,
+            card_ids=("selected-card",) * MIN_DECK_SIZE,
         )
         detail = SimpleNamespace(
             decks=(top, selected),
@@ -908,7 +911,7 @@ class PygameServiceTests(unittest.TestCase):
 
         source = menu._begin_adoption.call_args.args[0]
         self.assertEqual(source.source_id, "selected-id")
-        self.assertEqual(source.card_ids, ("selected-card",) * 10)
+        self.assertEqual(source.card_ids, ("selected-card",) * MIN_DECK_SIZE)
 
     def test_double_clicking_generated_deck_opens_adoption_for_that_deck(self):
         detail = SimpleNamespace(decks=())

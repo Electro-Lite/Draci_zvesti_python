@@ -13,6 +13,7 @@ from cards.card import Card
 from utils.database_utils import DBUtil
 from cards.power import Power
 from cards.ability.abilities import Ability
+from core.config import MAX_DECK_SIZE
 
 # Optional Pillow import for better image preview; fall back gracefully if not available
 try:
@@ -24,7 +25,6 @@ except ImportError:
 
 
 PREVIEW_MAX_SIZE = (360, 280)  # width, height in pixels
-MAX_DECK_CARDS = 12            # maximum cards allowed in a deck
 
 # simple helper to ensure we always print exception details to the console
 logging.basicConfig(level=logging.DEBUG)
@@ -476,11 +476,11 @@ class DeckBuilderApp(ttk.Frame):
             self.status_var.set("Preview failed for selected image")
 
     def try_add_card(self, card: Card):
-        """Centralized logic to attempt to add a Card to current_deck respecting the MAX_DECK_CARDS limit."""
+        """Attempt to add a card while respecting the configured deck limit."""
         if card is None:
             return False
-        if len(self.current_deck) >= MAX_DECK_CARDS:
-            messagebox.showwarning('Deck Full', f'Cannot add more than {MAX_DECK_CARDS} cards to a deck.')
+        if len(self.current_deck) >= MAX_DECK_SIZE:
+            messagebox.showwarning('Deck Full', f'Cannot add more than {MAX_DECK_SIZE} cards to a deck.')
             return False
         # Add card (allow duplicates) and refresh UI
         self.current_deck.append(card)

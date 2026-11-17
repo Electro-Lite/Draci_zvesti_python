@@ -6,6 +6,7 @@ import threading
 from types import SimpleNamespace
 
 from choice_strategies.choice_strategy_ai_random import ChoiceStrategyAIRandom
+from core.config import MIN_DECK_SIZE
 from core.board import Board
 from core.game_loop import run as run_game
 from core.player import Player
@@ -305,7 +306,7 @@ class RemoteDeckTransferTests(unittest.TestCase):
 
         remote = self.database.load_deck("Killer Queen_1")
         descriptor = serialize_deck_selection(remote)
-        descriptor["card_ids"] = [descriptor["card_ids"][0]] * 10
+        descriptor["card_ids"] = [descriptor["card_ids"][0]] * MIN_DECK_SIZE
         with self.assertRaisesRegex(ValueError, "maximum"):
             reconstruct_remote_deck(descriptor, self.database.load_card)
 

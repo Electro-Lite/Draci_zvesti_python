@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
+from core.config import MIN_DECK_SIZE
 from neat_ai.player_artifacts import (
     composition_signature,
     discover_player_artifacts,
@@ -91,7 +92,7 @@ class PlayerArtifactTests(unittest.TestCase):
 
     def test_match_validation_rejects_a_controller_for_another_composition(self):
         first = _deck()
-        second = _deck(card_ids=["other"] * 10)
+        second = _deck(card_ids=["other"] * MIN_DECK_SIZE)
         controller = ControllerSpec(
             ControllerKind.TRAINED_AI,
             "model.pickle",

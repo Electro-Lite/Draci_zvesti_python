@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from core.config import MIN_DECK_SIZE
 from py_game.training_lifecycle import (
     ArenaDestination,
     ResultArtifactStatus,
@@ -202,7 +203,10 @@ class TrainingLifecycleTests(unittest.TestCase):
                     {
                         "counter_matchups": [
                             {
-                                "cards": [f"card-{index}" for index in range(10)],
+                                "cards": [
+                                    f"card-{index}"
+                                    for index in range(MIN_DECK_SIZE)
+                                ],
                                 "games": 1000,
                                 "counter_wins": 510,
                                 "draws": 90,

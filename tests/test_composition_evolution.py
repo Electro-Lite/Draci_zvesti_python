@@ -6,11 +6,12 @@ from types import SimpleNamespace
 
 from cards.card_type import CardType
 from cards.power import Power
-from neat_ai.composition_evolution import (
+from core.config import MAX_DECK_SIZE, MIN_DECK_SIZE
+from neat_ai.direct_deck_evolution_algorithm import (
     CompositionEvolutionSettings,
     DeckGenome,
     EvaluatedDeckGenome,
-    eligible_cards,
+    available_cards,
     initial_population,
     mutate_genome,
     next_population,
@@ -28,7 +29,6 @@ def card(card_id, power=Power.NORMAL):
         id=card_id,
         name=card_id,
         power=power,
-        rarity="legendary" if power == Power.LEGENDARY else "normal",
         type=CardType.PLAYER,
     )
 
@@ -36,7 +36,8 @@ def card(card_id, power=Power.NORMAL):
 class CompositionEvolutionTests(unittest.TestCase):
     def setUp(self):
         self.pool = {
-            f"normal-{index}": card(f"normal-{index}") for index in range(12)
+            f"normal-{index}": card(f"normal-{index}")
+            for index in range(MAX_DECK_SIZE)
         }
         self.pool["legendary"] = card("legendary", Power.LEGENDARY)
         self.settings = CompositionEvolutionSettings(population_size=20)
@@ -56,20 +57,23 @@ class CompositionEvolutionTests(unittest.TestCase):
             card("legendary", Power.LEGENDARY),
         ]
 
-        pool = eligible_cards(
-            cards,
-            max_power=Power.NORMAL,
-            banned_card_ids=("banned",),
-        )
+        pool = available_cards(cards, max_power=Power.NORMAL, banned_card_ids=("banned",))
 
         self.assertEqual(set(pool), {"starter", "normal"})
+        self.assertEqual(list(pool), ["normal", "starter"])
 
     def test_validation_enforces_copy_limits(self):
-        legal = DeckGenome(tuple(["normal-1"] * 4 + ["normal-2"] * 4 + ["normal-3"] * 4))
+        legal = DeckGenome(
+            tuple(
+                ["normal-1"] * 4
+                + ["normal-2"] * 4
+                + ["normal-3"] * (MAX_DECK_SIZE - 8)
+            )
+        )
         legal.validate(self.pool)
 
         with self.assertRaisesRegex(ValueError, "limit is 1"):
-            DeckGenome(tuple(["legendary"] * 2 + ["normal-1"] * 4 + ["normal-2"] * 4)).validate(
+            DeckGenome(tuple(["legendary"] * 2 + ["normal-1"] * 4 + ["normal-2"] * (MIN_DECK_SIZE - 6))).validate(
                 self.pool
             )
 
@@ -91,7 +95,9 @@ class CompositionEvolutionTests(unittest.TestCase):
             genome.validate(self.pool)
 
     def test_mutation_changes_composition_without_breaking_legality(self):
-        genome = DeckGenome(tuple(f"normal-{index}" for index in range(10)))
+        genome = DeckGenome(
+            tuple(f"normal-{index}" for index in range(MIN_DECK_SIZE))
+        )
         mutated = mutate_genome(
             genome,
             self.pool,

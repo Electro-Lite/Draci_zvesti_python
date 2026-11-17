@@ -3,6 +3,7 @@ from cards.deck             import Deck
 from cards.card             import Card
 from cards.power            import Power
 from cards.card_type        import CardType
+from core.config            import MAX_DECK_SIZE, MIN_DECK_SIZE
 from neat import nn
 
 
@@ -14,13 +15,11 @@ def _copy_count(deck: Deck, card: Card) -> int:
 
 
 def _copy_limit(card: Card) -> int:
-    if getattr(card, "rarity", None) == "legendary" or card.power == Power.LEGENDARY:
-        return 1
-    return 4
+    return 1 if card.power == Power.LEGENDARY else 4
 
 
 def _can_add_card(deck: Deck, card: Card) -> bool:
-    return len(deck.cards) < 12 and _copy_count(deck, card) < _copy_limit(card)
+    return len(deck.cards) < MAX_DECK_SIZE and _copy_count(deck, card) < _copy_limit(card)
 
 def build_deck(
     net: nn.FeedForwardNetwork,
@@ -40,7 +39,7 @@ def build_deck(
         key=lambda card: card.id
     )
 
-    for i in range(12): # Deck can have up to 12 cards
+    for _ in range(MAX_DECK_SIZE):
         #init
         deck_info       = deck.get_neat_cards_ids()
         legal_cards     = [card for card in cards if _can_add_card(deck, card)]
@@ -62,7 +61,7 @@ def build_deck(
         best_choices.sort(key=lambda choice: (_copy_count(deck, choice[0]), choice[0].id))
         best_card, best_outputs = best_choices[0]
 
-        if len(deck.cards) >= 10 and best_outputs[1] < 0.5:
+        if len(deck.cards) >= MIN_DECK_SIZE and best_outputs[1] < 0.5:
             break
 
         deck.add_card(best_card)

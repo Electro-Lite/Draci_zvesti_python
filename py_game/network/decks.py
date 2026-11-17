@@ -7,12 +7,11 @@ from typing import Callable
 from cards.card_type import CardType
 from cards.deck import Deck
 from cards.power import Power
+from core.config import MAX_DECK_SIZE, MIN_DECK_SIZE
 
 
 MAX_DECK_ID_LENGTH = 128
 MAX_DECK_NAME_LENGTH = 80
-MIN_DECK_CARDS = 10
-MAX_DECK_CARDS = 12
 
 
 def serialize_deck_selection(deck: Deck) -> dict:
@@ -58,9 +57,9 @@ def reconstruct_remote_deck(
         raise ValueError(f"Guest deck name must be at most {MAX_DECK_NAME_LENGTH} characters")
     if not isinstance(card_ids, list):
         raise ValueError("Guest deck card IDs must be a list")
-    if not MIN_DECK_CARDS <= len(card_ids) <= MAX_DECK_CARDS:
+    if not MIN_DECK_SIZE <= len(card_ids) <= MAX_DECK_SIZE:
         raise ValueError(
-            f"Guest deck must contain {MIN_DECK_CARDS}-{MAX_DECK_CARDS} cards"
+            f"Guest deck must contain {MIN_DECK_SIZE}-{MAX_DECK_SIZE} cards"
         )
 
     normalized_ids = []

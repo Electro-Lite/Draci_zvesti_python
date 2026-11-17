@@ -6,7 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from neat_ai.composition_evolution import CompositionEvolutionSettings
+from neat_ai.direct_deck_evolution_algorithm import CompositionEvolutionSettings
 from neat_ai.counter_deck_trainer import CounterDeckTrainerSettings
 from neat_ai.counter_deck_trainer_v2 import train_counter_decks_v2
 from utils.database_utils import DBUtil

@@ -7,10 +7,7 @@ import pygame as pg
 
 from cards.deck import Deck
 from cards.power import Power
-
-
-MIN_DECK_CARDS = 10
-MAX_DECK_CARDS = 12
+from core.config import MAX_DECK_SIZE, MIN_DECK_SIZE
 
 
 def card_key(card) -> str:
@@ -39,11 +36,12 @@ def copy_limit(card) -> int:
 
 
 def deck_validation(cards) -> tuple[bool, str]:
-    if len(cards) < MIN_DECK_CARDS:
-        missing = MIN_DECK_CARDS - len(cards)
+    if len(cards) < MIN_DECK_SIZE:
+        missing = MIN_DECK_SIZE - len(cards)
         return False, f"Add {missing} card{'s' if missing != 1 else ''}"
-    if len(cards) > MAX_DECK_CARDS:
-        return False, f"Remove {len(cards) - MAX_DECK_CARDS} card{'s' if len(cards) - MAX_DECK_CARDS != 1 else ''}"
+    if len(cards) > MAX_DECK_SIZE:
+        excess = len(cards) - MAX_DECK_SIZE
+        return False, f"Remove {excess} card{'s' if excess != 1 else ''}"
     deck = Deck()
     deck.cards = list(cards)
     try:

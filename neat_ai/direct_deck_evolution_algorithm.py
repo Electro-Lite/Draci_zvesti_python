@@ -16,38 +16,36 @@ from typing import Iterable, Mapping, Sequence
 from cards.card_type import CardType
 from cards.deck import Deck
 from cards.power import Power
-
-
-MIN_DECK_SIZE = 10
-MAX_DECK_SIZE = 12
+from core.config import MAX_DECK_SIZE, MIN_DECK_SIZE
 
 
 def card_copy_limit(card) -> int:
     """Return the game copy limit used by deck construction."""
-    if getattr(card, "rarity", None) == "legendary":
-        return 1
-    return 1 if getattr(card, "power", None) == Power.LEGENDARY else 4
+    return 1 if card.power == Power.LEGENDARY else 4
 
 
-def eligible_cards(
-    cards: Iterable,
+def available_cards(
+    _cards: Iterable,
     max_power: Power = Power.LEGENDARY,
     banned_card_ids: Iterable[str] = (),
 ) -> dict[str, object]:
     """Return a deterministic ID-to-card pool suitable for evolution."""
-    banned = {str(card_id) for card_id in banned_card_ids}
-    return {
-        str(card.id): card
-        for card in sorted(cards, key=lambda item: str(item.id))
-        if card.type == CardType.PLAYER
-        and card.power <= max_power
-        and str(card.id) not in banned
-    }
-
+    banned_card_ids = {str(card_id) for card_id in banned_card_ids}
+    cards = []
+    for card in _cards:
+        if str(card.id) in banned_card_ids:
+            continue
+        elif not card.power <= max_power:
+            continue
+        elif card.type != CardType.PLAYER:
+            continue
+        cards.append(card)
+    cards.sort(key=lambda item: str(item.id))  # Sort by card ID.
+    return {str(card.id): card for card in cards}
 
 @dataclass(frozen=True, order=True)
 class DeckGenome:
-    """Canonical, order-independent deck composition."""
+    """Deck genome = deck composition"""
 
     cards: tuple[str, ...]
 
@@ -61,11 +59,11 @@ class DeckGenome:
     def validate(
         self,
         card_pool: Mapping[str, object],
-        min_size: int = MIN_DECK_SIZE,
-        max_size: int = MAX_DECK_SIZE,
     ) -> None:
-        if not min_size <= len(self.cards) <= max_size:
-            raise ValueError(f"Deck genome must contain {min_size}-{max_size} cards")
+        if not MIN_DECK_SIZE <= len(self.cards) <= MAX_DECK_SIZE:
+            raise ValueError(
+                f"Deck genome must contain {MIN_DECK_SIZE}-{MAX_DECK_SIZE} cards"
+            )
         counts = Counter(self.cards)
         for card_id, count in counts.items():
             card = card_pool.get(card_id)
@@ -95,8 +93,6 @@ class CompositionEvolutionSettings:
     crossover_rate: float = 0.80
     mutation_rate: float = 0.90
     random_injection_rate: float = 0.10
-    min_deck_size: int = MIN_DECK_SIZE
-    max_deck_size: int = MAX_DECK_SIZE
     uniqueness_attempts: int = 2_000
 
     def __post_init__(self):
@@ -110,8 +106,6 @@ class CompositionEvolutionSettings:
             value = getattr(self, name)
             if not 0.0 <= value <= 1.0:
                 raise ValueError(f"{name} must be between 0 and 1")
-        if not 1 <= self.min_deck_size <= self.max_deck_size <= MAX_DECK_SIZE:
-            raise ValueError("Invalid composition deck-size range")
 
 
 @dataclass(frozen=True)
@@ -136,7 +130,7 @@ def random_genome(
     rng: random.Random,
     settings: CompositionEvolutionSettings,
 ) -> DeckGenome:
-    target_size = rng.randint(settings.min_deck_size, settings.max_deck_size)
+    target_size = rng.randint(MIN_DECK_SIZE, MAX_DECK_SIZE)
     cards: list[str] = []
     while len(cards) < target_size:
         legal = _legal_additions(cards, card_pool)
@@ -144,7 +138,7 @@ def random_genome(
             raise ValueError("Card pool cannot produce a legal deck composition")
         cards.append(rng.choice(legal))
     genome = DeckGenome(tuple(cards))
-    genome.validate(card_pool, settings.min_deck_size, settings.max_deck_size)
+    genome.validate(card_pool)
     return genome
 
 
@@ -159,9 +153,9 @@ def mutate_genome(
     edits = 2 if rng.random() < 0.20 else 1
     for _ in range(edits):
         operations = ["replace"] * 7
-        if len(cards) < settings.max_deck_size:
+        if len(cards) < MAX_DECK_SIZE:
             operations.append("add")
-        if len(cards) > settings.min_deck_size:
+        if len(cards) > MIN_DECK_SIZE:
             operations.append("remove")
         operation = rng.choice(operations)
         if operation == "remove":
@@ -180,7 +174,7 @@ def mutate_genome(
             cards.append(rng.choice(legal))
 
     child = DeckGenome(tuple(cards))
-    child.validate(card_pool, settings.min_deck_size, settings.max_deck_size)
+    child.validate(card_pool)
     return child
 
 
@@ -193,8 +187,8 @@ def crossover_genomes(
 ) -> DeckGenome:
     """Preserve shared copies, then inherit remaining slots from both parents."""
     target_size = rng.randint(
-        max(settings.min_deck_size, min(len(first.cards), len(second.cards))),
-        min(settings.max_deck_size, max(len(first.cards), len(second.cards))),
+        max(MIN_DECK_SIZE, min(len(first.cards), len(second.cards))),
+        min(MAX_DECK_SIZE, max(len(first.cards), len(second.cards))),
     )
     first_counts = Counter(first.cards)
     second_counts = Counter(second.cards)
@@ -215,7 +209,7 @@ def crossover_genomes(
             raise ValueError("Card pool cannot complete crossover offspring")
         cards.append(rng.choice(legal))
     child = DeckGenome(tuple(cards))
-    child.validate(card_pool, settings.min_deck_size, settings.max_deck_size)
+    child.validate(card_pool)
     return child
 
 

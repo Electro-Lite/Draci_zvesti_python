@@ -8,6 +8,7 @@ import pygame as pg
 
 from cards.deck import Deck
 from cards.power import Power
+from core.config import MAX_DECK_SIZE, MIN_DECK_SIZE
 from py_game.deck_advisor import DeckAdvisor, discover_advisors
 from py_game.menu.base_menu import Menu
 from py_game.ui.deck_management import (
@@ -163,8 +164,8 @@ class DeckBuilderMenu(Menu):
     def _blocked_reason(self, card):
         if card is None:
             return self.tr("editor_select_card")
-        if len(self.deck_cards) >= 12:
-            return self.tr("editor_full")
+        if len(self.deck_cards) >= MAX_DECK_SIZE:
+            return self.tr("editor_full", max=MAX_DECK_SIZE)
         limit = copy_limit(card)
         if self._copy_count(card) >= limit:
             return self.tr("editor_legendary_limit") if limit == 1 else self.tr("editor_copy_limit")
@@ -174,9 +175,15 @@ class DeckBuilderMenu(Menu):
         if valid:
             return self.tr("editor_ready")
         if reason.startswith("Add "):
-            return self.tr("editor_add_cards", count=max(0, 10 - len(self.deck_cards)))
+            return self.tr(
+                "editor_add_cards",
+                count=max(0, MIN_DECK_SIZE - len(self.deck_cards)),
+            )
         if reason.startswith("Remove "):
-            return self.tr("editor_remove_cards", count=max(0, len(self.deck_cards) - 12))
+            return self.tr(
+                "editor_remove_cards",
+                count=max(0, len(self.deck_cards) - MAX_DECK_SIZE),
+            )
         return reason
 
     def _change_count(self, card, delta):
@@ -343,7 +350,7 @@ class DeckBuilderMenu(Menu):
         if narrow:
             tab_w = (catalog.width - m.gap) // 2
             self.controls["collection_tab"] = Button("collection_tab", self.tr("editor_collection"), RectSpec(catalog.x, catalog.y, tab_w, m.target_height), selected=self.narrow_tab == ActivePane.AVAILABLE)
-            self.controls["deck_tab"] = Button("deck_tab", self.tr("editor_deck", count=len(self.deck_cards)), RectSpec(catalog.x + tab_w + m.gap, catalog.y, tab_w, m.target_height), selected=self.narrow_tab == ActivePane.DECK)
+            self.controls["deck_tab"] = Button("deck_tab", self.tr("editor_deck", count=len(self.deck_cards), max=MAX_DECK_SIZE), RectSpec(catalog.x + tab_w + m.gap, catalog.y, tab_w, m.target_height), selected=self.narrow_tab == ActivePane.DECK)
         for button in self.controls.values():
             button.hovered = button.rect.contains(self.game.mouse_position)
 
@@ -559,7 +566,7 @@ class DeckBuilderMenu(Menu):
         pg.draw.rect(self.game.display, self.game.palette.border, target, 2, border_radius=10)
         valid, reason = deck_validation(self.deck_cards)
         self.game.draw_text_left(self.tr("editor_your_deck"), m.font_normal, panel.x + m.gap, panel.y + m.target_height // 2, max_width=panel.width - 120)
-        self.game.draw_text(f"{len(self.deck_cards)} / 12", m.font_normal, panel.right - 55, panel.y + m.target_height // 2, self.game.palette.accent)
+        self.game.draw_text(f"{len(self.deck_cards)} / {MAX_DECK_SIZE}", m.font_normal, panel.right - 55, panel.y + m.target_height // 2, self.game.palette.accent)
         self.game.draw_text_left(self._validation_label(valid, reason), m.font_small, panel.x + m.gap, panel.y + m.target_height, self.game.palette.success if valid else self.game.palette.muted, panel.width - m.gap * 2)
         row_top = panel.y + m.target_height + m.font_small + m.gap
         inspect_h = m.target_height

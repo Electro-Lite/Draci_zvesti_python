@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT))
 
 import cards.ability.abilities as abilities  # noqa: E402
+from core.config import MAX_DECK_SIZE, MIN_DECK_SIZE  # noqa: E402
 from utils.localized_assets import localized_image_path  # noqa: E402
 
 
@@ -121,11 +122,24 @@ def main() -> None:
                 (deck_id,),
             )
         ]
-        if 10 <= len(card_ids) <= 12:
+        if MIN_DECK_SIZE <= len(card_ids) <= MAX_DECK_SIZE:
             presets.append({"id": deck_id, "name": name, "cardIds": card_ids})
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(
-        json.dumps({"schemaVersion": 1, "cards": cards, "presets": presets}, indent=2, ensure_ascii=False) + "\n",
+        json.dumps(
+            {
+                "schemaVersion": 2,
+                "rules": {
+                    "minDeckSize": MIN_DECK_SIZE,
+                    "maxDeckSize": MAX_DECK_SIZE,
+                },
+                "cards": cards,
+                "presets": presets,
+            },
+            indent=2,
+            ensure_ascii=False,
+        )
+        + "\n",
         encoding="utf-8",
     )
     print(f"Wrote {len(cards)} cards and {len(presets)} starter decks to {OUTPUT}")

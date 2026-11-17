@@ -71,8 +71,7 @@ or delete player-made decks in `data/decks.db`.
 
 Deck rules enforced by `Deck.validate()`:
 
-- minimum 10 cards,
-- maximum 12 cards,
+- minimum and maximum size configured in `core/config.py`,
 - maximum 4 copies of normal cards,
 - maximum 1 copy of cards whose `rarity` attribute is `"legendary"`.
 
@@ -543,7 +542,7 @@ Current behavior:
 - preserves two elites, selects parents by tournament, crosses shared card
   copies, performs local card mutations, and injects some random decks,
 - canonicalizes card order and rejects duplicate compositions,
-- enforces 10-12 cards, four normal copies, and one legendary copy,
+- enforces the configured deck-size range, four normal copies, and one legendary copy,
 - saves generated decks to `train.db` with `save_training_deck()`,
 - runs 10 outer generations for each of 4 pre-registered independent seeds,
 - uses 50 inner generations and held-out checkpoints at 5, 20, 35, and 50,

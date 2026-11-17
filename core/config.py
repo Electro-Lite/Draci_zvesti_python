@@ -1,6 +1,10 @@
 from enum import Enum
 
 
+MIN_DECK_SIZE = 10
+MAX_DECK_SIZE = 12
+
+
 class InfoType(Enum):
     INFO    = 0
     DEBUG   = 1

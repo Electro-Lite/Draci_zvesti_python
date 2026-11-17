@@ -17,11 +17,11 @@ from time import ctime, time
 
 from cards.power import Power
 from neat_ai.ai_training_logger import AITrainingLogger, Genome, MatchDBT, Training
-from neat_ai.composition_evolution import (
+from neat_ai.direct_deck_evolution_algorithm import (
     CompositionEvolutionSettings,
     DeckGenome,
     EvaluatedDeckGenome,
-    eligible_cards,
+    available_cards,
     initial_population,
     next_population,
 )
@@ -414,11 +414,8 @@ def train_deck_pool_v2(settings: DeckPoolV2Settings) -> EvaluatedDeckGenome:
         raise RuntimeError("At least 1 GiB of free disk space is required")
     artifact_root = Path(os.environ.get("TRAINING_ARTIFACT_DIR", Path(__file__).parent))
     evaluator_config = config_path("evaluator").read_text(encoding="utf-8")
-    card_pool = eligible_cards(
-        DBUtil().get_all_cards(),
-        max_power=Power(settings.max_card_power),
-        banned_card_ids=settings.banned_card_ids,
-    )
+    card_pool = available_cards(DBUtil().get_all_cards(), max_power=Power(settings.max_card_power),
+                                banned_card_ids=settings.banned_card_ids)
     if not card_pool:
         raise RuntimeError("No eligible player cards are available for deck evolution")
 
