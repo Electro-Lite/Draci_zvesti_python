@@ -41,9 +41,9 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 [Files]
 ; Preserve mutable deck/card databases across upgrades and uninstalls.  The
 ; wildcard entry excludes them and the dedicated entries install only seeds.
-Source: "{#SourceDir}\*"; DestDir: "{app}"; Excludes: "_internal\utils\cards.db,_internal\utils\decks.db"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "{#SourceDir}\_internal\utils\cards.db"; DestDir: "{app}\_internal\utils"; Flags: onlyifdoesntexist uninsneveruninstall
-Source: "{#SourceDir}\_internal\utils\decks.db"; DestDir: "{app}\_internal\utils"; Flags: onlyifdoesntexist uninsneveruninstall
+Source: "{#SourceDir}\*"; DestDir: "{app}"; Excludes: "_internal\data\cards.db,_internal\data\decks.db"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#SourceDir}\_internal\data\cards.db"; DestDir: "{app}\_internal\data"; Flags: onlyifdoesntexist uninsneveruninstall
+Source: "{#SourceDir}\_internal\data\decks.db"; DestDir: "{app}\_internal\data"; Flags: onlyifdoesntexist uninsneveruninstall
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"

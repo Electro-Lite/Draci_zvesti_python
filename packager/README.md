@@ -33,7 +33,7 @@ the intermediate PyInstaller directory for troubleshooting.
 ## Included data
 
 The build includes the current card artwork, Pygame resources, NEAT
-configuration, `utils/cards.db`, `utils/decks.db`, and files currently present
+configuration, `data/cards.db`, `data/decks.db`, and files currently present
 in `neat_ai/trained_ai`.
 
 The large development `train.db`, WAL files, local UI training runs, notebooks,

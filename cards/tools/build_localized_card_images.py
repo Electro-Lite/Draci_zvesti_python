@@ -17,14 +17,14 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from cards.ability import abilities  # noqa: E402
 from cards.power import Power  # noqa: E402
 
 
-CARD_DATABASE = PROJECT_ROOT / "utils" / "cards.db"
+CARD_DATABASE = PROJECT_ROOT / "data" / "cards.db"
 ITALIC_FONT = Path("/usr/share/fonts/TTF/DejaVuSerifCondensed-Italic.ttf")
 BOLD_ITALIC_FONT = Path("/usr/share/fonts/TTF/DejaVuSerif-BoldItalic.ttf")
 

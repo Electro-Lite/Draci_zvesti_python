@@ -1,5 +1,5 @@
 from cards.mana import ManaColor
-from config import Config
+from core.config import Config
 from core.board import Board
 from core.player import Player
 

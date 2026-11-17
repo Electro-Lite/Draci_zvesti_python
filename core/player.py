@@ -1,4 +1,4 @@
-from config import Config
+from core.config import Config
 
 # import decks  as     decks_lib
 from choice_strategies.choice_strategy import PlayerChoiceStrategy

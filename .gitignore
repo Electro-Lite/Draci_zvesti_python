@@ -31,8 +31,8 @@ packager/artifacts/*
 !packager/artifacts/.gitkeep
 
 *.db
-!utils/cards.db
-!utils/decks.db
+!data/cards.db
+!data/decks.db
 *.db-shm
 *.db-wal
 *.db-journal

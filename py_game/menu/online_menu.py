@@ -4,7 +4,7 @@ from math import ceil
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from config import Config
+from core.config import Config
 from py_game.menu.base_menu import Menu
 from py_game.network.decks import reconstruct_remote_deck, serialize_deck_selection
 from py_game.network.lobby import HostLobbyController

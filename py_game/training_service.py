@@ -40,8 +40,8 @@ from cards.power import Power
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 TRAIN_DB_PATH = data_path("train.db")
 JOB_ROOT = data_path(".ui_training")
-CARDS_DB_PATH = data_path("utils", "cards.db")
-DECKS_DB_PATH = data_path("utils", "decks.db")
+CARDS_DB_PATH = data_path("data", "cards.db")
+DECKS_DB_PATH = data_path("data", "decks.db")
 MAX_RECENT_TRAINING_EVENTS = 100
 
 

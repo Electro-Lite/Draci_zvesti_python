@@ -25,6 +25,7 @@ except Exception as e:
     traceback.print_exc()
 
 PREVIEW_MAX_SIZE = (360, 280)  # width, height in pixels
+CARD_IMAGE_DIR = Path(__file__).resolve().parents[1] / "card_images"
 
 # simple helper to ensure we always print exception details to the console
 logging.basicConfig(level=logging.DEBUG)
@@ -337,13 +338,7 @@ class CardBuilderApp(ttk.Frame):
         self.ent_secondary_buff_dmg.configure(state=state)
 
     def browse_image(self):
-        try:
-            cur_dir = Path(__file__).parent
-        except Exception:
-            cur_dir = Path(os.getcwd())
-            _log_exc("Could not determine __file__ parent, using cwd:")
-
-        image_dir = cur_dir / 'card_images'
+        image_dir = CARD_IMAGE_DIR
         # ensure the folder exists so initialdir is valid
         if not image_dir.exists():
             messagebox.showwarning('Images folder', f'No card_images folder found at: {image_dir}')
@@ -390,11 +385,10 @@ class CardBuilderApp(ttk.Frame):
 
         # Reconstruct the absolute path for local loading
         try:
-            cur_dir = Path(__file__).parent
             # By extracting the filename, we avoid recursive path issues like cards/cards/card_images/...
             filename = base_image_path(Path(path).name)
             abs_path = localized_image_path(
-                cur_dir / 'card_images' / filename,
+                CARD_IMAGE_DIR / filename,
                 'cs',
             )
         except Exception:

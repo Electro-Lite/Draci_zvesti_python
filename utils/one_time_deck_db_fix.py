@@ -2,8 +2,8 @@ import sqlite3
 from pathlib import Path
 
 def migrate_database():
-    base_dir = Path(__file__).parent.resolve()
-    decks_path = base_dir / "decks.db"
+    project_root = Path(__file__).resolve().parents[1]
+    decks_path = project_root / "data" / "decks.db"
 
     if not decks_path.exists():
         print("No existing decks.db found. Skipping migration.")

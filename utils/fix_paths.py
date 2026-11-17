@@ -1,6 +1,6 @@
 import sqlite3
 
-def fix_image_paths(db_path="cards.db"):
+def fix_image_paths(db_path="data/cards.db"):
     # Connect to the database
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()

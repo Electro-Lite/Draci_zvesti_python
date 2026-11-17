@@ -16,7 +16,7 @@ from uuid import uuid4
 from websockets.asyncio.server import ServerConnection, serve
 from websockets.exceptions import ConnectionClosed
 
-from config import Config
+from core.config import Config
 from cards.card import Card
 from cards.card_type import CardType
 from cards.mana import ManaColor
@@ -38,7 +38,7 @@ from .session import ConnectionState
 
 
 PASSWORD_ITERATIONS = 120_000
-CARDS_DB_PATH = Path(__file__).resolve().parents[2] / "utils" / "cards.db"
+CARDS_DB_PATH = Path(__file__).resolve().parents[2] / "data" / "cards.db"
 LOGGER = logging.getLogger(__name__)
 AUTHORITATIVE_DRAGON_IDS = (
     "dragon_blue_1",

@@ -166,8 +166,8 @@ def _training_metadata(
         "evaluator_config": evaluator_config,
         "git": _git_metadata(project_root),
         "database_hashes": {
-            "cards": _file_sha256(project_root / "utils" / "cards.db"),
-            "decks": _file_sha256(project_root / "utils" / "decks.db"),
+            "cards": _file_sha256(project_root / "data" / "cards.db"),
+            "decks": _file_sha256(project_root / "data" / "decks.db"),
         },
         "observed_populations": [],
         "termination_reason": None,

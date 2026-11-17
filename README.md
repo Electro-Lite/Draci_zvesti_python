@@ -46,10 +46,10 @@ Python version, for example `python3-tk`.
 ### Card editor
 
 ```bash
-python -m cards.card_builder_GUI
+python -m cards.tools.card_builder_GUI
 ```
 
-Use this to create, load, edit, and delete cards in `utils/cards.db`.
+Use this to create, load, edit, and delete cards in `data/cards.db`.
 
 Important details:
 
@@ -63,11 +63,11 @@ Important details:
 ### Deck editor
 
 ```bash
-python -m cards.deck_builder_GUI
+python -m cards.tools.deck_builder_GUI
 ```
 
 Use this to search saved cards, preview card details, assemble a deck, and save
-or delete player-made decks in `utils/decks.db`.
+or delete player-made decks in `data/decks.db`.
 
 Deck rules enforced by `Deck.validate()`:
 
@@ -177,7 +177,7 @@ python -m neat_ai.clear_training_data
 ```
 
 Delete all training data and old AI-generated decks referenced from
-`utils/decks.db`:
+`data/decks.db`:
 
 ```bash
 python -m neat_ai.clear_training_data --yes
@@ -189,7 +189,7 @@ Delete one training run:
 python -m neat_ai.clear_training_data --training-id 1 --yes
 ```
 
-Keep old AI deck rows in `utils/decks.db` while clearing training tables:
+Keep old AI deck rows in `data/decks.db` while clearing training tables:
 
 ```bash
 python -m neat_ai.clear_training_data --keep-legacy-decks --yes
@@ -296,9 +296,10 @@ The match loop is in `core.game_loop.run()`.
 ### Top-Level Layout
 
 ```text
-cards/              Card model, card/deck GUI tools, card images, abilities
+cards/              Card model, abilities, images, and card-authoring tools
 choice_strategies/  Human, random AI, Pygame, and NEAT decision strategies
 core/               Board, player, game loop, game state
+data/               Tracked card and player-deck seed databases
 display_strategies/ CLI, Pygame, and no-op display adapters
 neat_ai/            NEAT deck/player/evaluator trainers and analysis helpers
 py_game/            Pygame menu and game UI
@@ -328,9 +329,10 @@ training uses `DisplayStrategyNone` to avoid rendering overhead.
 
 ## Databases
 
-Generated databases are local artifacts and are ignored by `.gitignore`.
+The card and deck databases are tracked seed data. Runtime training databases
+and SQLite temporary files are local artifacts ignored by `.gitignore`.
 
-### `utils/cards.db`
+### `data/cards.db`
 
 Stores all cards.
 
@@ -356,7 +358,7 @@ cards(
 Use `DBUtil.save_card()`, `DBUtil.load_card()`, `DBUtil.get_all_cards()`, and
 `DBUtil.delete_card()` rather than writing direct SQL in new code.
 
-### `utils/decks.db`
+### `data/decks.db`
 
 Stores player-made decks.
 
@@ -398,7 +400,7 @@ Important tables:
 - `ai_training_deck_lines`: card lines for those generated decks.
 
 New AI training decks are intentionally stored in `train.db`, not in
-`utils/decks.db`, so player-made decks can be kept clean.
+`data/decks.db`, so player-made decks can be kept clean.
 
 ## AI Training
 
@@ -577,7 +579,7 @@ For safer workflow:
 
 1. Run a dry run.
 2. Check the counts.
-3. Back up `train.db` or `utils/decks.db` if needed.
+3. Back up `train.db` or `data/decks.db` if needed.
 4. Re-run with `--yes`.
 
 ## Analysis
@@ -602,7 +604,7 @@ python -m pip install pandas numpy plotly jupyter ipykernel
 
 Useful modules:
 
-- `data_loader.py`: opens `train.db` and attaches `utils/decks.db`,
+- `data_loader.py`: opens `train.db` and attaches `data/decks.db`,
 - `card_metrics.py`: card tier list and power ratings,
 - `synergies.py`: pair co-occurrence in successful decks,
 - `matchups.py`: deck matchup summaries and matrices,
@@ -638,12 +640,12 @@ main charts.
 If card images were saved with absolute or Windows-style paths, normalize them:
 
 ```bash
-python -c "from utils.fix_paths import fix_image_paths; fix_image_paths('utils/cards.db')"
+python -c "from utils.fix_paths import fix_image_paths; fix_image_paths('data/cards.db')"
 ```
 
 ### Migrate old deck signatures
 
-For an old `utils/decks.db` missing `signature` columns:
+For an old `data/decks.db` missing `signature` columns:
 
 ```bash
 python -m utils.one_time_deck_db_fix
@@ -654,8 +656,8 @@ Current `DBUtil` also adds missing `signature` and `is_AI` columns on startup.
 ### Check database contents
 
 ```bash
-sqlite3 utils/cards.db ".tables"
-sqlite3 utils/decks.db ".tables"
+sqlite3 data/cards.db ".tables"
+sqlite3 data/decks.db ".tables"
 sqlite3 train.db ".tables"
 ```
 

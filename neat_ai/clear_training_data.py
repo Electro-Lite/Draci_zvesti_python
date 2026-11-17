@@ -16,7 +16,7 @@ def main():
     parser.add_argument(
         "--keep-legacy-decks",
         action="store_true",
-        help="Do not delete old AI deck rows from utils/decks.db.",
+        help="Do not delete old AI deck rows from data/decks.db.",
     )
     parser.add_argument(
         "--yes",

@@ -66,7 +66,7 @@ def web_image_paths(
 
 
 def main() -> None:
-    connection = sqlite3.connect(ROOT / "utils" / "cards.db")
+    connection = sqlite3.connect(ROOT / "data" / "cards.db")
     rows = connection.execute(
         """
         SELECT id, name, power, color, hp, dmg, color_dmg_buff,
@@ -112,7 +112,7 @@ def main() -> None:
             }
         )
     presets = []
-    decks = sqlite3.connect(ROOT / "utils" / "decks.db")
+    decks = sqlite3.connect(ROOT / "data" / "decks.db")
     for deck_id, name in (("Starter Blue_1", "Starter Blue"), ("Killer Queen_1", "Killer Queen")):
         card_ids = [
             row[0]

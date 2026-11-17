@@ -23,9 +23,9 @@ class RuntimePathsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             bundle = root / "bundle"
-            (bundle / "utils").mkdir(parents=True)
-            (bundle / "utils" / "cards.db").write_bytes(b"cards-seed")
-            (bundle / "utils" / "decks.db").write_bytes(b"decks-seed")
+            (bundle / "data").mkdir(parents=True)
+            (bundle / "data" / "cards.db").write_bytes(b"cards-seed")
+            (bundle / "data" / "decks.db").write_bytes(b"decks-seed")
             persistent = root / "persistent"
 
             with (
@@ -34,13 +34,39 @@ class RuntimePathsTests(unittest.TestCase):
                 patch.dict(os.environ, {"DRACI_ZVESTI_DATA_DIR": str(persistent)}),
             ):
                 runtime_paths.initialize_packaged_data()
-                decks = persistent / "utils" / "decks.db"
+                decks = persistent / "data" / "decks.db"
                 decks.write_bytes(b"user-data")
                 runtime_paths.initialize_packaged_data()
 
             self.assertEqual(
-                (persistent / "utils" / "cards.db").read_bytes(), b"cards-seed"
+                (persistent / "data" / "cards.db").read_bytes(), b"cards-seed"
             )
             self.assertEqual(decks.read_bytes(), b"user-data")
             self.assertTrue((persistent / ".ui_training").is_dir())
             self.assertTrue((persistent / "trained_ai").is_dir())
+
+    def test_packaged_data_migrates_legacy_utils_databases(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            bundle = root / "bundle"
+            (bundle / "data").mkdir(parents=True)
+            (bundle / "data" / "cards.db").write_bytes(b"cards-seed")
+            (bundle / "data" / "decks.db").write_bytes(b"decks-seed")
+            persistent = root / "persistent"
+            (persistent / "utils").mkdir(parents=True)
+            (persistent / "utils" / "cards.db").write_bytes(b"legacy-cards")
+            (persistent / "utils" / "decks.db").write_bytes(b"legacy-decks")
+
+            with (
+                patch.object(runtime_paths, "PROJECT_ROOT", bundle),
+                patch.object(runtime_paths.sys, "frozen", True, create=True),
+                patch.dict(os.environ, {"DRACI_ZVESTI_DATA_DIR": str(persistent)}),
+            ):
+                runtime_paths.initialize_packaged_data()
+
+            self.assertEqual(
+                (persistent / "data" / "cards.db").read_bytes(), b"legacy-cards"
+            )
+            self.assertEqual(
+                (persistent / "data" / "decks.db").read_bytes(), b"legacy-decks"
+            )

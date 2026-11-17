@@ -4,7 +4,7 @@ This buildless frontend provides local deck management and human-only online
 play. Decks are stored in the browser; the server reconstructs every submitted
 deck from authoritative card IDs and validates every game choice.
 
-Regenerate `catalog.json` after changing `utils/cards.db`, starter decks, or
+Regenerate `catalog.json` after changing `data/cards.db`, starter decks, or
 ability descriptions:
 
 ```bash

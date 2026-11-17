@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 
 import pygame as pg
 
-from cards.card_builder_GUI import valid_color_pair
+from cards.tools.card_builder_GUI import valid_color_pair
 from py_game.settings import AppSettings, SettingsStore
 from py_game.menu.lan_menu import LanMenu
 from py_game.menu.basic_play_menu import BasicPlayMenu

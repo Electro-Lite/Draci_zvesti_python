@@ -21,7 +21,7 @@ from cards.card_type import CardType
 from cards.deck import Deck
 from cards.mana import ManaColor
 from cards.power import Power
-from config import Config
+from core.config import Config
 from choice_strategies.choice_strategy import PlayerChoiceStrategy
 from choice_strategies.choice_strategy_ai_neat import (
     ACTION_OUTPUT_COUNT,

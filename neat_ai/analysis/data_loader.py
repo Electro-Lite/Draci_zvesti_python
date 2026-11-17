@@ -58,7 +58,8 @@ def get_project_root(start: Path | None = None) -> Path:
     for candidate in (current_dir, *current_dir.parents):
         has_train_db = (candidate / "train.db").exists()
         has_decks_db = (
-            (candidate / "utils" / "decks.db").exists()
+            (candidate / "data" / "decks.db").exists()
+            or (candidate / "utils" / "decks.db").exists()
             or (candidate / "decks.db").exists()
         )
         if has_train_db and has_decks_db:
@@ -73,10 +74,11 @@ def get_db_paths() -> tuple[Path, Path]:
     """Locate the training and deck databases used by the analysis layer."""
     project_root = get_project_root()
     train_db_path = project_root / "train.db"
-    decks_db_path = project_root / "utils" / "decks.db"
+    decks_db_path = project_root / "data" / "decks.db"
 
     if not decks_db_path.exists():
-        decks_db_path = project_root / "decks.db"
+        legacy_path = project_root / "utils" / "decks.db"
+        decks_db_path = legacy_path if legacy_path.exists() else project_root / "decks.db"
 
     return train_db_path, decks_db_path
 

@@ -37,13 +37,15 @@ def initialize_packaged_data() -> Path:
     if not getattr(sys, "frozen", False):
         return root
 
-    bundled_utils = PROJECT_ROOT / "utils"
-    writable_utils = root / "utils"
-    writable_utils.mkdir(parents=True, exist_ok=True)
+    bundled_data = PROJECT_ROOT / "data"
+    writable_data = root / "data"
+    writable_data.mkdir(parents=True, exist_ok=True)
     for filename in ("cards.db", "decks.db"):
-        destination = writable_utils / filename
+        destination = writable_data / filename
         if not destination.exists():
-            shutil.copy2(bundled_utils / filename, destination)
+            legacy_database = root / "utils" / filename
+            source = legacy_database if legacy_database.exists() else bundled_data / filename
+            shutil.copy2(source, destination)
 
     (root / ".ui_training").mkdir(parents=True, exist_ok=True)
     (root / "trained_ai").mkdir(parents=True, exist_ok=True)

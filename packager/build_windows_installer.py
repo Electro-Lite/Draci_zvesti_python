@@ -31,8 +31,8 @@ REQUIRED_PATHS = (
     PROJECT_ROOT / "py_game" / "resources",
     PROJECT_ROOT / "cards" / "card_images",
     PROJECT_ROOT / "neat_ai" / "configs",
-    PROJECT_ROOT / "utils" / "cards.db",
-    PROJECT_ROOT / "utils" / "decks.db",
+    PROJECT_ROOT / "data" / "cards.db",
+    PROJECT_ROOT / "data" / "decks.db",
 )
 
 HIDDEN_IMPORTS = (
@@ -121,8 +121,8 @@ def pyinstaller_command(dist_dir: Path, work_dir: Path, spec_dir: Path) -> list[
     add_data(command, PROJECT_ROOT / "py_game" / "resources", "py_game/resources")
     add_data(command, PROJECT_ROOT / "cards" / "card_images", "cards/card_images")
     add_data(command, PROJECT_ROOT / "neat_ai" / "configs", "neat_ai/configs")
-    add_data(command, PROJECT_ROOT / "utils" / "cards.db", "utils")
-    add_data(command, PROJECT_ROOT / "utils" / "decks.db", "utils")
+    add_data(command, PROJECT_ROOT / "data" / "cards.db", "data")
+    add_data(command, PROJECT_ROOT / "data" / "decks.db", "data")
 
     trained_ai = PROJECT_ROOT / "neat_ai" / "trained_ai"
     if trained_ai.is_dir():

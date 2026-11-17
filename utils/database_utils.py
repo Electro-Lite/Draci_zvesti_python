@@ -25,8 +25,8 @@ class DBUtil():
 
     def __init__(self):
         # Dynamically find the folder containing THIS specific python file
-        cards_path = data_path("utils", "cards.db")
-        decks_path = data_path("utils", "decks.db")
+        cards_path = data_path("data", "cards.db")
+        decks_path = data_path("data", "decks.db")
 
         # Connect using the absolute paths as strings
         self.conn_cards = sqlite3.connect(str(cards_path))

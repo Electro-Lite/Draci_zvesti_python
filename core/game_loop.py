@@ -5,11 +5,10 @@ from typing import Optional
 
 from .                                      import game_info as gi
 from .                                      import player as p
-from config                                 import Config
+from core.config                            import Config
 from core.board                             import Board
 from core.enums.battle_phase                import BattlePhase
 from core.enums.card_death_type             import CardDeathType
-# from utils.print_tool                       import *
 from display_strategies.display_strategy    import DisplayStrategy
 from cards.ability.abilities                import Ability, can_use_on_play
 from cards.mana                             import ManaColor
