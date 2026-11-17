@@ -10,13 +10,20 @@ env/
 
 # IDEs and Editors
 .vscode/
+.idea/
 
 # Build and Distribution Artifacts
 dist/
-!website/game-download/dist/
-!website/game-download/dist/**
 build/
 *.egg-info/
+
+# Large local assets and generated browser builds
+cards/card_images/
+py_game/resources/
+website/game-download/dist/
+
+# Locally retained legacy implementations
+py_game/old/
 
 # Windows packaging intermediates and generated installers
 packager/.build/
@@ -36,6 +43,7 @@ db-recovery-*/
 .ui_training/
 .ui_settings.json
 .ui_screenshots/
+trained_ai/
 
 neat_ai/checkpoints/*
 neat_ai/neat_ai/*

@@ -1,6 +1,6 @@
 [Unit]
 Description=Draci Zvesti online WebSocket relay
-Documentation=file:///home/electro/Personal/UPOL/Draci_zvesti_merged/ONLINE_SERVER.md
+Documentation=file:///home/electro/Personal/UPOL/Draci_zvesti_merged/README.md
 After=network-online.target
 Wants=network-online.target
 Before=draci-zvesti.target

@@ -557,9 +557,8 @@ Current behavior:
 The command is expected to run for approximately 8.5-9.5 hours on the measured
 24-thread machine. Because contemporary deck fitness is zero-sum, outer
 progress is evaluated through changes in card frequency, archetypes, diversity,
-and matchup distributions rather than population mean fitness. See
-`trainin-plan.md` for the evidence, methodology, stop conditions, and thesis
-interpretation limits. Runs made with the follow-up defaults must not be pooled
+and matchup distributions rather than population mean fitness. Runs made with
+the follow-up defaults must not be pooled
 with the completed replicated experiment as if their configurations were
 identical.
 

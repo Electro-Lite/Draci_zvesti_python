@@ -5,6 +5,13 @@ builds. The password is never stored in HTML, JavaScript, metadata, or hosting
 settings. The visitor's browser derives the key and decrypts the selected game
 package locally.
 
+Authored browser files live in `src/`; `dist/` is generated and ignored by
+Git. Recreate the static files before deployment with:
+
+```bash
+node tools/build-static.mjs
+```
+
 ## Prepare a release
 
 First build both playable packages. Build the `.exe` on Windows and the
@@ -14,6 +21,7 @@ to this machine if they were built elsewhere.
 From this directory, run:
 
 ```bash
+node tools/build-static.mjs
 node tools/prepare-release.mjs \
   --version 0.1.2 \
   --windows-installer /absolute/path/to/DraciZvesti-0.1.2-Windows-x64-Setup.exe \
@@ -34,8 +42,9 @@ encrypted chunks should be hosted.
 
 ## Browser arena
 
-The human-only browser client is available below `dist/play` and is served at
+The human-only browser client source is under `src/play`. Its generated copy is
+available below `dist/play` and is served at
 the password-protected `/play/` path. It stores decks locally and connects to
 the password-protected online WebSocket service at `/browser-game`. Native game
-clients continue to use `/game`. See `dist/play/README.md` for catalogue
+clients continue to use `/game`. See `src/play/README.md` for catalogue
 generation and asset details.
